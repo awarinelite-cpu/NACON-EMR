@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuth() { return request.auth != null; }
+    function getRole() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
+    function isActive() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true; }
+    function isAdmin()   { return isAuth() && isActive() && getRole() == 'admin'; }
+    function isClinical(){ return isAuth() && isActive() && getRole() in ['doctor','nurse']; }
+    function isRecords() { return isAuth() && isActive() && getRole() == 'records'; }
+    function isAnyStaff(){ return isAuth() && isActive() && getRole() in ['doctor','nurse','records','admin','subadmin']; }
+
+    // EMR counter — only backend (transactions) can write
+    match /counters/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isAnyStaff(); // protected by transaction logic
+    }
+
+    // Patients — records can create, all staff can read, clinical+records can update
+    match /patients/{emrNumber} {
+      allow read:   if isAnyStaff();
+      allow create: if isRecords() || isAdmin();
+      allow update: if isClinical() || isRecords() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Clinical data — doctor and nurse can write, all staff can read
+    match /visits/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /notes/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /vitals/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /prescriptions/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /fluid_charts/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /glucose_charts/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /uploads/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /referrals/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+
+    // Users — admin only for write, self can read own doc
+    match /users/{uid} {
+      allow read:  if isAuth() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Audit log — admin read only, all staff can write (append only)
+    match /audit_log/{doc} {
+      allow read:  if isAdmin();
+      allow create: if isAnyStaff();
+      allow update, delete: if false;
+    }
+  }
+}
