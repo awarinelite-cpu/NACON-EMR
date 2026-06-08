@@ -1,124 +1,153 @@
-// src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 
-const ROLES = [
-  { value: 'doctor',   label: 'Doctor',    icon: 'ti-stethoscope' },
-  { value: 'nurse',    label: 'Nurse',     icon: 'ti-heart-rate-monitor' },
-  { value: 'records',  label: 'Records',   icon: 'ti-folder' },
-  { value: 'admin',    label: 'Admin',     icon: 'ti-shield-lock' },
-  { value: 'subadmin', label: 'Sub-admin', icon: 'ti-user-cog' },
-];
-
 export default function LoginPage() {
-  const { login, toggleTheme, theme } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-  const [email,    setEmail]    = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role,     setRole]     = useState('doctor');
-  const [loading,  setLoading]  = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) { toast.error('Enter your email and password'); return; }
+    if (!email || !password) {
+      toast.error('Enter your email and password');
+      return;
+    }
     setLoading(true);
     try {
       const profile = await login(email, password);
-      if (!profile) { toast.error('Account not found. Contact administrator.'); setLoading(false); return; }
-      if (!profile.active) { toast.error('Account deactivated. Contact admin.'); setLoading(false); return; }
+      if (!profile) {
+        toast.error('Account not found. Contact administrator.');
+        return;
+      }
+      if (!profile.active) {
+        toast.error('Account deactivated. Contact admin.');
+        return;
+      }
       toast.success(`Welcome, ${profile.displayName}!`);
-      const dest = { doctor:'/doctor', nurse:'/nurse', records:'/records', admin:'/admin', subadmin:'/admin' }[profile.role] || '/doctor';
+      const dest = {
+        doctor: '/doctor',
+        nurse: '/nurse',
+        records: '/records',
+        admin: '/admin',
+        subadmin: '/admin'
+      }[profile.role] || '/doctor';
       navigate(dest);
     } catch (err) {
-      toast.error(
-        err.code === 'auth/invalid-credential' ? 'Invalid email or password' :
-        err.code === 'auth/too-many-requests'  ? 'Too many attempts. Try later.' :
-        'Login failed. Try again.'
-      );
+      toast.error(err.code === 'auth/invalid-credential' ? 'Invalid email or password' : 'Login failed. Try again.');
     }
     setLoading(false);
   };
 
   return (
-    <div className="login-page" style={{ position: 'relative' }}>
-      <div className="login-hero">
-        <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-          <div className="login-crest"><i className="ti ti-shield-heart" /></div>
-          <div>
-            <div className="login-school-name">NIGERIAN ARMY COLLEGE OF NURSING</div>
-            <div className="login-school-sub">Medical Reception Station · Yaba, Lagos</div>
-            <div style={{ display:'flex', gap:8, marginTop:8 }}>
-              <span className="pwa-pill"><i className="ti ti-device-mobile" style={{fontSize:12}} /> PWA — works offline</span>
-              <span className="pwa-pill" style={{background:'var(--info-bg)',color:'var(--info)',borderColor:'var(--info)'}}>v1.0</span>
+    <div className="min-h-screen flex overflow-hidden bg-white">
+      {/* Left Panel - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative">
+        <div className="w-full max-w-md">
+          {/* Header */}
+          <div className="flex flex-col items-center text-center mb-10">
+            <div className="text-4xl mb-3">🏥</div>
+            <h1 className="text-2xl font-bold text-gray-800">NIGERIAN ARMY MEDICAL CORPS</h1>
+            <p className="text-sm text-gray-600">(NAMC)</p>
+            
+            <div className="my-6">
+              <img 
+                src="/nacon-crest.png" 
+                alt="NACON Crest" 
+                className="w-28 h-auto mx-auto"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <div className="hidden text-5xl">🛡️</div>
             </div>
+
+            <h2 className="text-xl font-semibold text-gray-800">NIGERIAN ARMY COLLEGE OF NURSING</h2>
+            <p className="text-sm text-gray-500">Medical Reception Station • Yaba, Lagos</p>
+            <p className="text-xs text-gray-400 mt-1">Global-Care HMS v1.0.0</p>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">👤</span>
+                <input
+                  type="email"
+                  className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 text-base"
+                  placeholder="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔒</span>
+                <input
+                  type={showPass ? "text" : "password"}
+                  className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 text-base"
+                  placeholder="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPass ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+
+            {/* Third field like in screenshot */}
+            <div>
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 text-base bg-gray-50"
+                  value="Nigerian Army College of Nursing (NACON)"
+                  disabled
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-medium text-lg transition-all disabled:opacity-70"
+            >
+              {loading ? 'Signing in...' : 'Log In'}
+            </button>
+          </form>
+
+          <div className="text-center mt-8 text-xs text-gray-400">
+            Powered by App Global Technologies Limited
           </div>
         </div>
-        <button onClick={toggleTheme} aria-label="Toggle theme" style={{
-          position:'absolute',top:14,right:14,background:'rgba(255,255,255,.1)',
-          border:'1px solid rgba(255,255,255,.2)',borderRadius:8,padding:'6px 10px',
-          color:'#B5D4F4',cursor:'pointer',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6
-        }}>
-          <i className={`ti ${theme==='light'?'ti-moon':'ti-sun'}`} style={{fontSize:16}} />
-          {theme==='light'?'Dark':'Light'}
-        </button>
       </div>
 
-      <div className="login-body">
-        <form className="login-card" onSubmit={handleLogin} noValidate>
-          <h2 style={{marginBottom:4}}>Sign in</h2>
-          <p className="text-muted text-sm" style={{marginBottom:20}}>NACON MRS EMR — Confidential access only</p>
-
-          <div className="form-group" style={{marginBottom:14}}>
-            <label className="form-label" htmlFor="em">Staff email</label>
-            <input id="em" type="email" className="form-input" placeholder="dr.yelme@naconmrs.ng"
-              value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required />
-          </div>
-
-          <div className="form-group" style={{marginBottom:18}}>
-            <label className="form-label" htmlFor="pw">Password</label>
-            <div style={{position:'relative'}}>
-              <input id="pw" type={showPass?'text':'password'} className="form-input full-width"
-                placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)}
-                autoComplete="current-password" required />
-              <button type="button" onClick={()=>setShowPass(s=>!s)} aria-label="Toggle password"
-                style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',
-                  background:'none',border:'none',cursor:'pointer',color:'var(--t3)'}}>
-                <i className={`ti ${showPass?'ti-eye-off':'ti-eye'}`} style={{fontSize:16}} />
-              </button>
-            </div>
-          </div>
-
-          <div className="form-group" style={{marginBottom:20}}>
-            <label className="form-label">Your role</label>
-            <div className="role-grid">
-              {ROLES.map(r => (
-                <button key={r.value} type="button"
-                  className={`role-btn ${role===r.value?'selected':''}`}
-                  onClick={()=>setRole(r.value)}>
-                  <i className={`ti ${r.icon}`} style={{fontSize:14,display:'block',marginBottom:3}} />
-                  {r.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-sm text-muted" style={{marginTop:6}}>Access is verified from your account record.</p>
-          </div>
-
-          <button type="submit" className="btn btn-navy full-width btn-lg" disabled={loading}>
-            {loading
-              ? <><i className="ti ti-loader-2" style={{fontSize:16,animation:'spin 1s linear infinite'}} /> Signing in…</>
-              : <><i className="ti ti-login" style={{fontSize:16}} /> Sign in to EMR</>}
-          </button>
-
-          <div style={{textAlign:'center',marginTop:16,fontSize:11,color:'var(--t3)',fontWeight:500}}>
-            Forgot password? Contact your system administrator.<br/>
-            <strong style={{color:'var(--t2)'}}>RESTRICTED — Not to be handled by patients</strong>
-          </div>
-        </form>
+      {/* Right Panel - Medical Background */}
+      <div 
+        className="hidden lg:block w-1/2 bg-cover bg-center relative"
+        style={{
+          backgroundImage: `url('https://picsum.photos/id/1015/1200/900')`
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 to-transparent" />
+        <div className="absolute bottom-10 left-10 text-white">
+          <p className="text-sm opacity-90">Secure Electronic Medical Records</p>
+        </div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
