@@ -26,6 +26,8 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         const prof = await getUser(firebaseUser.uid);
+        // Attach the Firebase Auth UID onto the profile so components can use profile.uid
+        if (prof) prof.uid = firebaseUser.uid;
         setProfile(prof);
       } else {
         setUser(null);
@@ -39,6 +41,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const prof = await getUser(cred.user.uid);
+    if (prof) prof.uid = cred.user.uid;
     setProfile(prof);
     return prof;
   };
@@ -53,7 +56,16 @@ export function AuthProvider({ children }) {
     setTheme(t => (t === 'light' ? 'dark' : 'light'));
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, theme, login, logout, toggleTheme }}>
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      loading,
+      theme,
+      login,
+      logout,
+      toggleTheme,
+      role: profile?.role,        // ← convenience shortcut used by PatientProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );
