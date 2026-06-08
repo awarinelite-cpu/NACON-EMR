@@ -1,8 +1,6 @@
 // src/lib/emr.js
 // ─────────────────────────────────────────────
 // All Firestore operations for NACON MRS EMR
-// Includes atomic EMR number generation,
-// patient CRUD, visits, notes, vitals, etc.
 // ─────────────────────────────────────────────
 import {
   doc, collection, getDocs, getDoc, setDoc,
@@ -40,10 +38,6 @@ export const ROLES = {
 
 // ─────────────────────────────────────────────
 // EMR NUMBER GENERATOR
-// Uses a Firestore transaction on counters/emr_sequence
-// to atomically increment and assign a unique number.
-// Format: EMR-YYYY-NNNN  e.g. EMR-2025-0041
-// Resets to 0001 each new year.
 // ─────────────────────────────────────────────
 export async function generateEMRNumber() {
   const year = new Date().getFullYear();
@@ -60,24 +54,19 @@ export async function generateEMRNumber() {
       storedYear = snap.data().year       || year;
     }
 
-    // Reset sequence at new year
-    if (storedYear !== year) {
-      last = 0;
-    }
+    if (storedYear !== year) last = 0;
 
-    const next = last + 1;
+    const next   = last + 1;
     const padded = String(next).padStart(4, '0');
-    const emr = `EMR-${year}-${padded}`;
+    const emr    = `EMR-${year}-${padded}`;
 
     txn.set(counterRef, { lastNumber: next, year, updatedAt: serverTimestamp() });
-
     return emr;
   });
 
   return emrNumber;
 }
 
-// Derive folder number from EMR  e.g. EMR-2025-0041 → FN: 041/25
 export function emrToFolderNumber(emr) {
   if (!emr) return '';
   const parts = emr.split('-');
@@ -102,27 +91,22 @@ export async function registerPatient(data, registeredBy) {
     registeredAt:  serverTimestamp(),
     updatedAt:     serverTimestamp(),
     status:        'active',
-    // Search index — lowercase tokens for fast querying
     searchTokens:  buildSearchTokens(data, emrNumber),
   };
 
   const ref = doc(db, COL.PATIENTS, emrNumber);
   await setDoc(ref, patientData);
-
-  // Audit log
   await logAudit('REGISTER_PATIENT', emrNumber, registeredBy, { emrNumber, name: `${data.surname} ${data.firstName}` });
 
   return { emrNumber, folderNumber };
 }
 
-// Build tokens for searching by name, class, emr
 function buildSearchTokens(data, emr) {
   const tokens = new Set();
   const add = (str) => {
     if (!str) return;
     const s = str.toLowerCase();
     tokens.add(s);
-    // Add prefix tokens for instant search
     for (let i = 1; i <= s.length; i++) tokens.add(s.slice(0, i));
   };
   add(data.surname);
@@ -130,7 +114,7 @@ function buildSearchTokens(data, emr) {
   add(data.otherNames);
   add(`${data.surname} ${data.firstName}`);
   add(`${data.firstName} ${data.surname}`);
-  add(data.classSet);   // e.g. "SET 49"
+  add(data.classSet);
   add(data.matricNo);
   add(emr.toLowerCase());
   return Array.from(tokens);
@@ -150,10 +134,8 @@ export async function updatePatient(emrNumber, data, updatedBy) {
   await logAudit('UPDATE_PATIENT', emrNumber, updatedBy, data);
 }
 
-// Search patients — by EMR, name token, or class
 export async function searchPatients(searchTerm) {
   if (!searchTerm || searchTerm.trim().length < 1) {
-    // Return all (limited to 50)
     const q = query(collection(db, COL.PATIENTS), orderBy('registeredAt', 'desc'));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -161,13 +143,11 @@ export async function searchPatients(searchTerm) {
 
   const term = searchTerm.toLowerCase().trim();
 
-  // Direct EMR lookup first
   if (term.startsWith('emr-')) {
     const snap = await getDoc(doc(db, COL.PATIENTS, term.toUpperCase()));
     if (snap.exists()) return [{ id: snap.id, ...snap.data() }];
   }
 
-  // Token search
   const q = query(
     collection(db, COL.PATIENTS),
     where('searchTokens', 'array-contains', term)
@@ -176,7 +156,6 @@ export async function searchPatients(searchTerm) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-// Real-time listener for all patients (for admin dashboard)
 export function listenPatients(callback) {
   const q = query(collection(db, COL.PATIENTS), orderBy('registeredAt', 'desc'));
   return onSnapshot(q, snap => {
@@ -185,7 +164,7 @@ export function listenPatients(callback) {
 }
 
 // ─────────────────────────────────────────────
-// VISITS (consultation sessions)
+// VISITS
 // ─────────────────────────────────────────────
 export async function createVisit(emrNumber, data, createdBy) {
   const visitRef = await addDoc(collection(db, COL.VISITS), {
@@ -221,8 +200,7 @@ export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy
 }
 
 // ─────────────────────────────────────────────
-// CLINICAL NOTES (doctor + nurse combined)
-// Both appear on the patient timeline
+// CLINICAL NOTES
 // ─────────────────────────────────────────────
 export async function addNote(emrNumber, visitId, noteData, author, role) {
   const ref = await addDoc(collection(db, COL.NOTES), {
@@ -230,7 +208,7 @@ export async function addNote(emrNumber, visitId, noteData, author, role) {
     visitId,
     ...noteData,
     authorName: author,
-    authorRole: role,            // 'doctor' | 'nurse'
+    authorRole: role,
     createdAt:  serverTimestamp(),
   });
   await logAudit('ADD_NOTE', emrNumber, author, { noteId: ref.id, role });
@@ -256,7 +234,6 @@ export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
     recordedBy,
     recordedAt: serverTimestamp(),
   });
-  // Update patient's latest vitals snapshot
   await updatePatient(emrNumber, { latestVitals: vitalsData }, recordedBy);
   await logAudit('ADD_VITALS', emrNumber, recordedBy, vitalsData);
   return ref.id;
@@ -273,8 +250,6 @@ export function listenVitals(emrNumber, callback) {
 
 // ─────────────────────────────────────────────
 // PRESCRIPTIONS
-// Both doctors and nurses can prescribe.
-// Nurse prescriptions are flagged for countersign.
 // ─────────────────────────────────────────────
 export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, role) {
   const ref = await addDoc(collection(db, COL.PRESCRIPTIONS), {
@@ -340,7 +315,7 @@ export function listenGlucoseChart(emrNumber, callback) {
 }
 
 // ─────────────────────────────────────────────
-// FILE UPLOADS (lab results, scans, reports)
+// FILE UPLOADS
 // ─────────────────────────────────────────────
 export async function uploadPatientFile(emrNumber, visitId, file, category, uploadedBy) {
   const path = `patients/${emrNumber}/uploads/${Date.now()}_${file.name}`;
@@ -350,14 +325,14 @@ export async function uploadPatientFile(emrNumber, visitId, file, category, uplo
 
   const docRef = await addDoc(collection(db, COL.UPLOADS), {
     emrNumber, visitId,
-    fileName:   file.name,
-    fileType:   file.type,
-    fileSize:   file.size,
+    fileName:    file.name,
+    fileType:    file.type,
+    fileSize:    file.size,
     storagePath: path,
     downloadUrl: url,
-    category,           // 'lab_result' | 'imaging' | 'report' | 'other'
+    category,
     uploadedBy,
-    uploadedAt: serverTimestamp(),
+    uploadedAt:  serverTimestamp(),
   });
 
   await logAudit('FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, category });
@@ -389,7 +364,7 @@ export async function createReferral(emrNumber, visitId, referralData, referredB
 }
 
 // ─────────────────────────────────────────────
-// USER MANAGEMENT (Admin only)
+// USER MANAGEMENT
 // ─────────────────────────────────────────────
 export async function createUser(uid, userData) {
   await setDoc(doc(db, COL.USERS, uid), {
@@ -415,14 +390,25 @@ export async function updateUserRole(uid, role, updatedBy) {
 }
 
 export async function deactivateUser(uid, doneBy) {
-  await updateDoc(doc(db, COL.USERS, uid), { active: false, deactivatedBy: doneBy, deactivatedAt: serverTimestamp() });
+  await updateDoc(doc(db, COL.USERS, uid), {
+    active: false,
+    deactivatedBy: doneBy,
+    deactivatedAt: serverTimestamp(),
+  });
   await logAudit('DEACTIVATE_USER', uid, doneBy, {});
+}
+
+export async function reactivateUser(uid, doneBy) {
+  await updateDoc(doc(db, COL.USERS, uid), {
+    active: true,
+    reactivatedBy: doneBy,
+    reactivatedAt: serverTimestamp(),
+  });
+  await logAudit('REACTIVATE_USER', uid, doneBy, {});
 }
 
 // ─────────────────────────────────────────────
 // AUDIT LOG
-// Every significant action is logged here.
-// Only admins can read the audit log.
 // ─────────────────────────────────────────────
 export async function logAudit(action, targetId, performedBy, details = {}) {
   try {
@@ -450,16 +436,18 @@ export async function getTodayStats() {
 
   const visits = visitsSnap.docs.map(d => d.data());
   return {
-    totalPatients:  patientsSnap.size,
-    visitsToday:    visits.length,
-    waiting:        visits.filter(v => v.status === 'open').length,
-    referred:       visits.filter(v => v.status === 'referred').length,
-    discharged:     visits.filter(v => v.status === 'discharged').length,
-    sickBay:        visits.filter(v => v.status === 'sickbay').length,
+    totalPatients: patientsSnap.size,
+    visitsToday:   visits.length,
+    waiting:       visits.filter(v => v.status === 'open').length,
+    referred:      visits.filter(v => v.status === 'referred').length,
+    discharged:    visits.filter(v => v.status === 'discharged').length,
+    sickBay:       visits.filter(v => v.status === 'sickbay').length,
   };
 }
 
-// Helpers for date formatting
+// ─────────────────────────────────────────────
+// DATE HELPERS
+// ─────────────────────────────────────────────
 export function formatTs(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
