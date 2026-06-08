@@ -15,11 +15,26 @@ import AdminDashboard   from './pages/AdminDashboard';
 import RegisterPatient  from './pages/RegisterPatient';
 import PatientProfile   from './pages/PatientProfile';
 import UserManagement   from './pages/UserManagement';
-
-// Lazy patient list (shared across roles)
-import AllPatients from './pages/AllPatients';
+import AllPatients      from './pages/AllPatients';
 
 import './styles/global.css';
+
+// ── Placeholder pages for routes not yet built ──
+function ComingSoon({ title }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      <div className="topbar">
+        <div className="topbar-title">{title}</div>
+      </div>
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center',
+        flexDirection:'column', gap:12, color:'var(--t3)' }}>
+        <i className="ti ti-tools" style={{ fontSize:40 }} />
+        <div style={{ fontSize:16, fontWeight:700, color:'var(--t2)' }}>{title}</div>
+        <div style={{ fontSize:12, fontWeight:500 }}>This section is coming soon.</div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -46,39 +61,109 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
 
-          {/* Protected — all authenticated users */}
+          {/* ── PROTECTED SHELL ── */}
           <Route element={
             <ProtectedRoute>
               <AppShell />
             </ProtectedRoute>
           }>
-            {/* Patient profile — all clinical roles */}
+
+            {/* Patient profile — all roles */}
             <Route path="/patient/:emrNumber" element={
               <ProtectedRoute allowedRoles={['doctor','nurse','records','admin','subadmin']}>
                 <PatientProfile />
               </ProtectedRoute>
             } />
 
-            {/* Doctor routes */}
-            <Route path="/doctor"           element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} />
-            <Route path="/doctor/patients"  element={<ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>} />
-            <Route path="/doctor/queue"     element={<ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" filter="active" /></ProtectedRoute>} />
+            {/* ── DOCTOR ── */}
+            <Route path="/doctor" element={
+              <ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>
+            } />
+            <Route path="/doctor/patients" element={
+              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
+            } />
+            <Route path="/doctor/queue" element={
+              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" filter="active" /></ProtectedRoute>
+            } />
+            <Route path="/doctor/consults" element={
+              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
+            } />
+            <Route path="/doctor/rx" element={
+              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
+            } />
+            <Route path="/doctor/referrals" element={
+              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
+            } />
 
-            {/* Nurse routes */}
-            <Route path="/nurse"            element={<ProtectedRoute allowedRoles={['nurse']}><NurseDashboard /></ProtectedRoute>} />
-            <Route path="/nurse/patients"   element={<ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>} />
-            <Route path="/nurse/queue"      element={<ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="active" /></ProtectedRoute>} />
-            <Route path="/nurse/sickbay"    element={<ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="sickbay" /></ProtectedRoute>} />
+            {/* ── NURSE ── */}
+            <Route path="/nurse" element={
+              <ProtectedRoute allowedRoles={['nurse']}><NurseDashboard /></ProtectedRoute>
+            } />
+            <Route path="/nurse/patients" element={
+              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+            } />
+            <Route path="/nurse/queue" element={
+              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="active" /></ProtectedRoute>
+            } />
+            <Route path="/nurse/sickbay" element={
+              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="sickbay" /></ProtectedRoute>
+            } />
+            <Route path="/nurse/notes" element={
+              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+            } />
+            <Route path="/nurse/meds" element={
+              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+            } />
+            <Route path="/nurse/vitals" element={
+              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+            } />
 
-            {/* Records routes */}
-            <Route path="/records"          element={<ProtectedRoute allowedRoles={['records']}><RecordsDashboard /></ProtectedRoute>} />
-            <Route path="/records/register" element={<ProtectedRoute allowedRoles={['records']}><RegisterPatient /></ProtectedRoute>} />
-            <Route path="/records/patients" element={<ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>} />
+            {/* ── RECORDS ── */}
+            <Route path="/records" element={
+              <ProtectedRoute allowedRoles={['records']}><RecordsDashboard /></ProtectedRoute>
+            } />
+            <Route path="/records/register" element={
+              <ProtectedRoute allowedRoles={['records']}><RegisterPatient /></ProtectedRoute>
+            } />
+            <Route path="/records/patients" element={
+              <ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>
+            } />
+            <Route path="/records/folders" element={
+              <ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>
+            } />
+            <Route path="/records/referrals" element={
+              <ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>
+            } />
+            <Route path="/records/reports" element={
+              <ProtectedRoute allowedRoles={['records']}><ComingSoon title="Reports" /></ProtectedRoute>
+            } />
 
-            {/* Admin routes */}
-            <Route path="/admin"            element={<ProtectedRoute allowedRoles={['admin','subadmin']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/users"      element={<ProtectedRoute allowedRoles={['admin']}><UserManagement /></ProtectedRoute>} />
-            <Route path="/admin/patients"   element={<ProtectedRoute allowedRoles={['admin','subadmin']}><AllPatients role="admin" /></ProtectedRoute>} />
+            {/* ── ADMIN ── */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><AdminDashboard /></ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute allowedRoles={['admin']}><UserManagement /></ProtectedRoute>
+            } />
+            <Route path="/admin/patients" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><AllPatients role="admin" /></ProtectedRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Reports" /></ProtectedRoute>
+            } />
+            <Route path="/admin/roles" element={
+              <ProtectedRoute allowedRoles={['admin']}><ComingSoon title="Roles & Access" /></ProtectedRoute>
+            } />
+            <Route path="/admin/audit" element={
+              <ProtectedRoute allowedRoles={['admin']}><ComingSoon title="Audit Log" /></ProtectedRoute>
+            } />
+            <Route path="/admin/settings" element={
+              <ProtectedRoute allowedRoles={['admin']}><ComingSoon title="Settings" /></ProtectedRoute>
+            } />
+            <Route path="/admin/schedule" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Duty Schedule" /></ProtectedRoute>
+            } />
+
           </Route>
 
           {/* Catch-all */}
