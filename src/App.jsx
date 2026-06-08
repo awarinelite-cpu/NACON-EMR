@@ -16,6 +16,9 @@ import RegisterPatient  from './pages/RegisterPatient';
 import PatientProfile   from './pages/PatientProfile';
 import UserManagement   from './pages/UserManagement';
 import AllPatients      from './pages/AllPatients';
+import AuditLog         from './pages/AuditLog';
+import RolesAccess      from './pages/RolesAccess';
+import Settings         from './pages/Settings';
 
 import './styles/global.css';
 
@@ -152,13 +155,13 @@ export default function App() {
               <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Reports" /></ProtectedRoute>
             } />
             <Route path="/admin/roles" element={
-              <ProtectedRoute allowedRoles={['admin']}><ComingSoon title="Roles & Access" /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin']}><RolesAccess /></ProtectedRoute>
             } />
             <Route path="/admin/audit" element={
-              <ProtectedRoute allowedRoles={['admin']}><ComingSoon title="Audit Log" /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin']}><AuditLog /></ProtectedRoute>
             } />
             <Route path="/admin/settings" element={
-              <ProtectedRoute allowedRoles={['admin']}><ComingSoon title="Settings" /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>
             } />
             <Route path="/admin/schedule" element={
               <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Duty Schedule" /></ProtectedRoute>
