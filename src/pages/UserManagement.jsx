@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
-import { getAllUsers, createUser, updateUserRole, deactivateUser } from '../lib/emr';
+import { getAllUsers, createUser, updateUserRole, deactivateUser, reactivateUser } from '../lib/emr';
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -89,6 +89,16 @@ export default function UserManagement() {
       setUsers(u => u.map(x => x.uid === uid ? { ...x, active: false } : x));
       toast.success(`${name} deactivated`);
     } catch { toast.error('Failed to deactivate'); }
+  };
+
+  // ── REACTIVATE ───────────────────────────────
+  const handleReactivate = async (uid, name) => {
+    if (!window.confirm(`Reactivate ${name}? They will be able to log in again.`)) return;
+    try {
+      await reactivateUser(uid, profile?.displayName);
+      setUsers(u => u.map(x => x.uid === uid ? { ...x, active: true } : x));
+      toast.success(`${name} reactivated`);
+    } catch { toast.error('Failed to reactivate'); }
   };
 
   // ── SEND RESET EMAIL ─────────────────────────
@@ -294,11 +304,18 @@ export default function UserManagement() {
                         </div>
                       </td>
                       <td>
-                        {profile?.uid !== u.uid && u.active && (
-                          <button className="btn btn-danger btn-sm"
-                            onClick={() => handleDeactivate(u.uid, u.displayName)}>
-                            <i className="ti ti-user-off" /> Deactivate
-                          </button>
+                        {profile?.uid !== u.uid && (
+                          u.active ? (
+                            <button className="btn btn-danger btn-sm"
+                              onClick={() => handleDeactivate(u.uid, u.displayName)}>
+                              <i className="ti ti-user-off" /> Deactivate
+                            </button>
+                          ) : (
+                            <button className="btn btn-sm btn-success"
+                              onClick={() => handleReactivate(u.uid, u.displayName)}>
+                              <i className="ti ti-user-check" /> Activate
+                            </button>
+                          )
                         )}
                       </td>
                     </tr>
