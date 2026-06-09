@@ -138,7 +138,7 @@ export default function App() {
               </ProtectedRoute>
             } />
 
-            {/* ── RECORDS ── */
+            {/* ── RECORDS ── */}
             <Route path="/records" element={
               <ProtectedRoute allowedRoles={['records']}><RecordsDashboard /></ProtectedRoute>
             } />
