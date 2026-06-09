@@ -190,13 +190,18 @@ export async function getVisits(emrNumber) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// FIX: dischargePatient — only update visit doc if a real visitId is provided
 export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy) {
-  await updateDoc(doc(db, COL.VISITS, visitId), {
-    status: 'discharged', dischargeNote, dischargedBy: doneBy,
-    dischargedAt: serverTimestamp(),
-  });
-  await updatePatient(emrNumber, { status: 'discharged' }, doneBy);
-  await logAudit('DISCHARGE', emrNumber, doneBy, { visitId });
+  if (visitId && visitId !== 'current') {
+    await updateDoc(doc(db, COL.VISITS, visitId), {
+      status: 'discharged',
+      dischargeNote,
+      dischargedBy: doneBy,
+      dischargedAt: serverTimestamp(),
+    });
+  }
+  await updatePatient(emrNumber, { status: 'discharged', dischargeNote }, doneBy);
+  await logAudit('DISCHARGE', emrNumber, doneBy, { visitId: visitId || 'none' });
 }
 
 // ─────────────────────────────────────────────
@@ -205,7 +210,7 @@ export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy
 export async function addNote(emrNumber, visitId, noteData, author, role) {
   const ref = await addDoc(collection(db, COL.NOTES), {
     emrNumber,
-    visitId,
+    visitId:    visitId || null,
     ...noteData,
     authorName: author,
     authorRole: role,
@@ -229,7 +234,8 @@ export function listenNotes(emrNumber, callback) {
 // ─────────────────────────────────────────────
 export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
   const ref = await addDoc(collection(db, COL.VITALS), {
-    emrNumber, visitId,
+    emrNumber,
+    visitId: visitId || null,
     ...vitalsData,
     recordedBy,
     recordedAt: serverTimestamp(),
@@ -253,7 +259,8 @@ export function listenVitals(emrNumber, callback) {
 // ─────────────────────────────────────────────
 export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, role) {
   const ref = await addDoc(collection(db, COL.PRESCRIPTIONS), {
-    emrNumber, visitId,
+    emrNumber,
+    visitId: visitId || null,
     drugs: rxData,
     prescribedBy,
     prescribedByRole: role,
@@ -279,7 +286,11 @@ export function listenPrescriptions(emrNumber, callback) {
 // ─────────────────────────────────────────────
 export async function addFluidEntry(emrNumber, visitId, entry, recordedBy) {
   const ref = await addDoc(collection(db, COL.FLUIDS), {
-    emrNumber, visitId, ...entry, recordedBy, recordedAt: serverTimestamp(),
+    emrNumber,
+    visitId: visitId || null,
+    ...entry,
+    recordedBy,
+    recordedAt: serverTimestamp(),
   });
   await logAudit('FLUID_ENTRY', emrNumber, recordedBy, entry);
   return ref.id;
@@ -299,7 +310,11 @@ export function listenFluidChart(emrNumber, callback) {
 // ─────────────────────────────────────────────
 export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy) {
   const ref = await addDoc(collection(db, COL.GLUCOSE), {
-    emrNumber, visitId, ...entry, recordedBy, recordedAt: serverTimestamp(),
+    emrNumber,
+    visitId: visitId || null,
+    ...entry,
+    recordedBy,
+    recordedAt: serverTimestamp(),
   });
   await logAudit('GLUCOSE_ENTRY', emrNumber, recordedBy, entry);
   return ref.id;
@@ -324,7 +339,8 @@ export async function uploadPatientFile(emrNumber, visitId, file, category, uplo
   const url = await getDownloadURL(storageRef);
 
   const docRef = await addDoc(collection(db, COL.UPLOADS), {
-    emrNumber, visitId,
+    emrNumber,
+    visitId: visitId || null,
     fileName:    file.name,
     fileType:    file.type,
     fileSize:    file.size,
@@ -353,7 +369,8 @@ export function listenUploads(emrNumber, callback) {
 // ─────────────────────────────────────────────
 export async function createReferral(emrNumber, visitId, referralData, referredBy) {
   const ref = await addDoc(collection(db, COL.REFERRALS), {
-    emrNumber, visitId,
+    emrNumber,
+    visitId: visitId || null,
     ...referralData,
     referredBy,
     createdAt: serverTimestamp(),
