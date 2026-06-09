@@ -854,7 +854,7 @@ export default function PatientProfile() {
           />
         )}
 
-        {/* ── REFERRAL / DISCHARGE TAB ── */
+        {/* ── REFERRAL / DISCHARGE TAB ── */}
         {activeTab==='referral' && (isDoctor || isNurse) && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div className="card">
