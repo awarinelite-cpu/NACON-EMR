@@ -26,6 +26,7 @@ export const COL = {
   USERS:        'users',
   AUDIT:        'audit_log',
   TRIAGE:       'triage_queue',
+  MAR:          'mar_records',
 };
 
 // ── ROLES ────────────────────────────────────
@@ -463,6 +464,56 @@ export async function getTodayStats() {
   };
 }
 
+
+
+// ─────────────────────────────────────────────
+// MEDICATION ADMINISTRATION RECORD (MAR)
+// ─────────────────────────────────────────────
+export async function recordAdministration(data) {
+  // data: { emrNumber, rxId, drug, dose, route, scheduledFreq,
+  //         status, administeredAt, notes,
+  //         administeredBy, administeredByRole }
+  const ref = await addDoc(collection(db, COL.MAR), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  await logAudit('MAR_RECORD', data.emrNumber, data.administeredBy, {
+    drug:   data.drug,
+    status: data.status,
+    route:  data.route,
+    time:   data.administeredAt,
+  });
+  return ref.id;
+}
+
+export function listenMAR(emrNumber, callback) {
+  const q = query(
+    collection(db, COL.MAR),
+    where('emrNumber', '==', emrNumber),
+    orderBy('createdAt', 'asc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function getMARForDate(emrNumber, dateObj) {
+  // Returns all MAR records for a given date (client-side filter)
+  const q = query(
+    collection(db, COL.MAR),
+    where('emrNumber', '==', emrNumber),
+    orderBy('createdAt', 'asc')
+  );
+  const snap = await getDocs(q);
+  const start = new Date(dateObj); start.setHours(0,0,0,0);
+  const end   = new Date(dateObj); end.setHours(23,59,59,999);
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(m => {
+      const ts = m.createdAt?.toDate?.();
+      return ts && ts >= start && ts <= end;
+    });
+}
 
 // ─────────────────────────────────────────────
 // TRIAGE
