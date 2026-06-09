@@ -19,6 +19,7 @@ import AllPatients      from './pages/AllPatients';
 import AuditLog         from './pages/AuditLog';
 import RolesAccess      from './pages/RolesAccess';
 import Settings         from './pages/Settings';
+import TriagePage       from './pages/TriagePage';
 
 import './styles/global.css';
 
@@ -121,7 +122,15 @@ export default function App() {
               <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
             } />
 
-            {/* ── RECORDS ── */}
+
+            {/* ── TRIAGE ── */}
+            <Route path="/triage" element={
+              <ProtectedRoute allowedRoles={['nurse','doctor','admin','subadmin']}>
+                <TriagePage />
+              </ProtectedRoute>
+            } />
+
+            {/* ── RECORDS ── */
             <Route path="/records" element={
               <ProtectedRoute allowedRoles={['records']}><RecordsDashboard /></ProtectedRoute>
             } />
