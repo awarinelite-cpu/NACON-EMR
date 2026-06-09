@@ -20,6 +20,7 @@ import AuditLog         from './pages/AuditLog';
 import RolesAccess      from './pages/RolesAccess';
 import Settings         from './pages/Settings';
 import TriagePage       from './pages/TriagePage';
+import MARPage         from './pages/MARPage';
 
 import './styles/global.css';
 
@@ -122,6 +123,13 @@ export default function App() {
               <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
             } />
 
+
+            {/* ── MAR ── */}
+            <Route path="/mar" element={
+              <ProtectedRoute allowedRoles={['nurse','doctor','admin','subadmin']}>
+                <MARPage />
+              </ProtectedRoute>
+            } />
 
             {/* ── TRIAGE ── */}
             <Route path="/triage" element={
