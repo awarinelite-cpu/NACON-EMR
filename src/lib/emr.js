@@ -25,6 +25,7 @@ export const COL = {
   REFERRALS:    'referrals',
   USERS:        'users',
   AUDIT:        'audit_log',
+  TRIAGE:       'triage_queue',
 };
 
 // ── ROLES ────────────────────────────────────
@@ -460,6 +461,79 @@ export async function getTodayStats() {
     discharged:    visits.filter(v => v.status === 'discharged').length,
     sickBay:       visits.filter(v => v.status === 'sickbay').length,
   };
+}
+
+
+// ─────────────────────────────────────────────
+// TRIAGE
+// ─────────────────────────────────────────────
+export async function assignTriage(emrNumber, triageData, triagedBy, triagedByRole) {
+  const patSnap = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+  const pt = patSnap.exists() ? patSnap.data() : {};
+
+  const ref = await addDoc(collection(db, COL.TRIAGE), {
+    emrNumber,
+    surname:        pt.surname    || '',
+    firstName:      pt.firstName  || '',
+    classSet:       pt.classSet   || '',
+    priority:       triageData.priority,
+    chiefComplaint: triageData.chiefComplaint || '',
+    status:         'waiting',
+    triagedBy,
+    triagedByRole,
+    arrivedAt:      serverTimestamp(),
+    updatedAt:      serverTimestamp(),
+  });
+
+  await updatePatient(emrNumber, {
+    triagePriority: triageData.priority,
+    status: 'active',
+  }, triagedBy);
+
+  await logAudit('TRIAGE_ASSIGN', emrNumber, triagedBy, {
+    priority: triageData.priority,
+    triageId: ref.id,
+  });
+
+  return ref.id;
+}
+
+export async function updateTriageStatus(triageId, newStatus, updatedBy) {
+  await updateDoc(doc(db, COL.TRIAGE, triageId), {
+    status:    newStatus,
+    updatedAt: serverTimestamp(),
+    updatedBy,
+    ...(newStatus === 'done' ? { completedAt: serverTimestamp() } : {}),
+  });
+  await logAudit('TRIAGE_STATUS', triageId, updatedBy, { newStatus });
+}
+
+export function listenTriageQueue(callback) {
+  const q = query(
+    collection(db, COL.TRIAGE),
+    orderBy('arrivedAt', 'asc')
+  );
+  return onSnapshot(q, snap => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+
+    const rows = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(t => {
+        const ts = t.arrivedAt?.toDate?.();
+        return ts && ts.getTime() >= todayMs;
+      });
+
+    const order = { P1: 0, P2: 1, P3: 2 };
+    rows.sort((a, b) => {
+      const pd = (order[a.priority] ?? 2) - (order[b.priority] ?? 2);
+      if (pd !== 0) return pd;
+      return (a.arrivedAt?.seconds || 0) - (b.arrivedAt?.seconds || 0);
+    });
+
+    callback(rows);
+  });
 }
 
 // ─────────────────────────────────────────────
