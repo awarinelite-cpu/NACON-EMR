@@ -4,20 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 
-const ROLES = [
-  { value: 'doctor',   label: 'Doctor',    icon: 'ti-stethoscope' },
-  { value: 'nurse',    label: 'Nurse',     icon: 'ti-heart-rate-monitor' },
-  { value: 'records',  label: 'Records',   icon: 'ti-folder' },
-  { value: 'admin',    label: 'Admin',     icon: 'ti-shield-lock' },
-  { value: 'subadmin', label: 'Sub-admin', icon: 'ti-user-cog' },
-];
+
 
 export default function LoginPage() {
   const { login, toggleTheme, theme } = useAuth();
   const navigate = useNavigate();
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
-  const [role,     setRole]     = useState('doctor');
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
 
@@ -232,50 +225,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Role selector */}
-          <div style={{ marginBottom: 22 }}>
-            <label style={labelStyle}>Your role</label>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 7,
-              marginTop: 6,
-            }}>
-              {ROLES.map(r => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setRole(r.value)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: '8px 10px',
-                    border: role === r.value
-                      ? '1px solid rgba(46,127,219,0.8)'
-                      : '1px solid rgba(133,183,235,0.15)',
-                    borderRadius: 9,
-                    background: role === r.value
-                      ? 'rgba(26,95,168,0.40)'
-                      : 'rgba(255,255,255,0.04)',
-                    color: role === r.value ? '#A8D4FF' : 'rgba(133,183,235,0.55)',
-                    fontFamily: 'var(--font)',
-                    fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all .15s',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  <i className={`ti ${r.icon}`} style={{ fontSize: 15 }} />
-                  {r.label}
-                </button>
-              ))}
-            </div>
-            <p style={{
-              fontSize: 10, color: 'rgba(133,183,235,0.45)',
-              fontWeight: 500, marginTop: 6,
-            }}>
-              Access is verified from your account record.
-            </p>
-          </div>
+
 
           {/* Submit */}
           <button
