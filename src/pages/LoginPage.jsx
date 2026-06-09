@@ -43,82 +43,323 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-page" style={{ position: 'relative' }}>
-      <div className="login-hero">
-        <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-          <div className="login-crest"><i className="ti ti-shield-heart" /></div>
-          <div>
-            <div className="login-school-name">NIGERIAN ARMY COLLEGE OF NURSING</div>
-            <div className="login-school-sub">Medical Reception Station · Yaba, Lagos</div>
-            <div style={{ display:'flex', gap:8, marginTop:8 }}>
-              <span className="pwa-pill"><i className="ti ti-device-mobile" style={{fontSize:12}} /> PWA — works offline</span>
-              <span className="pwa-pill" style={{background:'var(--info-bg)',color:'var(--info)',borderColor:'var(--info)'}}>v1.0</span>
-            </div>
+    <div style={{
+      minHeight: '100vh',
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      overflow: 'hidden',
+    }}>
+
+      {/* ── FULL-SCREEN BUILDING BACKGROUND ── */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundImage: 'url(/building.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center top',
+        backgroundRepeat: 'no-repeat',
+        zIndex: 0,
+      }} />
+
+      {/* ── DARK OVERLAY to deepen contrast ── */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'linear-gradient(135deg, rgba(6,15,30,0.72) 0%, rgba(11,31,58,0.65) 60%, rgba(6,15,30,0.78) 100%)',
+        zIndex: 1,
+      }} />
+
+      {/* ── THEME TOGGLE ── */}
+      <button
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        style={{
+          position: 'fixed', top: 16, right: 16, zIndex: 10,
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.25)',
+          borderRadius: 10, padding: '7px 14px',
+          color: '#D6E8F8', cursor: 'pointer',
+          fontSize: 12, fontWeight: 700,
+          display: 'flex', alignItems: 'center', gap: 6,
+          backdropFilter: 'blur(8px)',
+          fontFamily: 'var(--font)',
+          transition: 'all .18s',
+        }}
+      >
+        <i className={`ti ${theme === 'light' ? 'ti-moon' : 'ti-sun'}`} style={{ fontSize: 15 }} />
+        {theme === 'light' ? 'Dark' : 'Light'}
+      </button>
+
+      {/* ── GLASS LOGIN CARD ── */}
+      <div style={{
+        position: 'relative', zIndex: 2,
+        width: '100%', maxWidth: 420,
+        background: 'rgba(11, 31, 58, 0.55)',
+        backdropFilter: 'blur(24px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
+        border: '1px solid rgba(133, 183, 235, 0.20)',
+        borderRadius: 20,
+        boxShadow: '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
+        overflow: 'hidden',
+      }}>
+
+        {/* Card header — institution branding */}
+        <div style={{
+          background: 'rgba(6,15,30,0.50)',
+          borderBottom: '1px solid rgba(133,183,235,0.15)',
+          padding: '24px 28px 20px',
+          textAlign: 'center',
+        }}>
+          {/* Crest icon */}
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'rgba(26,95,168,0.35)',
+            border: '2px solid rgba(133,183,235,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 14px',
+            boxShadow: '0 0 20px rgba(26,95,168,0.25)',
+          }}>
+            <i className="ti ti-shield-heart" style={{ fontSize: 30, color: '#85B7EB' }} />
+          </div>
+
+          <div style={{
+            fontSize: 13, fontWeight: 700,
+            color: '#D6E8F8',
+            letterSpacing: '.04em',
+            textTransform: 'uppercase',
+            lineHeight: 1.4,
+            marginBottom: 5,
+          }}>
+            Nigerian Army College of Nursing
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(133,183,235,0.75)', fontWeight: 500 }}>
+            Medical Reception Station · Yaba, Lagos
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10 }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: 'rgba(26,122,74,0.25)', color: '#6EE7A8',
+              border: '1px solid rgba(26,122,74,0.4)',
+              fontSize: 10, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 8,
+            }}>
+              <i className="ti ti-device-mobile" style={{ fontSize: 11 }} /> PWA · Works offline
+            </span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: 'rgba(26,85,163,0.25)', color: '#85B7EB',
+              border: '1px solid rgba(26,85,163,0.35)',
+              fontSize: 10, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 8,
+            }}>
+              v1.0
+            </span>
           </div>
         </div>
-        <button onClick={toggleTheme} aria-label="Toggle theme" style={{
-          position:'absolute',top:14,right:14,background:'rgba(255,255,255,.1)',
-          border:'1px solid rgba(255,255,255,.2)',borderRadius:8,padding:'6px 10px',
-          color:'#B5D4F4',cursor:'pointer',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6
-        }}>
-          <i className={`ti ${theme==='light'?'ti-moon':'ti-sun'}`} style={{fontSize:16}} />
-          {theme==='light'?'Dark':'Light'}
-        </button>
-      </div>
 
-      <div className="login-body">
-        <form className="login-card" onSubmit={handleLogin} noValidate>
-          <h2 style={{marginBottom:4}}>Sign in</h2>
-          <p className="text-muted text-sm" style={{marginBottom:20}}>NACON MRS EMR — Confidential access only</p>
+        {/* Form body */}
+        <form onSubmit={handleLogin} noValidate style={{ padding: '24px 28px 28px' }}>
+          <div style={{
+            fontSize: 16, fontWeight: 700, color: '#E8EFF8',
+            marginBottom: 4,
+          }}>
+            Sign in
+          </div>
+          <p style={{
+            fontSize: 11, color: 'rgba(133,183,235,0.65)',
+            fontWeight: 500, marginBottom: 20,
+          }}>
+            NACON MRS EMR — Confidential access only
+          </p>
 
-          <div className="form-group" style={{marginBottom:14}}>
-            <label className="form-label" htmlFor="em">Staff email</label>
-            <input id="em" type="email" className="form-input" placeholder="dr.yelme@naconmrs.ng"
-              value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required />
+          {/* Email */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Staff email</label>
+            <div style={{ position: 'relative' }}>
+              <i className="ti ti-mail" style={{
+                position: 'absolute', left: 11, top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 16, color: 'rgba(133,183,235,0.5)',
+                pointerEvents: 'none',
+              }} />
+              <input
+                type="email"
+                placeholder="dr.yelme@naconmrs.ng"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+                style={{ ...glassInput, paddingLeft: 36 }}
+              />
+            </div>
           </div>
 
-          <div className="form-group" style={{marginBottom:18}}>
-            <label className="form-label" htmlFor="pw">Password</label>
-            <div style={{position:'relative'}}>
-              <input id="pw" type={showPass?'text':'password'} className="form-input full-width"
-                placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)}
-                autoComplete="current-password" required />
-              <button type="button" onClick={()=>setShowPass(s=>!s)} aria-label="Toggle password"
-                style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',
-                  background:'none',border:'none',cursor:'pointer',color:'var(--t3)'}}>
-                <i className={`ti ${showPass?'ti-eye-off':'ti-eye'}`} style={{fontSize:16}} />
+          {/* Password */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Password</label>
+            <div style={{ position: 'relative' }}>
+              <i className="ti ti-lock" style={{
+                position: 'absolute', left: 11, top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 16, color: 'rgba(133,183,235,0.5)',
+                pointerEvents: 'none',
+              }} />
+              <input
+                type={showPass ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                style={{ ...glassInput, paddingLeft: 36, paddingRight: 40 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(s => !s)}
+                style={{
+                  position: 'absolute', right: 10, top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none', border: 'none',
+                  cursor: 'pointer', color: 'rgba(133,183,235,0.5)',
+                  fontSize: 16, padding: 0, lineHeight: 1,
+                }}
+              >
+                <i className={`ti ${showPass ? 'ti-eye-off' : 'ti-eye'}`} />
               </button>
             </div>
           </div>
 
-          <div className="form-group" style={{marginBottom:20}}>
-            <label className="form-label">Your role</label>
-            <div className="role-grid">
+          {/* Role selector */}
+          <div style={{ marginBottom: 22 }}>
+            <label style={labelStyle}>Your role</label>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 7,
+              marginTop: 6,
+            }}>
               {ROLES.map(r => (
-                <button key={r.value} type="button"
-                  className={`role-btn ${role===r.value?'selected':''}`}
-                  onClick={()=>setRole(r.value)}>
-                  <i className={`ti ${r.icon}`} style={{fontSize:14,display:'block',marginBottom:3}} />
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRole(r.value)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '8px 10px',
+                    border: role === r.value
+                      ? '1px solid rgba(46,127,219,0.8)'
+                      : '1px solid rgba(133,183,235,0.15)',
+                    borderRadius: 9,
+                    background: role === r.value
+                      ? 'rgba(26,95,168,0.40)'
+                      : 'rgba(255,255,255,0.04)',
+                    color: role === r.value ? '#A8D4FF' : 'rgba(133,183,235,0.55)',
+                    fontFamily: 'var(--font)',
+                    fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all .15s',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <i className={`ti ${r.icon}`} style={{ fontSize: 15 }} />
                   {r.label}
                 </button>
               ))}
             </div>
-            <p className="text-sm text-muted" style={{marginTop:6}}>Access is verified from your account record.</p>
+            <p style={{
+              fontSize: 10, color: 'rgba(133,183,235,0.45)',
+              fontWeight: 500, marginTop: 6,
+            }}>
+              Access is verified from your account record.
+            </p>
           </div>
 
-          <button type="submit" className="btn btn-navy full-width btn-lg" disabled={loading}>
-            {loading
-              ? <><i className="ti ti-loader-2" style={{fontSize:16,animation:'spin 1s linear infinite'}} /> Signing in…</>
-              : <><i className="ti ti-login" style={{fontSize:16}} /> Sign in to EMR</>}
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '12px 20px',
+              background: loading
+                ? 'rgba(26,95,168,0.4)'
+                : 'linear-gradient(135deg, #1A5FA8 0%, #2E7FDB 100%)',
+              border: '1px solid rgba(46,127,219,0.5)',
+              borderRadius: 10,
+              color: '#FFFFFF',
+              fontSize: 14, fontWeight: 700,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font)',
+              boxShadow: loading ? 'none' : '0 4px 15px rgba(26,95,168,0.4)',
+              transition: 'all .2s',
+              opacity: loading ? 0.75 : 1,
+            }}
+          >
+            {loading ? (
+              <>
+                <i className="ti ti-loader-2" style={{ fontSize: 16, animation: 'spin 1s linear infinite' }} />
+                Signing in…
+              </>
+            ) : (
+              <>
+                <i className="ti ti-login" style={{ fontSize: 16 }} />
+                Sign in to EMR
+              </>
+            )}
           </button>
 
-          <div style={{textAlign:'center',marginTop:16,fontSize:11,color:'var(--t3)',fontWeight:500}}>
-            Forgot password? Contact your system administrator.<br/>
-            <strong style={{color:'var(--t2)'}}>RESTRICTED — Not to be handled by patients</strong>
+          {/* Footer note */}
+          <div style={{
+            textAlign: 'center', marginTop: 16,
+            fontSize: 10, color: 'rgba(133,183,235,0.45)',
+            fontWeight: 500, lineHeight: 1.7,
+          }}>
+            Forgot password? Contact your system administrator.<br />
+            <span style={{ color: 'rgba(133,183,235,0.6)', fontWeight: 700 }}>
+              RESTRICTED — Not to be handled by patients
+            </span>
           </div>
         </form>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 1000px rgba(11,31,58,0.85) inset !important;
+          -webkit-text-fill-color: #D6E8F8 !important;
+          caret-color: #D6E8F8;
+        }
+      `}</style>
     </div>
   );
 }
+
+/* ── Shared style objects ── */
+const labelStyle = {
+  display: 'block',
+  fontSize: 10, fontWeight: 700,
+  color: 'rgba(133,183,235,0.75)',
+  textTransform: 'uppercase',
+  letterSpacing: '.05em',
+  marginBottom: 6,
+};
+
+const glassInput = {
+  width: '100%',
+  padding: '10px 12px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(133,183,235,0.20)',
+  borderRadius: 9,
+  fontSize: 13, fontWeight: 700,
+  color: '#D6E8F8',
+  fontFamily: 'var(--font)',
+  outline: 'none',
+  transition: 'border-color .15s, background .15s',
+  boxSizing: 'border-box',
+};
