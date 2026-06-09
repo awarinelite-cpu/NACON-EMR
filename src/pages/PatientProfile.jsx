@@ -12,6 +12,8 @@ import {
   formatDateTime, ROLES,
 } from '../lib/emr';
 
+import MARTab from '../components/patients/MARTab';
+
 const TABS = [
   { id:'visit',    label:'Visit',           icon:'🏥' },
   { id:'vitals',   label:'Vitals',          icon:'❤️' },
@@ -21,6 +23,7 @@ const TABS = [
   { id:'nursing',  label:'Nursing',         icon:'📋' },
   { id:'doctor',   label:"Doctor's Report", icon:'🩺' },
   { id:'uploads',  label:'Labs',            icon:'🧪' },
+  { id:'mar',      label:'MAR',             icon:'💉' },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄' },
 ];
 
@@ -333,6 +336,7 @@ export default function PatientProfile() {
           { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
           { tab:'uploads', label:'Lab Result',     icon:'ti-flask',              show: true },
           { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
+          { tab:'mar',     label:'Give Medication', icon:'ti-pill',               show: isNurse || isDoctor },
         ].filter(b => b.show).map((btn, i) => (
           <button key={i} onClick={() => setActiveTab(btn.tab)} style={{
             display:'flex', alignItems:'center', gap:6,
@@ -839,7 +843,18 @@ export default function PatientProfile() {
           </div>
         )}
 
-        {/* ── REFERRAL / DISCHARGE TAB ── */}
+
+        {/* ── MAR TAB ── */}
+        {activeTab==='mar' && (
+          <MARTab
+            emrNumber={emrNumber}
+            visitId={visitId}
+            prescriptions={rx}
+            patient={patient}
+          />
+        )}
+
+        {/* ── REFERRAL / DISCHARGE TAB ── */
         {activeTab==='referral' && (isDoctor || isNurse) && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div className="card">
