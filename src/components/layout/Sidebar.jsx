@@ -10,7 +10,7 @@ const NAV = {
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/doctor' },
       { icon: 'ti-urgent',           label: 'Triage',         path: '/triage' },
       { icon: 'ti-pill',             label: 'MAR',            path: '/mar' },
-      { icon: 'ti-clock',            label: 'Today\'s Queue',  path: '/doctor/queue',     badge: 'queue' },
+      { icon: 'ti-clock',            label: "Today's Queue",  path: '/doctor/queue',     badge: 'queue' },
       { icon: 'ti-users',            label: 'My Patients',    path: '/doctor/patients' },
       { icon: 'ti-notes-medical',    label: 'Consultations',  path: '/doctor/consults' },
       { icon: 'ti-pill',             label: 'Prescriptions',  path: '/doctor/rx' },
@@ -64,18 +64,17 @@ const NAV = {
   ],
 };
 
-export default function Sidebar({ stats = {} }) {
+export default function Sidebar({ stats = {}, isOpen, onClose }) {
   const { profile, logout, toggleTheme, theme } = useAuth();
-  const navigate  = useNavigate();
-  const location  = useLocation();
-  const [query,   setQuery]   = useState('');
-  const [results, setResults] = useState([]);
+  const navigate   = useNavigate();
+  const location   = useLocation();
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
   const [searching, setSearching] = useState(false);
 
   const role   = profile?.role || 'nurse';
   const groups = NAV[role] || NAV.nurse;
 
-  // Debounced search
   let searchTimer = null;
   const handleSearch = (val) => {
     setQuery(val);
@@ -93,6 +92,12 @@ export default function Sidebar({ stats = {} }) {
     setQuery('');
     setResults([]);
     navigate(`/patient/${emr}`);
+    onClose?.();   // close sidebar on mobile after navigation
+  };
+
+  const handleNav = (path) => {
+    navigate(path);
+    onClose?.();   // close sidebar on mobile after navigation
   };
 
   const getInitials = (p) => {
@@ -101,7 +106,6 @@ export default function Sidebar({ stats = {} }) {
     return (s + f).toUpperCase();
   };
 
-  // Badge counts from stats
   const getBadge = (key) => {
     if (key === 'queue')   return stats.waiting  > 0 ? stats.waiting  : null;
     if (key === 'sickbay') return stats.sickBay  > 0 ? stats.sickBay  : null;
@@ -114,7 +118,10 @@ export default function Sidebar({ stats = {} }) {
   };
 
   return (
-    <nav className="sidebar" aria-label="Main navigation">
+    <nav
+      className={`sidebar${isOpen ? ' sidebar-open' : ''}`}
+      aria-label="Main navigation"
+    >
       {/* Brand */}
       <div className="sb-brand">
         <div className="sb-icon"><i className="ti ti-heart-rate-monitor" aria-hidden="true" /></div>
@@ -124,7 +131,7 @@ export default function Sidebar({ stats = {} }) {
         </div>
       </div>
 
-      {/* Search — shown for doctor, nurse, records */}
+      {/* Search */}
       {['doctor','nurse','records'].includes(role) && (
         <div className="sb-search" style={{ position: 'relative' }}>
           <div className="sb-search-box">
@@ -144,7 +151,6 @@ export default function Sidebar({ stats = {} }) {
             )}
           </div>
 
-          {/* Dropdown results */}
           {results.length > 0 && (
             <div style={{
               position:'absolute', top:'100%', left:12, right:12, zIndex:200,
@@ -206,9 +212,9 @@ export default function Sidebar({ stats = {} }) {
               return (
                 <div key={ii}
                   className={`nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => navigate(item.path)}
+                  onClick={() => handleNav(item.path)}
                   role="button" tabIndex={0}
-                  onKeyDown={e => e.key === 'Enter' && navigate(item.path)}
+                  onKeyDown={e => e.key === 'Enter' && handleNav(item.path)}
                 >
                   <i className={`ti ${item.icon}`} aria-hidden="true" />
                   <span>{item.label}</span>
