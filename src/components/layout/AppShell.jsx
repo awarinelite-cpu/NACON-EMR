@@ -9,6 +9,7 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mainRef    = useRef(null);
   const lastScroll = useRef(0);
+  const scrollEl   = useRef(null);
 
   useEffect(() => {
     getTodayStats().then(setStats);
@@ -16,17 +17,32 @@ export default function AppShell() {
     return () => clearInterval(t);
   }, []);
 
-  // Scroll-aware topbar: attach listener to .page-content inside main-area
-  // Uses event delegation so it works regardless of which page is rendered
+  // Attach scroll listener directly to .page-content whenever it appears/changes
   useEffect(() => {
     const mainEl = mainRef.current;
     if (!mainEl) return;
 
-    const onScroll = (e) => {
-      const el = e.target;
-      if (!el.classList.contains('page-content')) return;
+    let cleanup = () => {};
+
+    const bindScroll = () => {
+      const pageContent = mainEl.querySelector('.page-content');
+      if (!pageContent || pageContent === scrollEl.current) return;
+
+      // Unbind old
+      if (scrollEl.current) {
+        scrollEl.current.removeEventListener('scroll', onScroll);
+      }
+
+      scrollEl.current = pageContent;
+      pageContent.addEventListener('scroll', onScroll, { passive: true });
+    };
+
+    const onScroll = () => {
+      const el = scrollEl.current;
+      if (!el) return;
       const topbar = mainEl.querySelector('.topbar');
       if (!topbar) return;
+
       const currentY = el.scrollTop;
       if (currentY > lastScroll.current && currentY > 50) {
         topbar.classList.add('topbar-hidden');
@@ -36,8 +52,21 @@ export default function AppShell() {
       lastScroll.current = currentY <= 0 ? 0 : currentY;
     };
 
-    mainEl.addEventListener('scroll', onScroll, true); // capture phase
-    return () => mainEl.removeEventListener('scroll', onScroll, true);
+    // Watch for .page-content to appear (route changes re-render Outlet)
+    const observer = new MutationObserver(bindScroll);
+    observer.observe(mainEl, { childList: true, subtree: true });
+
+    // Also try immediately
+    bindScroll();
+
+    cleanup = () => {
+      observer.disconnect();
+      if (scrollEl.current) {
+        scrollEl.current.removeEventListener('scroll', onScroll);
+      }
+    };
+
+    return cleanup;
   }, []);
 
   const closeSidebar  = () => setSidebarOpen(false);
@@ -45,7 +74,6 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      {/* ── HAMBURGER — mobile only ── */}
       <button
         className="hamburger-btn"
         onClick={toggleSidebar}
@@ -55,7 +83,6 @@ export default function AppShell() {
         <i className={`ti ${sidebarOpen ? 'ti-x' : 'ti-menu-2'}`} />
       </button>
 
-      {/* ── BACKDROP ── */}
       {sidebarOpen && (
         <div className="sidebar-backdrop" onClick={closeSidebar} aria-hidden="true" />
       )}
