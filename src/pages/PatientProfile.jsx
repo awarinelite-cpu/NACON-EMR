@@ -54,6 +54,10 @@ export default function PatientProfile() {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [visitId,   setVisitId]   = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const scrollRef  = useRef(null);
+  const lastScroll = useRef(0);
 
   const [noteText,  setNoteText]  = useState('');
   const [vitalForm, setVitalForm] = useState({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
@@ -62,6 +66,19 @@ export default function PatientProfile() {
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const fileInput = useRef();
+
+  // Scroll listener: collapse vitals+actions on scroll down, expand on scroll up
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const currentY = el.scrollTop;
+    if (currentY > lastScroll.current && currentY > 60) {
+      setCollapsed(true);
+    } else if (currentY < lastScroll.current - 10) {
+      setCollapsed(false);
+    }
+    lastScroll.current = currentY <= 0 ? 0 : currentY;
+  };
 
   useEffect(() => {
     (async () => {
@@ -217,177 +234,181 @@ export default function PatientProfile() {
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden', background:'var(--main-bg)' }}>
 
-      {/* ══ HEADER BAR ══ */}
+      {/* ══ HEADER BAR — always visible ══ */}
       <div style={{
         background:'var(--card-bg)',
         borderBottom:'1px solid var(--border)',
-        padding:'14px 20px',
-        display:'flex', alignItems:'center', gap:16,
+        padding:'10px 14px 10px 58px',
+        display:'flex', alignItems:'center', gap:10,
         flexShrink:0,
+        minHeight: 0,
       }}>
         <button onClick={() => navigate(-1)} style={{
           background:'none', border:'1px solid var(--border)', borderRadius:8,
-          padding:'6px 12px', cursor:'pointer', color:'var(--t2)',
+          padding:'5px 10px', cursor:'pointer', color:'var(--t2)',
           fontWeight:700, fontSize:12, display:'flex', alignItems:'center', gap:5,
-          fontFamily:'var(--font)',
+          fontFamily:'var(--font)', flexShrink:0,
         }}>
           <i className="ti ti-arrow-left" style={{fontSize:14}} /> Back
         </button>
 
-        <div style={{ flex:1 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-            <h2 style={{ fontSize:20, fontWeight:700, margin:0 }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+            <h2 style={{ fontSize:15, fontWeight:700, margin:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
               {patient.surname} {patient.firstName} {patient.otherNames}
             </h2>
             <span style={{
               background: statusColor + '22', color: statusColor,
-              fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:20,
+              fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
               border:`1px solid ${statusColor}44`,
-              textTransform:'capitalize',
+              textTransform:'capitalize', flexShrink:0,
             }}>{patient.status}</span>
           </div>
-          <div style={{ display:'flex', gap:12, marginTop:4, flexWrap:'wrap' }}>
-            <span style={{ fontSize:11, color:'var(--t3)', fontFamily:'var(--mono)' }}>
-              EMR: {patient.emrNumber}
+          <div style={{ display:'flex', gap:8, marginTop:2, flexWrap:'wrap' }}>
+            <span style={{ fontSize:10, color:'var(--t3)', fontFamily:'var(--mono)' }}>
+              {patient.emrNumber}
             </span>
-            <span style={{ fontSize:11, color:'var(--t3)' }}>•</span>
-            <span style={{ fontSize:11, color:'var(--t3)' }}>{patient.classSet}</span>
-            <span style={{ fontSize:11, color:'var(--t3)' }}>•</span>
-            <span style={{ fontSize:11, color:'var(--t3)' }}>{patient.folderNumber}</span>
-            {patient.knownAllergies && <>
-              <span style={{ fontSize:11, color:'var(--t3)' }}>•</span>
-              <span style={{ fontSize:11, color:'var(--danger)', fontWeight:700 }}>
+            <span style={{ fontSize:10, color:'var(--t3)' }}>· {patient.classSet} · {patient.folderNumber}</span>
+            {patient.knownAllergies && (
+              <span style={{ fontSize:10, color:'var(--danger)', fontWeight:700 }}>
                 ⚠ {patient.knownAllergies}
               </span>
-            </>}
+            )}
           </div>
         </div>
 
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
           {(isDoctor || isNurse) && (
             <button onClick={() => setActiveTab('referral')} style={{
               background:'none', border:'1px solid var(--border)', borderRadius:8,
-              padding:'7px 14px', cursor:'pointer', color:'var(--t2)',
-              fontWeight:700, fontSize:12, display:'flex', alignItems:'center', gap:6,
+              padding:'5px 10px', cursor:'pointer', color:'var(--t2)',
+              fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5,
               fontFamily:'var(--font)',
             }}>
-              <i className="ti ti-transfer" style={{fontSize:14}} /> Transfer/D/C
+              <i className="ti ti-transfer" style={{fontSize:13}} /> Transfer/D/C
             </button>
           )}
           <button onClick={() => window.print()} style={{
             background:'none', border:'1px solid var(--border)', borderRadius:8,
-            padding:'7px 14px', cursor:'pointer', color:'var(--t2)',
-            fontWeight:700, fontSize:12, display:'flex', alignItems:'center', gap:6,
+            padding:'5px 10px', cursor:'pointer', color:'var(--t2)',
+            fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5,
             fontFamily:'var(--font)',
           }}>
-            <i className="ti ti-printer" style={{fontSize:14}} /> Print
+            <i className="ti ti-printer" style={{fontSize:13}} /> Print
           </button>
         </div>
       </div>
 
-      {/* ══ VITAL STAT CARDS ══ */}
+      {/* ══ COLLAPSIBLE SECTION: Vitals cards + Action buttons ══ */}
       <div style={{
-        display:'grid',
-        gridTemplateColumns:'repeat(5, 1fr)',
-        gap:12, padding:'14px 20px',
-        background:'var(--main-bg)',
-        flexShrink:0,
+        overflow:'hidden',
+        maxHeight: collapsed ? 0 : '400px',
+        opacity: collapsed ? 0 : 1,
+        transition: 'max-height 0.28s ease, opacity 0.22s ease',
+        flexShrink: 0,
+        background: 'var(--main-bg)',
       }}>
-        {[
-          { label:'BP',   value: latestV ? `${latestV.sbp}/${latestV.dbp}` : '—', unit:'mmHg',  icon:'ti-heartbeat',          flag: latestV ? vitalFlag('sbp', latestV.sbp) : '' },
-          { label:'HR',   value: latestV?.hr   || '—', unit:'bpm',   icon:'ti-heart-rate-monitor', flag: latestV ? vitalFlag('hr',  latestV.hr)  : '' },
-          { label:'TEMP', value: latestV?.temp  || '—', unit:'°C',    icon:'ti-temperature',        flag: latestV ? vitalFlag('temp',latestV.temp): '' },
-          { label:'SPO₂', value: latestV?.spo2  || '—', unit:'%',     icon:'ti-lungs',              flag: latestV ? vitalFlag('spo2',latestV.spo2): '' },
-          { label:'MEDS', value: activeMeds,             unit:'active',icon:'ti-pill',               flag: 'ok' },
-        ].map(v => {
-          const flagColor = v.flag==='high' ? 'var(--danger)' : v.flag==='low' ? 'var(--warn)' : 'var(--accent)';
-          return (
-            <div key={v.label} style={{
-              background:'var(--card-bg)',
-              border:`1px solid var(--border)`,
-              borderTop:`3px solid ${flagColor}`,
-              borderRadius:12,
-              padding:'14px 16px',
-              cursor:'pointer',
-            }} onClick={() => setActiveTab('vitals')}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                <i className={`ti ${v.icon}`} style={{ fontSize:18, color: flagColor }} />
-                <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', letterSpacing:'.05em' }}>{v.label}</span>
+        {/* Vital Stat Cards */}
+        <div style={{
+          display:'grid',
+          gridTemplateColumns:'repeat(5, 1fr)',
+          gap:8, padding:'10px 14px 0',
+        }}>
+          {[
+            { label:'BP',   value: latestV ? `${latestV.sbp}/${latestV.dbp}` : '—', unit:'mmHg',  icon:'ti-heartbeat',          flag: latestV ? vitalFlag('sbp', latestV.sbp) : '' },
+            { label:'HR',   value: latestV?.hr   || '—', unit:'bpm',   icon:'ti-heart-rate-monitor', flag: latestV ? vitalFlag('hr',  latestV.hr)  : '' },
+            { label:'TEMP', value: latestV?.temp  || '—', unit:'°C',    icon:'ti-temperature',        flag: latestV ? vitalFlag('temp',latestV.temp): '' },
+            { label:'SPO₂', value: latestV?.spo2  || '—', unit:'%',     icon:'ti-lungs',              flag: latestV ? vitalFlag('spo2',latestV.spo2): '' },
+            { label:'MEDS', value: activeMeds,             unit:'active',icon:'ti-pill',               flag: 'ok' },
+          ].map(v => {
+            const flagColor = v.flag==='high' ? 'var(--danger)' : v.flag==='low' ? 'var(--warn)' : 'var(--accent)';
+            return (
+              <div key={v.label} style={{
+                background:'var(--card-bg)',
+                border:`1px solid var(--border)`,
+                borderTop:`3px solid ${flagColor}`,
+                borderRadius:10,
+                padding:'10px 10px',
+                cursor:'pointer',
+              }} onClick={() => setActiveTab('vitals')}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                  <i className={`ti ${v.icon}`} style={{ fontSize:15, color: flagColor }} />
+                  <span style={{ fontSize:9, fontWeight:700, color:'var(--t3)', letterSpacing:'.05em' }}>{v.label}</span>
+                </div>
+                <div style={{ fontSize:20, fontWeight:700, color:'var(--t1)', lineHeight:1 }}>{v.value}</div>
+                <div style={{ fontSize:9, color:'var(--t3)', fontWeight:500, marginTop:2 }}>{v.unit}</div>
               </div>
-              <div style={{ fontSize:26, fontWeight:700, color:'var(--t1)', lineHeight:1 }}>{v.value}</div>
-              <div style={{ fontSize:10, color:'var(--t3)', fontWeight:500, marginTop:3 }}>{v.unit}</div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{
+          display:'flex', gap:6, flexWrap:'wrap',
+          padding:'8px 14px 10px',
+        }}>
+          {[
+            { tab:'vitals',  label:'Add Vitals',     icon:'ti-heart-rate-monitor', show: true },
+            { tab:'rx',      label:'Prescription',   icon:'ti-pill',               show: canPrescribe },
+            { tab:'nursing', label:'Nursing Report', icon:'ti-notes-medical',      show: isNurse },
+            { tab:'doctor',  label:"Doctor's Order", icon:'ti-stethoscope',        show: isDoctor },
+            { tab:'glucose', label:'Glucose',        icon:'ti-activity',           show: true },
+            { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
+            { tab:'uploads', label:'Lab Result',     icon:'ti-flask',              show: true },
+            { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
+            { tab:'mar',     label:'Give Medication', icon:'ti-pill',              show: isNurse || isDoctor },
+          ].filter(b => b.show).map((btn, i) => (
+            <button key={i} onClick={() => setActiveTab(btn.tab)} style={{
+              display:'flex', alignItems:'center', gap:5,
+              padding:'6px 12px',
+              background:'var(--card-bg)',
+              border:'1px solid var(--border)',
+              borderRadius:8,
+              fontSize:11, fontWeight:700,
+              color:'var(--t2)',
+              cursor:'pointer',
+              fontFamily:'var(--font)',
+            }}>
+              <i className={`ti ${btn.icon}`} style={{ fontSize:13, color:'var(--accent)' }} />
+              {btn.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ══ ACTION BUTTONS ══ */}
-      <div style={{
-        display:'flex', gap:8, flexWrap:'wrap',
-        padding:'0 20px 12px',
-        flexShrink:0,
-      }}>
-        {[
-          { tab:'vitals',  label:'Add Vitals',     icon:'ti-heart-rate-monitor', show: true },
-          { tab:'rx',      label:'Prescription',   icon:'ti-pill',               show: canPrescribe },
-          { tab:'nursing', label:'Nursing Report', icon:'ti-notes-medical',      show: isNurse },
-          { tab:'doctor',  label:"Doctor's Order", icon:'ti-stethoscope',        show: isDoctor },
-          { tab:'glucose', label:'Glucose',        icon:'ti-activity',           show: true },
-          { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
-          { tab:'uploads', label:'Lab Result',     icon:'ti-flask',              show: true },
-          { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
-          { tab:'mar',     label:'Give Medication', icon:'ti-pill',               show: isNurse || isDoctor },
-        ].filter(b => b.show).map((btn, i) => (
-          <button key={i} onClick={() => setActiveTab(btn.tab)} style={{
-            display:'flex', alignItems:'center', gap:6,
-            padding:'7px 14px',
-            background:'var(--card-bg)',
-            border:'1px solid var(--border)',
-            borderRadius:8,
-            fontSize:12, fontWeight:700,
-            color:'var(--t2)',
-            cursor:'pointer',
-            fontFamily:'var(--font)',
-            transition:'all .15s',
-          }}
-          onMouseOver={e => e.currentTarget.style.background='var(--card-bg2)'}
-          onMouseOut={e => e.currentTarget.style.background='var(--card-bg)'}
-          >
-            <i className={`ti ${btn.icon}`} style={{ fontSize:14, color:'var(--accent)' }} />
-            {btn.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ══ TABS ══ */}
+      {/* ══ TABS — always visible, sticky ══ */}
       <div style={{
         display:'flex', overflowX:'auto', gap:0,
         borderBottom:'2px solid var(--border)',
         background:'var(--card-bg)',
-        padding:'0 20px',
+        padding:'0 14px',
         flexShrink:0,
+        scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-            display:'flex', alignItems:'center', gap:5,
-            padding:'10px 14px',
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setCollapsed(false); }} style={{
+            display:'flex', alignItems:'center', gap:4,
+            padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
             marginBottom:-2,
             background:'transparent',
-            fontSize:12, fontWeight:700,
+            fontSize:11, fontWeight:700,
             color: activeTab===t.id ? 'var(--accent)' : 'var(--t3)',
             cursor:'pointer',
             whiteSpace:'nowrap',
             fontFamily:'var(--font)',
-            transition:'color .15s',
           }}>
-            <span style={{fontSize:13}}>{t.icon}</span> {t.label}
+            <span style={{fontSize:12}}>{t.icon}</span> {t.label}
           </button>
         ))}
       </div>
 
-      {/* ══ TAB CONTENT ══ */}
-      <div style={{ flex:1, overflowY:'auto', padding:'16px 20px' }}>
+      {/* ══ TAB CONTENT — scrollable ══ */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        style={{ flex:1, overflowY:'auto', padding:'14px', WebkitOverflowScrolling:'touch', overscrollBehavior:'contain' }}
+      >
 
         {/* ── VISIT TAB ── */}
         {activeTab==='visit' && (
@@ -842,7 +863,6 @@ export default function PatientProfile() {
             </div>
           </div>
         )}
-
 
         {/* ── MAR TAB ── */}
         {activeTab==='mar' && (
