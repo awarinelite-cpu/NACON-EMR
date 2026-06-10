@@ -923,3 +923,14 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   opacity: 0;
   pointer-events: none;
 }
+
+/* ── TIMELINE CLICKABLE ITEM ── */
+.tl-item-clickable {
+  cursor: pointer;
+  transition: background 0.12s;
+  border-radius: 8px;
+}
+.tl-item-clickable:hover,
+.tl-item-clickable:active {
+  background: var(--card-bg2);
+}
