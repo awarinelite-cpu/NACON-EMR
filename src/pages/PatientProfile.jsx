@@ -65,6 +65,7 @@ export default function PatientProfile() {
   const [fluidForm, setFluidForm] = useState({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
+  const [selectedEvent, setSelectedEvent] = useState(null); // timeline detail drawer
   const fileInput = useRef();
 
   // Scroll listener: collapse vitals+actions using DOM classList (no re-render = no shake)
@@ -114,6 +115,243 @@ export default function PatientProfile() {
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--main-bg)' }}>
       <i className="ti ti-loader-2" style={{ fontSize:32, animation:'spin 1s linear infinite', color:'var(--accent)' }} />
+
+      {/* ══ TIMELINE EVENT DETAIL DRAWER ══ */}
+      {selectedEvent && (
+        <div style={{
+          position:'fixed', inset:0, zIndex:2000,
+          background:'rgba(0,0,0,0.5)',
+          display:'flex', alignItems:'flex-end',
+        }} onClick={() => setSelectedEvent(null)}>
+          <div style={{
+            width:'100%', maxHeight:'80vh',
+            background:'var(--card-bg)',
+            borderRadius:'18px 18px 0 0',
+            display:'flex', flexDirection:'column',
+            overflow:'hidden',
+            boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',
+          }} onClick={e => e.stopPropagation()}>
+
+            {/* Drawer header */}
+            <div style={{
+              display:'flex', alignItems:'center', gap:10,
+              padding:'14px 16px',
+              borderBottom:'1px solid var(--border)',
+              flexShrink:0,
+            }}>
+              <div style={{
+                width:34, height:34, borderRadius:10,
+                background: tlColor[selectedEvent.type] + '22',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                flexShrink:0,
+              }}>
+                <i className={`ti ${tlIcon[selectedEvent.type]}`} style={{ color: tlColor[selectedEvent.type], fontSize:18 }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)' }}>{tlTitle[selectedEvent.type]}</div>
+                <div style={{ fontSize:11, color:'var(--t3)' }}>{formatDateTime(selectedEvent.ts)}</div>
+              </div>
+              <button onClick={() => setSelectedEvent(null)} style={{
+                background:'var(--card-bg2)', border:'none', borderRadius:8,
+                width:32, height:32, cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                color:'var(--t2)', flexShrink:0,
+              }}>
+                <i className="ti ti-x" style={{ fontSize:16 }} />
+              </button>
+            </div>
+
+            {/* Drawer body — scrollable */}
+            <div style={{ overflowY:'auto', padding:'16px', WebkitOverflowScrolling:'touch' }}>
+
+              {/* ── NOTE ── */}
+              {selectedEvent.type === 'note' && (() => {
+                const n = selectedEvent.data;
+                return (
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                      <div style={{
+                        background: n.authorRole==='doctor'?'var(--success-bg)':'var(--info-bg)',
+                        color: n.authorRole==='doctor'?'var(--success)':'var(--info)',
+                        width:30, height:30, borderRadius:'50%',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:11, fontWeight:700,
+                      }}>{(n.authorName||'').slice(0,2).toUpperCase()}</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--t1)' }}>{n.authorName}</div>
+                        <span className={`badge ${n.authorRole==='doctor'?'badge-ok':'badge-info'}`} style={{ fontSize:9 }}>
+                          {n.authorRole==='doctor'?"Doctor's note":"Nursing note"}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{
+                      background:'var(--card-bg2)', borderRadius:10, padding:'14px',
+                      fontSize:13, fontWeight:500, color:'var(--t1)', lineHeight:1.8,
+                      whiteSpace:'pre-line',
+                    }}>{n.text}</div>
+                  </div>
+                );
+              })()}
+
+              {/* ── VITALS ── */}
+              {selectedEvent.type === 'vitals' && (() => {
+                const v = selectedEvent.data;
+                const rows = [
+                  { label:'Blood Pressure', value:`${v.sbp}/${v.dbp}`, unit:'mmHg', key:'sbp', icon:'ti-heartbeat' },
+                  { label:'Heart Rate',     value:v.hr,   unit:'bpm',   key:'hr',   icon:'ti-heart-rate-monitor' },
+                  { label:'Temperature',    value:v.temp, unit:'°C',    key:'temp', icon:'ti-temperature' },
+                  { label:'Resp. Rate',     value:v.rr,   unit:'/min',  key:'rr',   icon:'ti-lungs' },
+                  { label:'SpO₂',           value:v.spo2, unit:'%',     key:'spo2', icon:'ti-activity' },
+                  { label:'Weight',         value:v.weight||'—', unit:'kg', key:'', icon:'ti-scale' },
+                ];
+                return (
+                  <div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                      {rows.map(r => {
+                        const flag = r.key ? vitalFlag(r.key, r.value) : 'ok';
+                        const clr  = flag==='high'?'var(--danger)':flag==='low'?'var(--warn)':'var(--t1)';
+                        const bg   = flag==='high'?'var(--danger-bg)':flag==='low'?'var(--warn-bg)':'var(--card-bg2)';
+                        return (
+                          <div key={r.label} style={{ background:bg, borderRadius:10, padding:'12px 14px' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:4 }}>
+                              <i className={`ti ${r.icon}`} style={{ fontSize:13, color:clr }} />
+                              <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{r.label}</span>
+                            </div>
+                            <div style={{ fontSize:22, fontWeight:700, color:clr, lineHeight:1 }}>{r.value}</div>
+                            <div style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>{r.unit}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {v.notes && (
+                      <div style={{ background:'var(--card-bg2)', borderRadius:10, padding:'12px 14px' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', marginBottom:5 }}>Observations</div>
+                        <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.7 }}>{v.notes}</div>
+                      </div>
+                    )}
+                    <div style={{ marginTop:10, fontSize:11, color:'var(--t3)' }}>Recorded by: <b style={{ color:'var(--t2)' }}>{v.recordedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+              {/* ── PRESCRIPTION ── */}
+              {selectedEvent.type === 'rx' && (() => {
+                const r = selectedEvent.data;
+                return (
+                  <div>
+                    {r.requiresCountersign && (
+                      <div className="alert alert-warn" style={{ marginBottom:12 }}>
+                        <i className="ti ti-alert-triangle" /> Nurse prescription — requires doctor countersignature
+                      </div>
+                    )}
+                    <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
+                      {r.drugs?.map((d, i) => (
+                        <div key={i} style={{
+                          background:'var(--card-bg2)', borderRadius:10, padding:'12px 14px',
+                          display:'flex', alignItems:'center', gap:12,
+                        }}>
+                          <div style={{
+                            width:36, height:36, borderRadius:9,
+                            background:'var(--success-bg)', color:'var(--success)',
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                            fontSize:18, flexShrink:0,
+                          }}>💊</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)' }}>{d.drug}</div>
+                            <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>
+                              {[d.dose, d.frequency, d.duration].filter(Boolean).join(' · ')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)' }}>Prescribed by: <b style={{ color:'var(--t2)' }}>{r.prescribedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+              {/* ── FLUID ── */}
+              {selectedEvent.type === 'fluid' && (() => {
+                const f = selectedEvent.data;
+                return (
+                  <div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                      <div style={{ background:'var(--info-bg)', borderRadius:10, padding:'14px', textAlign:'center' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--info)', textTransform:'uppercase', marginBottom:4 }}>💧 Intake</div>
+                        <div style={{ fontSize:28, fontWeight:700, color:'var(--info)' }}>{f.intakeAmt || '—'}</div>
+                        <div style={{ fontSize:11, color:'var(--info)' }}>ml</div>
+                        {f.intakeType && <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>{f.intakeType}</div>}
+                      </div>
+                      <div style={{ background:'var(--warn-bg)', borderRadius:10, padding:'14px', textAlign:'center' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--warn)', textTransform:'uppercase', marginBottom:4 }}>🔴 Output</div>
+                        <div style={{ fontSize:28, fontWeight:700, color:'var(--warn)' }}>{f.outputAmt || '—'}</div>
+                        <div style={{ fontSize:11, color:'var(--warn)' }}>ml</div>
+                        {f.outputType && <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>{f.outputType}</div>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>
+                      Time: <b style={{ color:'var(--t2)' }}>{f.time || formatTime(f.recordedAt)}</b>
+                      {' · '}Recorded by: <b style={{ color:'var(--t2)' }}>{f.recordedBy}</b>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── GLUCOSE ── */}
+              {selectedEvent.type === 'glucose' && (() => {
+                const g = selectedEvent.data;
+                const val = parseFloat(g.reading);
+                const status = val<4?'Low':val>10?'High':val>7?'Elevated':'Normal';
+                const scls   = val<4?'badge-warn':val>10?'badge-danger':val>7?'badge-warn':'badge-ok';
+                const clr    = val<4?'var(--warn)':val>10?'var(--danger)':val>7?'var(--warn)':'var(--success)';
+                return (
+                  <div>
+                    <div style={{
+                      background:'var(--card-bg2)', borderRadius:14, padding:'24px',
+                      textAlign:'center', marginBottom:12,
+                    }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', marginBottom:6 }}>Blood Glucose</div>
+                      <div style={{ fontSize:52, fontWeight:700, color:clr, lineHeight:1 }}>{g.reading}</div>
+                      <div style={{ fontSize:13, color:'var(--t3)', marginTop:4 }}>mmol/L</div>
+                      <span className={`badge ${scls}`} style={{ marginTop:10, display:'inline-flex', fontSize:12, padding:'4px 14px' }}>{status}</span>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)' }}>
+                      Context: <b style={{ color:'var(--t2)' }}>{g.context || '—'}</b>
+                      {' · '}Time: <b style={{ color:'var(--t2)' }}>{g.time || formatTime(g.recordedAt)}</b>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>Recorded by: <b style={{ color:'var(--t2)' }}>{g.recordedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+              {/* ── FILE UPLOAD ── */}
+              {selectedEvent.type === 'upload' && (() => {
+                const u = selectedEvent.data;
+                const isPdf = u.fileType?.includes('pdf');
+                return (
+                  <div>
+                    <div style={{
+                      background:'var(--card-bg2)', borderRadius:12, padding:'20px',
+                      display:'flex', flexDirection:'column', alignItems:'center', gap:10,
+                      marginBottom:12,
+                    }}>
+                      <i className={`ti ${isPdf?'ti-file-text':'ti-photo'}`} style={{ fontSize:44, color:'var(--accent)' }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)', textAlign:'center' }}>{u.fileName}</div>
+                      <div style={{ fontSize:11, color:'var(--t3)' }}>{u.category} · {Math.round((u.fileSize||0)/1024)}KB</div>
+                    </div>
+                    <a href={u.downloadUrl} target="_blank" rel="noreferrer" className="btn btn-primary"
+                      style={{ display:'flex', justifyContent:'center', textDecoration:'none', width:'100%' }}>
+                      <i className="ti ti-external-link" /> Open file
+                    </a>
+                    <div style={{ fontSize:11, color:'var(--t3)', marginTop:10 }}>Uploaded by: <b style={{ color:'var(--t2)' }}>{u.uploadedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
@@ -517,7 +755,7 @@ export default function PatientProfile() {
               ) : (
                 <div className="timeline">
                   {timeline.map((item, i) => (
-                    <div key={i} className="tl-item">
+                    <div key={i} className="tl-item tl-item-clickable" onClick={() => setSelectedEvent(item)}>
                       <div className="tl-dot" style={{ background: tlColor[item.type] }} />
                       <div className="tl-body">
                         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
@@ -532,7 +770,10 @@ export default function PatientProfile() {
                           {item.type==='note' ? item.data.authorName : item.data.recordedBy || item.data.prescribedBy || item.data.uploadedBy}
                         </div>
                       </div>
-                      <div className="tl-time">{formatTime(item.ts)}</div>
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
+                        <div className="tl-time">{formatTime(item.ts)}</div>
+                        <i className="ti ti-chevron-right" style={{ fontSize:11, color:'var(--t3)' }} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -912,6 +1153,243 @@ export default function PatientProfile() {
         )}
 
       </div>
+
+      {/* ══ TIMELINE EVENT DETAIL DRAWER ══ */}
+      {selectedEvent && (
+        <div style={{
+          position:'fixed', inset:0, zIndex:2000,
+          background:'rgba(0,0,0,0.5)',
+          display:'flex', alignItems:'flex-end',
+        }} onClick={() => setSelectedEvent(null)}>
+          <div style={{
+            width:'100%', maxHeight:'80vh',
+            background:'var(--card-bg)',
+            borderRadius:'18px 18px 0 0',
+            display:'flex', flexDirection:'column',
+            overflow:'hidden',
+            boxShadow:'0 -4px 32px rgba(0,0,0,0.25)',
+          }} onClick={e => e.stopPropagation()}>
+
+            {/* Drawer header */}
+            <div style={{
+              display:'flex', alignItems:'center', gap:10,
+              padding:'14px 16px',
+              borderBottom:'1px solid var(--border)',
+              flexShrink:0,
+            }}>
+              <div style={{
+                width:34, height:34, borderRadius:10,
+                background: tlColor[selectedEvent.type] + '22',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                flexShrink:0,
+              }}>
+                <i className={`ti ${tlIcon[selectedEvent.type]}`} style={{ color: tlColor[selectedEvent.type], fontSize:18 }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)' }}>{tlTitle[selectedEvent.type]}</div>
+                <div style={{ fontSize:11, color:'var(--t3)' }}>{formatDateTime(selectedEvent.ts)}</div>
+              </div>
+              <button onClick={() => setSelectedEvent(null)} style={{
+                background:'var(--card-bg2)', border:'none', borderRadius:8,
+                width:32, height:32, cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                color:'var(--t2)', flexShrink:0,
+              }}>
+                <i className="ti ti-x" style={{ fontSize:16 }} />
+              </button>
+            </div>
+
+            {/* Drawer body — scrollable */}
+            <div style={{ overflowY:'auto', padding:'16px', WebkitOverflowScrolling:'touch' }}>
+
+              {/* ── NOTE ── */}
+              {selectedEvent.type === 'note' && (() => {
+                const n = selectedEvent.data;
+                return (
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                      <div style={{
+                        background: n.authorRole==='doctor'?'var(--success-bg)':'var(--info-bg)',
+                        color: n.authorRole==='doctor'?'var(--success)':'var(--info)',
+                        width:30, height:30, borderRadius:'50%',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:11, fontWeight:700,
+                      }}>{(n.authorName||'').slice(0,2).toUpperCase()}</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--t1)' }}>{n.authorName}</div>
+                        <span className={`badge ${n.authorRole==='doctor'?'badge-ok':'badge-info'}`} style={{ fontSize:9 }}>
+                          {n.authorRole==='doctor'?"Doctor's note":"Nursing note"}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{
+                      background:'var(--card-bg2)', borderRadius:10, padding:'14px',
+                      fontSize:13, fontWeight:500, color:'var(--t1)', lineHeight:1.8,
+                      whiteSpace:'pre-line',
+                    }}>{n.text}</div>
+                  </div>
+                );
+              })()}
+
+              {/* ── VITALS ── */}
+              {selectedEvent.type === 'vitals' && (() => {
+                const v = selectedEvent.data;
+                const rows = [
+                  { label:'Blood Pressure', value:`${v.sbp}/${v.dbp}`, unit:'mmHg', key:'sbp', icon:'ti-heartbeat' },
+                  { label:'Heart Rate',     value:v.hr,   unit:'bpm',   key:'hr',   icon:'ti-heart-rate-monitor' },
+                  { label:'Temperature',    value:v.temp, unit:'°C',    key:'temp', icon:'ti-temperature' },
+                  { label:'Resp. Rate',     value:v.rr,   unit:'/min',  key:'rr',   icon:'ti-lungs' },
+                  { label:'SpO₂',           value:v.spo2, unit:'%',     key:'spo2', icon:'ti-activity' },
+                  { label:'Weight',         value:v.weight||'—', unit:'kg', key:'', icon:'ti-scale' },
+                ];
+                return (
+                  <div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                      {rows.map(r => {
+                        const flag = r.key ? vitalFlag(r.key, r.value) : 'ok';
+                        const clr  = flag==='high'?'var(--danger)':flag==='low'?'var(--warn)':'var(--t1)';
+                        const bg   = flag==='high'?'var(--danger-bg)':flag==='low'?'var(--warn-bg)':'var(--card-bg2)';
+                        return (
+                          <div key={r.label} style={{ background:bg, borderRadius:10, padding:'12px 14px' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:4 }}>
+                              <i className={`ti ${r.icon}`} style={{ fontSize:13, color:clr }} />
+                              <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{r.label}</span>
+                            </div>
+                            <div style={{ fontSize:22, fontWeight:700, color:clr, lineHeight:1 }}>{r.value}</div>
+                            <div style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>{r.unit}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {v.notes && (
+                      <div style={{ background:'var(--card-bg2)', borderRadius:10, padding:'12px 14px' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', marginBottom:5 }}>Observations</div>
+                        <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.7 }}>{v.notes}</div>
+                      </div>
+                    )}
+                    <div style={{ marginTop:10, fontSize:11, color:'var(--t3)' }}>Recorded by: <b style={{ color:'var(--t2)' }}>{v.recordedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+              {/* ── PRESCRIPTION ── */}
+              {selectedEvent.type === 'rx' && (() => {
+                const r = selectedEvent.data;
+                return (
+                  <div>
+                    {r.requiresCountersign && (
+                      <div className="alert alert-warn" style={{ marginBottom:12 }}>
+                        <i className="ti ti-alert-triangle" /> Nurse prescription — requires doctor countersignature
+                      </div>
+                    )}
+                    <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
+                      {r.drugs?.map((d, i) => (
+                        <div key={i} style={{
+                          background:'var(--card-bg2)', borderRadius:10, padding:'12px 14px',
+                          display:'flex', alignItems:'center', gap:12,
+                        }}>
+                          <div style={{
+                            width:36, height:36, borderRadius:9,
+                            background:'var(--success-bg)', color:'var(--success)',
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                            fontSize:18, flexShrink:0,
+                          }}>💊</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)' }}>{d.drug}</div>
+                            <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>
+                              {[d.dose, d.frequency, d.duration].filter(Boolean).join(' · ')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)' }}>Prescribed by: <b style={{ color:'var(--t2)' }}>{r.prescribedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+              {/* ── FLUID ── */}
+              {selectedEvent.type === 'fluid' && (() => {
+                const f = selectedEvent.data;
+                return (
+                  <div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                      <div style={{ background:'var(--info-bg)', borderRadius:10, padding:'14px', textAlign:'center' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--info)', textTransform:'uppercase', marginBottom:4 }}>💧 Intake</div>
+                        <div style={{ fontSize:28, fontWeight:700, color:'var(--info)' }}>{f.intakeAmt || '—'}</div>
+                        <div style={{ fontSize:11, color:'var(--info)' }}>ml</div>
+                        {f.intakeType && <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>{f.intakeType}</div>}
+                      </div>
+                      <div style={{ background:'var(--warn-bg)', borderRadius:10, padding:'14px', textAlign:'center' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--warn)', textTransform:'uppercase', marginBottom:4 }}>🔴 Output</div>
+                        <div style={{ fontSize:28, fontWeight:700, color:'var(--warn)' }}>{f.outputAmt || '—'}</div>
+                        <div style={{ fontSize:11, color:'var(--warn)' }}>ml</div>
+                        {f.outputType && <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>{f.outputType}</div>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>
+                      Time: <b style={{ color:'var(--t2)' }}>{f.time || formatTime(f.recordedAt)}</b>
+                      {' · '}Recorded by: <b style={{ color:'var(--t2)' }}>{f.recordedBy}</b>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── GLUCOSE ── */}
+              {selectedEvent.type === 'glucose' && (() => {
+                const g = selectedEvent.data;
+                const val = parseFloat(g.reading);
+                const status = val<4?'Low':val>10?'High':val>7?'Elevated':'Normal';
+                const scls   = val<4?'badge-warn':val>10?'badge-danger':val>7?'badge-warn':'badge-ok';
+                const clr    = val<4?'var(--warn)':val>10?'var(--danger)':val>7?'var(--warn)':'var(--success)';
+                return (
+                  <div>
+                    <div style={{
+                      background:'var(--card-bg2)', borderRadius:14, padding:'24px',
+                      textAlign:'center', marginBottom:12,
+                    }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', marginBottom:6 }}>Blood Glucose</div>
+                      <div style={{ fontSize:52, fontWeight:700, color:clr, lineHeight:1 }}>{g.reading}</div>
+                      <div style={{ fontSize:13, color:'var(--t3)', marginTop:4 }}>mmol/L</div>
+                      <span className={`badge ${scls}`} style={{ marginTop:10, display:'inline-flex', fontSize:12, padding:'4px 14px' }}>{status}</span>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)' }}>
+                      Context: <b style={{ color:'var(--t2)' }}>{g.context || '—'}</b>
+                      {' · '}Time: <b style={{ color:'var(--t2)' }}>{g.time || formatTime(g.recordedAt)}</b>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>Recorded by: <b style={{ color:'var(--t2)' }}>{g.recordedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+              {/* ── FILE UPLOAD ── */}
+              {selectedEvent.type === 'upload' && (() => {
+                const u = selectedEvent.data;
+                const isPdf = u.fileType?.includes('pdf');
+                return (
+                  <div>
+                    <div style={{
+                      background:'var(--card-bg2)', borderRadius:12, padding:'20px',
+                      display:'flex', flexDirection:'column', alignItems:'center', gap:10,
+                      marginBottom:12,
+                    }}>
+                      <i className={`ti ${isPdf?'ti-file-text':'ti-photo'}`} style={{ fontSize:44, color:'var(--accent)' }} />
+                      <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)', textAlign:'center' }}>{u.fileName}</div>
+                      <div style={{ fontSize:11, color:'var(--t3)' }}>{u.category} · {Math.round((u.fileSize||0)/1024)}KB</div>
+                    </div>
+                    <a href={u.downloadUrl} target="_blank" rel="noreferrer" className="btn btn-primary"
+                      style={{ display:'flex', justifyContent:'center', textDecoration:'none', width:'100%' }}>
+                      <i className="ti ti-external-link" /> Open file
+                    </a>
+                    <div style={{ fontSize:11, color:'var(--t3)', marginTop:10 }}>Uploaded by: <b style={{ color:'var(--t2)' }}>{u.uploadedBy}</b></div>
+                  </div>
+                );
+              })()}
+
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
