@@ -54,10 +54,10 @@ export default function PatientProfile() {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [visitId,   setVisitId]   = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
-
-  const scrollRef  = useRef(null);
-  const lastScroll = useRef(0);
+  const scrollRef     = useRef(null);
+  const collapseRef   = useRef(null);
+  const lastScroll    = useRef(0);
+  const isCollapsed   = useRef(false);
 
   const [noteText,  setNoteText]  = useState('');
   const [vitalForm, setVitalForm] = useState({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
@@ -67,15 +67,22 @@ export default function PatientProfile() {
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const fileInput = useRef();
 
-  // Scroll listener: collapse vitals+actions on scroll down, expand on scroll up
+  // Scroll listener: collapse vitals+actions using DOM classList (no re-render = no shake)
   const handleScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
+    const el  = scrollRef.current;
+    const col = collapseRef.current;
+    if (!el || !col) return;
     const currentY = el.scrollTop;
-    if (currentY > lastScroll.current && currentY > 60) {
-      setCollapsed(true);
-    } else if (currentY < lastScroll.current - 10) {
-      setCollapsed(false);
+    const diff     = currentY - lastScroll.current;
+    // collapse on scroll-down past 80px threshold
+    if (diff > 4 && currentY > 80 && !isCollapsed.current) {
+      col.classList.add('pp-collapsed');
+      isCollapsed.current = true;
+    }
+    // expand only when scrolled back near top (< 40px) or scrolling up significantly
+    if ((currentY < 40 || diff < -30) && isCollapsed.current) {
+      col.classList.remove('pp-collapsed');
+      isCollapsed.current = false;
     }
     lastScroll.current = currentY <= 0 ? 0 : currentY;
   };
@@ -300,14 +307,7 @@ export default function PatientProfile() {
       </div>
 
       {/* ══ COLLAPSIBLE SECTION: Vitals cards + Action buttons ══ */}
-      <div style={{
-        overflow:'hidden',
-        maxHeight: collapsed ? 0 : '400px',
-        opacity: collapsed ? 0 : 1,
-        transition: 'max-height 0.28s ease, opacity 0.22s ease',
-        flexShrink: 0,
-        background: 'var(--main-bg)',
-      }}>
+      <div ref={collapseRef} className="pp-collapsible">
         {/* Vital Stat Cards */}
         <div style={{
           display:'grid',
@@ -386,7 +386,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setCollapsed(false); }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
@@ -916,3 +916,4 @@ export default function PatientProfile() {
     </div>
   );
 }
+
