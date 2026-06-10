@@ -66,6 +66,7 @@ export default function PatientProfile() {
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const [selectedEvent, setSelectedEvent] = useState(null); // timeline detail drawer
+  const [viewOnly,       setViewOnly]       = useState(false);  // action buttons open view-only
   const fileInput = useRef();
 
   // Scroll listener: collapse vitals+actions using DOM classList (no re-render = no shake)
@@ -592,11 +593,10 @@ export default function PatientProfile() {
             { tab:'doctor',  label:"Doctor's Order", icon:'ti-stethoscope',        show: isDoctor },
             { tab:'glucose', label:'Glucose',        icon:'ti-activity',           show: true },
             { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
-            { tab:'uploads', label:'Lab Result',     icon:'ti-flask',              show: true },
             { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
             { tab:'mar',     label:'Give Medication', icon:'ti-pill',              show: isNurse || isDoctor },
           ].filter(b => b.show).map((btn, i) => (
-            <button key={i} onClick={() => setActiveTab(btn.tab)} style={{
+            <button key={i} onClick={() => { setActiveTab(btn.tab); setViewOnly(true); }} style={{
               display:'flex', alignItems:'center', gap:5,
               padding:'6px 12px',
               background:'var(--card-bg)',
@@ -624,7 +624,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(false); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
@@ -785,7 +785,7 @@ export default function PatientProfile() {
         {/* ── VITALS TAB ── */}
         {activeTab==='vitals' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="card">
+            {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-heart-rate-monitor" />Record Vitals</div></div>
               <div className="card-body">
                 <div className="form-grid-3" style={{ gap:12 }}>
@@ -815,7 +815,7 @@ export default function PatientProfile() {
                   <i className="ti ti-device-floppy" /> Save vitals
                 </button>
               </div>
-            </div>
+            </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />Vitals History</div></div>
               <table className="data-table">
@@ -842,7 +842,7 @@ export default function PatientProfile() {
         {/* ── PRESCRIPTION TAB ── */}
         {activeTab==='rx' && canPrescribe && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {isNurse && (
+            {!viewOnly && isNurse && (
               <div className="alert alert-warn">
                 <i className="ti ti-alert-triangle" />
                 Nurse prescription — requires doctor countersignature.
@@ -891,7 +891,7 @@ export default function PatientProfile() {
                   <i className="ti ti-device-floppy" /> Save prescription
                 </button>
               </div>
-            </div>
+            </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />Prescription History</div></div>
               {rx.map(r => (
@@ -916,7 +916,7 @@ export default function PatientProfile() {
         {/* ── FLUID TAB ── */}
         {activeTab==='fluid' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="card">
+            {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-droplet" />Fluid I/O Entry</div></div>
               <div className="card-body">
                 <div className="form-grid-3" style={{ gap:10 }}>
@@ -941,7 +941,7 @@ export default function PatientProfile() {
                   <i className="ti ti-device-floppy" /> Save entry
                 </button>
               </div>
-            </div>
+            </div>}
             <div className="card">
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-table" />Fluid Chart</div>
@@ -975,7 +975,7 @@ export default function PatientProfile() {
         {/* ── GLUCOSE TAB ── */}
         {activeTab==='glucose' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="card">
+            {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-activity" />Blood Glucose Reading</div></div>
               <div className="card-body">
                 <div className="form-grid-3" style={{ gap:10 }}>
@@ -993,7 +993,7 @@ export default function PatientProfile() {
                   <i className="ti ti-device-floppy" /> Save reading
                 </button>
               </div>
-            </div>
+            </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-table" />Glycemic Chart</div></div>
               <table className="chart-table">
@@ -1023,7 +1023,7 @@ export default function PatientProfile() {
         {/* ── NURSING / DOCTOR NOTES ── */}
         {(activeTab==='nursing' || activeTab==='doctor') && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="card">
+            {!viewOnly && <div className="card">
               <div className="card-header">
                 <div className="card-title">
                   <i className={`ti ${activeTab==='doctor'?'ti-stethoscope':'ti-notes-medical'}`} />
@@ -1045,7 +1045,7 @@ export default function PatientProfile() {
                   <i className="ti ti-device-floppy" /> Save note
                 </button>
               </div>
-            </div>
+            </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />All Notes</div></div>
               {notes.map(n => (
@@ -1074,7 +1074,7 @@ export default function PatientProfile() {
         {/* ── UPLOADS / LABS TAB ── */}
         {activeTab==='uploads' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="card">
+            {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-upload" />Upload Lab Result / Scan</div></div>
               <div className="card-body">
                 <div className="upload-zone" onClick={() => fileInput.current?.click()}>
@@ -1084,7 +1084,7 @@ export default function PatientProfile() {
                 </div>
                 <input ref={fileInput} type="file" accept=".pdf,.png,.jpg,.jpeg" style={{display:'none'}} onChange={handleUpload} />
               </div>
-            </div>
+            </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-files" />Uploaded Files</div></div>
               {uploads.map(u => (
