@@ -903,3 +903,23 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   /* RX grid: stack on small phones */
   .rx-row { flex-wrap: wrap; gap: 4px; }
 }
+
+/* ══════════════════════════════════
+   PATIENT PROFILE — COLLAPSIBLE PANEL
+   No React re-render: toggled by classList
+══════════════════════════════════ */
+.pp-collapsible {
+  overflow: hidden;
+  max-height: 400px;
+  opacity: 1;
+  /* will-change keeps the GPU layer ready so height change doesn't reflow scroll */
+  will-change: max-height, opacity;
+  transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;
+  flex-shrink: 0;
+  background: var(--main-bg);
+}
+.pp-collapsible.pp-collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
