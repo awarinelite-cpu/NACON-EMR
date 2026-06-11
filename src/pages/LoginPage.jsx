@@ -4,21 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 
-const ROLES = [
-  { value: 'doctor',   label: 'Doctor'    },
-  { value: 'nurse',    label: 'Nurse'     },
-  { value: 'records',  label: 'Records'   },
-  { value: 'admin',    label: 'Admin'     },
-  { value: 'subadmin', label: 'Sub-admin' },
-];
-
 export default function LoginPage() {
   const { login, toggleTheme, theme } = useAuth();
   const navigate = useNavigate();
 
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
-  const [role,     setRole]     = useState('doctor');
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
 
@@ -204,33 +195,6 @@ export default function LoginPage() {
           z-index: 1;
         }
 
-        /* ── Role / dept select ── */
-        .lp-select {
-          width: 100%;
-          padding: 11px 12px;
-          border: 1px solid rgba(255, 255, 255, 0.35);
-          border-radius: 6px;
-          font-size: 14px;
-          color: #FFFFFF;
-          background: rgba(255, 255, 255, 0.15);
-          font-family: Arial, sans-serif;
-          outline: none;
-          appearance: none;
-          margin-bottom: 12px;
-          cursor: pointer;
-          transition: border-color 0.15s;
-        }
-
-        .lp-select:focus {
-          border-color: rgba(255,255,255,0.70);
-        }
-
-        /* Style the dropdown options (OS-rendered, limited styling) */
-        .lp-select option {
-          background: #0B1F3A;
-          color: #FFFFFF;
-        }
-
         /* ── Log In button ── */
         .lp-btn {
           width: 100%;
@@ -378,18 +342,6 @@ export default function LoginPage() {
                 <i className={`ti ${showPass ? 'ti-eye-off' : 'ti-eye'}`} />
               </button>
             </div>
-
-            {/* Role */}
-            <select
-              className="lp-select"
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              aria-label="Select your role"
-            >
-              {ROLES.map(r => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
 
             {/* Submit */}
             <button type="submit" className="lp-btn" disabled={loading}>
