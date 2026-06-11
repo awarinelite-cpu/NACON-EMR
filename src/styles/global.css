@@ -805,15 +805,17 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overflow: hidden;
   }
 
-  /* Main area: full width, full height, scrollable */
+  /* Main area: full width, scrollable, NOT height-locked */
   .main-area {
     margin-left: 0 !important;
     width: 100vw;
     max-width: 100vw;
     height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    display: block !important;
   }
 
   /* Topbar: scroll-aware — hides on scroll down, shows on scroll up */
@@ -902,10 +904,25 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     padding: 10px;
   }
 
-  /* The main-area itself becomes the ONE scroll container on mobile */
-  .main-area {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+  /* ── PROFILE: everything scrolls as one continuous page ── */
+  .profile-wrapper {
+    height: auto !important;
+    min-height: 100%;
+    display: block !important;
+    overflow: visible !important;
+  }
+  .profile-header,
+  .action-bar,
+  .profile-tabs {
+    flex-shrink: unset !important;
+    position: static !important;
+    overflow: visible !important;
+  }
+  .profile-tab-content {
+    flex: none !important;
+    overflow: visible !important;
+    height: auto !important;
+    padding: 10px;
   }
 
   /* Cards */
