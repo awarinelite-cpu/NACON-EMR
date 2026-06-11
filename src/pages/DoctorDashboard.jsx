@@ -35,7 +35,7 @@ export default function DoctorDashboard() {
   ];
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
         <div className="topbar-title">Dashboard — Dr. {profile?.displayName}</div>
         <PatientSearch />

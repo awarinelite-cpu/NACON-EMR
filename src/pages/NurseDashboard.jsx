@@ -33,7 +33,7 @@ export default function NurseDashboard() {
   ];
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
         <div className="topbar-title">Dashboard — Nurse {profile?.displayName}</div>
         <PatientSearch />
@@ -41,7 +41,7 @@ export default function NurseDashboard() {
           <i className="ti ti-notes-medical" /> Add nursing note
         </button>
       </div>
-      <div className="page-content">
+      <div className="page-content" style={{ flex:1 }}>
         <div className="stats-grid">
           {stats.map(s => (
             <div key={s.label} className="stat-card"

@@ -21,7 +21,7 @@ export default function RecordsDashboard() {
   const statusCls   = s => s==='active'?'badge-danger':s==='discharged'?'badge-ok':s==='referred'?'badge-warn':'badge-info';
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
         <div className="topbar-title">Dashboard — Records · {profile?.displayName}</div>
         <PatientSearch placeholder="Search before registering — check for duplicates…" />

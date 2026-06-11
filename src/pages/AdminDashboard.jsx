@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   }[r]||'badge-neutral');
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
         <div className="topbar-title">Admin Dashboard</div>
         <button className="btn" onClick={()=>navigate('/admin/users')}>
