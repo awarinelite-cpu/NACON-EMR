@@ -15,15 +15,15 @@ import {
 import MARTab from '../components/patients/MARTab';
 
 const TABS = [
-  { id:'visit',    label:'Visit',           icon:'🏥' },
-  { id:'vitals',   label:'Vitals',          icon:'❤️' },
-  { id:'rx',       label:'Prescription',    icon:'💊' },
-  { id:'fluid',    label:'Fluid I/O',       icon:'💧' },
-  { id:'glucose',  label:'Glycemic',        icon:'🩸' },
-  { id:'nursing',  label:'Nursing',         icon:'📋' },
-  { id:'doctor',   label:"Doctor's Report", icon:'🩺' },
-  { id:'mar',      label:'MAR',             icon:'💉' },
-  { id:'referral', label:'Transfer/D/C',    icon:'🔄' },
+  { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','records','admin','subadmin'] },
+  { id:'vitals',   label:'Vitals',          icon:'❤️',  roles: ['doctor','nurse','records','admin','subadmin'] },
+  { id:'rx',       label:'Prescription',    icon:'💊',  roles: ['doctor','nurse'] },
+  { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
+  { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
+  { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },          // Nurse ONLY — doctors read via timeline
+  { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
+  { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
+  { id:'referral', label:'Transfer/D/C',    icon:'🔄',  roles: ['doctor','nurse'] },
 ];
 
 const vitalFlag = (key, val) => {
@@ -638,7 +638,7 @@ export default function PatientProfile() {
         flexShrink:0,
         scrollbarWidth:'none',
       }}>
-        {TABS.map(t => (
+        {TABS.filter(t => t.roles.includes(profile?.role?.toLowerCase())).map(t => (
           <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor'); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
