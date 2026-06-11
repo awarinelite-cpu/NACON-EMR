@@ -848,7 +848,7 @@ export default function PatientProfile() {
                 Nurse prescription — requires doctor countersignature.
               </div>
             )}
-            <div className="card">
+            {!viewOnly && <div className="card">
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-pill" />Write Prescription</div>
                 <button className="btn btn-sm" onClick={() => setRxForm(r => [...r, {drug:'',dose:'',frequency:'',duration:''}])}>
