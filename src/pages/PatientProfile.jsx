@@ -638,7 +638,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(true); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing'); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
