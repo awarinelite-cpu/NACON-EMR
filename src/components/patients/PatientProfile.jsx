@@ -135,6 +135,7 @@ export default function PatientProfile({ backPath }) {
 
   return (
     <div className="profile-wrapper">
+      <div className="profile-scroll-body">
 
       {/* ── PROFILE HEADER ── */}
       <div className="profile-header">
@@ -304,6 +305,7 @@ export default function PatientProfile({ backPath }) {
             onSaved={() => { toast.success('Done'); navigate(backPath || -1); }}
           />
         )}
+      </div>
       </div>
     </div>
   );
