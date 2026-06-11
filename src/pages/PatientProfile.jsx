@@ -471,7 +471,6 @@ export default function PatientProfile() {
   const timeline = [
     ...notes.map(n   => ({ ts:n.createdAt,   type:'note',    data:n })),
     ...vitals.map(v  => ({ ts:v.recordedAt,  type:'vitals',  data:v })),
-    ...rx.map(r      => ({ ts:r.createdAt,   type:'rx',      data:r })),
     ...fluid.map(f   => ({ ts:f.recordedAt,  type:'fluid',   data:f })),
     ...glucose.map(g => ({ ts:g.recordedAt,  type:'glucose', data:g })),
     ...uploads.map(u => ({ ts:u.uploadedAt,  type:'upload',  data:u })),
