@@ -355,20 +355,29 @@ export default function PatientProfile() {
     </div>
   );
 
-  const isDoctor     = profile?.role === ROLES.DOCTOR;
-  const isNurse      = profile?.role === ROLES.NURSE;
+  const isDoctor     = profile?.role?.toLowerCase() === ROLES.DOCTOR;
+  const isNurse      = profile?.role?.toLowerCase() === ROLES.NURSE;
   const canPrescribe = isDoctor || isNurse;
   const latestV      = vitals[0];
   const activeMeds   = rx.reduce((a, r) => a + (r.drugs?.length || 0), 0);
+
+  // Ensure visitId exists before saving
+  const ensureVisitId = async () => {
+    if (visitId) return visitId;
+    const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName);
+    setVisitId(vid);
+    return vid;
+  };
 
   // ── SAVE HANDLERS ──
   const saveNote = async () => {
     if (!noteText.trim()) { toast.error('Write a note first'); return; }
     setSaving(true);
     try {
-      await addNote(emrNumber, visitId, { text: noteText, type: isDoctor?'doctor':'nurse' }, profile.displayName, profile.role);
+      const vid = await ensureVisitId();
+      await addNote(emrNumber, vid, { text: noteText, type: isDoctor?'doctor':'nurse' }, profile.displayName, profile.role);
       setNoteText(''); toast.success('Note saved');
-    } catch { toast.error('Failed to save note'); }
+    } catch(e) { console.error('saveNote',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
 
@@ -376,10 +385,11 @@ export default function PatientProfile() {
     if (!vitalForm.sbp && !vitalForm.temp) { toast.error('Enter at least BP or temperature'); return; }
     setSaving(true);
     try {
-      await addVitals(emrNumber, visitId, vitalForm, profile.displayName);
+      const vid = await ensureVisitId();
+      await addVitals(emrNumber, vid, vitalForm, profile.displayName);
       setVitalForm({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
       toast.success('Vitals recorded');
-    } catch { toast.error('Failed to save vitals'); }
+    } catch(e) { console.error('saveVitals',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
 
@@ -388,10 +398,11 @@ export default function PatientProfile() {
     if (!valid.length) { toast.error('Add at least one medication'); return; }
     setSaving(true);
     try {
-      await addPrescription(emrNumber, visitId, valid, profile.displayName, profile.role);
+      const vid = await ensureVisitId();
+      await addPrescription(emrNumber, vid, valid, profile.displayName, profile.role);
       setRxForm([{ drug:'', dose:'', frequency:'', duration:'' }]);
       toast.success(isNurse ? 'Rx saved — countersign required' : 'Prescription saved');
-    } catch { toast.error('Failed to save prescription'); }
+    } catch(e) { console.error('saveRx',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
 
@@ -399,10 +410,11 @@ export default function PatientProfile() {
     if (!fluidForm.time) { toast.error('Enter the time'); return; }
     setSaving(true);
     try {
-      await addFluidEntry(emrNumber, visitId, fluidForm, profile.displayName);
+      const vid = await ensureVisitId();
+      await addFluidEntry(emrNumber, vid, fluidForm, profile.displayName);
       setFluidForm({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
       toast.success('Fluid entry added');
-    } catch { toast.error('Failed'); }
+    } catch(e) { console.error('saveFluid',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
 
@@ -410,10 +422,11 @@ export default function PatientProfile() {
     if (!glucForm.reading) { toast.error('Enter glucose reading'); return; }
     setSaving(true);
     try {
-      await addGlucoseReading(emrNumber, visitId, glucForm, profile.displayName);
+      const vid = await ensureVisitId();
+      await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName);
       setGlucForm({ time:'', reading:'', context:'' });
       toast.success('Glucose reading added');
-    } catch { toast.error('Failed'); }
+    } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
 
@@ -621,7 +634,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing'); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(true); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
@@ -837,7 +850,7 @@ export default function PatientProfile() {
         )}
 
         {/* ── PRESCRIPTION TAB ── */}
-        {activeTab==='rx' && canPrescribe && (
+        {activeTab==='rx' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {!viewOnly && isNurse && (
               <div className="alert alert-warn">
