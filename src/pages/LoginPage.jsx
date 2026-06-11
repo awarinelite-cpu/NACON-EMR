@@ -123,15 +123,15 @@ export default function LoginPage() {
 
         /* ── NACON crest image ── */
         .lp-crest-img {
-          width: 86px;
-          height: 86px;
+          width: 100px;
+          height: 100px;
           object-fit: contain;
           border-radius: 50%;
           margin-bottom: 20px;
-          border: 2px solid rgba(255,255,255,0.5);
-          background: rgba(255,255,255,0.10);
-          padding: 4px;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+          border: none;
+          background: transparent;
+          padding: 0;
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.45));
         }
 
         /* Fallback crest */
