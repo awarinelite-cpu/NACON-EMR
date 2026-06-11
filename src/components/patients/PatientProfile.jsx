@@ -134,7 +134,7 @@ export default function PatientProfile({ backPath }) {
   const canAddNote   = role === ROLES.DOCTOR || role === ROLES.NURSE;
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+    <div className="profile-wrapper">
 
       {/* ── PROFILE HEADER ── */}
       <div className="profile-header">
@@ -211,7 +211,7 @@ export default function PatientProfile({ backPath }) {
       </div>
 
       {/* ── TAB CONTENT ── */}
-      <div style={{ flex:1, overflowY:'auto', padding:14, display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="profile-tab-content">
 
         {/* VISIT — bio + latest vitals + timeline */}
         {activeTab === 'visit' && (
