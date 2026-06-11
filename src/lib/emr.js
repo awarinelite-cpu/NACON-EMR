@@ -10,6 +10,34 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
+import { enqueuePendingWrite } from './offlineDB';
+
+// ── OFFLINE-FIRST WRITE HELPER ───────────────
+/**
+ * Try a Firestore write; if offline, queue it for later sync.
+ * @param {string}      colName   - collection name (from COL)
+ * @param {string}      operation - 'add' | 'set' | 'update'
+ * @param {string|null} docId     - existing doc ID (null for new docs)
+ * @param {object}      data      - payload (use '__serverTimestamp__' as placeholder)
+ * @param {function}    onlineFn  - async fn that does the real Firestore write
+ */
+export async function offlineWrite(colName, operation, docId, data, onlineFn) {
+  if (!navigator.onLine) {
+    await enqueuePendingWrite(colName, operation, docId, data);
+    return { offline: true };
+  }
+  try {
+    const result = await onlineFn();
+    return { offline: false, result };
+  } catch (err) {
+    // Network error mid-write — queue it
+    if (err.code === 'unavailable' || !navigator.onLine) {
+      await enqueuePendingWrite(colName, operation, docId, data);
+      return { offline: true };
+    }
+    throw err;
+  }
+}
 
 // ── FIRESTORE COLLECTIONS ───────────────────
 export const COL = {
@@ -446,21 +474,16 @@ export async function getTodayStats() {
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
 
-  const [visitsSnap, patientsSnap, triageSnap] = await Promise.all([
+  const [visitsSnap, patientsSnap] = await Promise.all([
     getDocs(query(collection(db, COL.VISITS), where('createdAt', '>=', todayTs))),
     getDocs(collection(db, COL.PATIENTS)),
-    getDocs(query(
-      collection(db, COL.TRIAGE),
-      where('arrivedAt', '>=', todayTs),
-      where('status', '==', 'waiting')
-    )),
   ]);
 
   const visits = visitsSnap.docs.map(d => d.data());
   return {
     totalPatients: patientsSnap.size,
     visitsToday:   visits.length,
-    waiting:       triageSnap.size,          // only real waiting queue entries
+    waiting:       0,   // not used — AppShell uses listenTriageQueue for live badge
     referred:      visits.filter(v => v.status === 'referred').length,
     discharged:    visits.filter(v => v.status === 'discharged').length,
     sickBay:       visits.filter(v => v.status === 'sickbay').length,

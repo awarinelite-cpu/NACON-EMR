@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import { getTodayStats } from '../../lib/emr';
+import { listenTriageQueue } from '../../lib/emr';
+import { startSyncListener }  from '../../lib/syncEngine';
+import OfflineBanner           from '../shared/OfflineBanner';
 
 export default function AppShell() {
-  const [stats, setStats]             = useState({});
+  const [stats, setStats]             = useState({ waiting: 0, sickBay: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mainRef    = useRef(null);
   const lastScroll = useRef(0);
@@ -16,10 +18,30 @@ export default function AppShell() {
     setSidebarOpen(false);
   }, [location.pathname]);
 
+  // Start sync engine once on mount + listen for SW background sync messages
   useEffect(() => {
-    getTodayStats().then(setStats);
-    const t = setInterval(() => getTodayStats().then(setStats), 60000);
-    return () => clearInterval(t);
+    const cleanup = startSyncListener();
+
+    // Handle messages from service worker (background sync)
+    const onSwMessage = (event) => {
+      if (event.data?.type === 'SYNC_REQUESTED') {
+        import('../../lib/syncEngine').then(({ flushPendingWrites }) => flushPendingWrites());
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', onSwMessage);
+
+    return () => {
+      cleanup();
+      navigator.serviceWorker?.removeEventListener('message', onSwMessage);
+    };
+  }, []);
+
+  // Real-time queue listener — badge reflects only today's waiting triage entries
+  useEffect(() => {
+    const unsub = listenTriageQueue(rows => {
+      setStats(prev => ({ ...prev, waiting: rows.length }));
+    });
+    return () => unsub();
   }, []);
 
   // Scroll listener — hides topbar on scroll down
@@ -65,6 +87,7 @@ export default function AppShell() {
       <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} />
 
       <div className="main-area" ref={mainRef}>
+        <OfflineBanner />
         <Outlet />
       </div>
     </div>
