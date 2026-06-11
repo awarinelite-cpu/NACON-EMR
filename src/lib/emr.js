@@ -446,16 +446,21 @@ export async function getTodayStats() {
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
 
-  const [visitsSnap, patientsSnap] = await Promise.all([
+  const [visitsSnap, patientsSnap, triageSnap] = await Promise.all([
     getDocs(query(collection(db, COL.VISITS), where('createdAt', '>=', todayTs))),
     getDocs(collection(db, COL.PATIENTS)),
+    getDocs(query(
+      collection(db, COL.TRIAGE),
+      where('arrivedAt', '>=', todayTs),
+      where('status', '==', 'waiting')
+    )),
   ]);
 
   const visits = visitsSnap.docs.map(d => d.data());
   return {
     totalPatients: patientsSnap.size,
     visitsToday:   visits.length,
-    waiting:       visits.filter(v => v.status === 'open').length,
+    waiting:       triageSnap.size,          // only real waiting queue entries
     referred:      visits.filter(v => v.status === 'referred').length,
     discharged:    visits.filter(v => v.status === 'discharged').length,
     sickBay:       visits.filter(v => v.status === 'sickbay').length,
@@ -554,6 +559,7 @@ export async function updateTriageStatus(triageId, newStatus, updatedBy) {
 export function listenTriageQueue(callback) {
   const q = query(
     collection(db, COL.TRIAGE),
+    where('status', '==', 'waiting'),
     orderBy('arrivedAt', 'asc')
   );
   return onSnapshot(q, snap => {
