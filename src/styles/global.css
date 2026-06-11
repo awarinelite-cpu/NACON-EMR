@@ -459,10 +459,15 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   height: 100%;
 }
 
-/* Tab content scrollable area */
-.profile-tab-content {
+/* Single scroll body — everything inside scrolls together */
+.profile-scroll-body {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tab content area — no separate scroll, flows naturally */
+.profile-tab-content {
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -906,22 +911,24 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 
   /* ── PROFILE: everything scrolls as one continuous page ── */
   .profile-wrapper {
-    height: auto !important;
-    min-height: 100%;
-    display: block !important;
-    overflow: visible !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .profile-scroll-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .profile-header,
   .action-bar,
-  .profile-tabs {
-    flex-shrink: unset !important;
-    position: static !important;
-    overflow: visible !important;
+  .profile-tabs,
+  .profile-tab-content {
+    flex-shrink: unset;
+    position: static;
+    overflow: visible;
   }
   .profile-tab-content {
-    flex: none !important;
-    overflow: visible !important;
-    height: auto !important;
     padding: 10px;
   }
 
