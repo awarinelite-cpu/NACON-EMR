@@ -778,6 +778,13 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   inset: 0;
   background: rgba(0,0,0,0.45);
   z-index: 999;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.sidebar-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ══════════════════════════════════
