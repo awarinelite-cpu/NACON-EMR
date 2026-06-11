@@ -593,7 +593,7 @@ export default function PatientProfile() {
             { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
             { tab:'mar',     label:'Give Medication', icon:'ti-pill',              show: isNurse || isDoctor },
           ].filter(b => b.show).map((btn, i) => (
-            <button key={i} onClick={() => { setActiveTab(btn.tab); setViewOnly(true); }} style={{
+            <button key={i} onClick={() => { setActiveTab(btn.tab); setViewOnly(false); }} style={{
               display:'flex', alignItems:'center', gap:5,
               padding:'6px 12px',
               background:'var(--card-bg)',
@@ -621,7 +621,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(false); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(true); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
