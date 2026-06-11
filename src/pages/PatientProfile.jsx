@@ -75,13 +75,18 @@ export default function PatientProfile() {
     if (!el || !col) return;
     const currentY = el.scrollTop;
     const diff     = currentY - lastScroll.current;
-    // collapse on scroll-down past 80px threshold
-    if (diff > 4 && currentY > 80 && !isCollapsed.current) {
+    // collapse on scroll-down: any downward movement past 60px
+    if (diff > 2 && currentY > 60 && !isCollapsed.current) {
       col.classList.add('pp-collapsed');
       isCollapsed.current = true;
     }
-    // expand only when scrolled back near top (< 40px) or scrolling up significantly
-    if ((currentY < 40 || diff < -30) && isCollapsed.current) {
+    // expand when scrolling up (any meaningful upward swipe)
+    if (diff < -8 && isCollapsed.current) {
+      col.classList.remove('pp-collapsed');
+      isCollapsed.current = false;
+    }
+    // also expand when near the very top
+    if (currentY < 20 && isCollapsed.current) {
       col.classList.remove('pp-collapsed');
       isCollapsed.current = false;
     }
