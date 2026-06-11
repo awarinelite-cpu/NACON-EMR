@@ -21,6 +21,7 @@ const TABS = [
   { id:'fluid',    label:'Fluid I/O',       icon:'💧' },
   { id:'glucose',  label:'Glycemic',        icon:'🩸' },
   { id:'nursing',  label:'Nursing',         icon:'📋' },
+  { id:'doctor',   label:"Doctor's Report", icon:'🩺' },
   { id:'mar',      label:'MAR',             icon:'💉' },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄' },
 ];
@@ -638,7 +639,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing'); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor'); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
@@ -1094,6 +1095,47 @@ export default function PatientProfile() {
                 </div>
               ))}
               {notes.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No notes yet</div>}
+            </div>
+          </div>
+        )}
+
+        {/* ── DOCTOR'S REPORT TAB (doctor only) ── */}
+        {activeTab==='doctor' && isDoctor && (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {!viewOnly && <div className="card">
+              <div className="card-header">
+                <div className="card-title"><i className="ti ti-stethoscope" />Doctor's Consultation Note</div>
+              </div>
+              <div className="card-body">
+                <div className="form-group">
+                  <label className="form-label">C/O · O/E · Diagnosis · Plan</label>
+                  <textarea className="form-textarea full-width" rows={6}
+                    placeholder={'C/O: headache × 2 days\nO/E: Temp 38.5°C, BP 110/70\nDx: ? Malaria\nPlan: IM Artemether 160mg OD × 3/7…'}
+                    value={noteText} onChange={e=>setNoteText(e.target.value)} />
+                </div>
+                <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
+                  <i className="ti ti-device-floppy" /> Save note
+                </button>
+              </div>
+            </div>}
+            <div className="card">
+              <div className="card-header"><div className="card-title"><i className="ti ti-history" />Doctor's Notes History</div></div>
+              {notes.filter(n=>n.authorRole==='doctor').map(n => (
+                <div key={n.id} className="note-block">
+                  <div className="note-header">
+                    <div className="note-avatar" style={{ background:'var(--success-bg)', color:'var(--success)' }}>
+                      {(n.authorName||'').slice(0,2).toUpperCase()}
+                    </div>
+                    <div className="note-author">{n.authorName}</div>
+                    <span className="badge badge-ok" style={{fontSize:9}}>Doctor's note</span>
+                    <div className="note-time">{formatDateTime(n.createdAt)}</div>
+                  </div>
+                  <div className="note-text" style={{ whiteSpace:'pre-line' }}>{n.text}</div>
+                </div>
+              ))}
+              {notes.filter(n=>n.authorRole==='doctor').length===0 && (
+                <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No doctor notes yet</div>
+              )}
             </div>
           </div>
         )}
