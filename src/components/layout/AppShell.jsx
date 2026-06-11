@@ -9,7 +9,6 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mainRef    = useRef(null);
   const lastScroll = useRef(0);
-  const scrollEl   = useRef(null);
 
   useEffect(() => {
     getTodayStats().then(setStats);
@@ -17,34 +16,16 @@ export default function AppShell() {
     return () => clearInterval(t);
   }, []);
 
-  // Attach scroll listener directly to .page-content whenever it appears/changes
+  // Scroll listener on main-area itself (the single scroll container on mobile)
   useEffect(() => {
-    const mainEl = mainRef.current;
-    if (!mainEl) return;
-
-    let cleanup = () => {};
-
-    const bindScroll = () => {
-      const pageContent = mainEl.querySelector('.page-content');
-      if (!pageContent || pageContent === scrollEl.current) return;
-
-      // Unbind old
-      if (scrollEl.current) {
-        scrollEl.current.removeEventListener('scroll', onScroll);
-      }
-
-      scrollEl.current = pageContent;
-      pageContent.addEventListener('scroll', onScroll, { passive: true });
-    };
+    const el = mainRef.current;
+    if (!el) return;
 
     const onScroll = () => {
-      const el = scrollEl.current;
-      if (!el) return;
-      const topbar = mainEl.querySelector('.topbar');
+      const topbar = el.querySelector('.topbar');
       if (!topbar) return;
-
       const currentY = el.scrollTop;
-      if (currentY > lastScroll.current && currentY > 50) {
+      if (currentY > lastScroll.current && currentY > 40) {
         topbar.classList.add('topbar-hidden');
       } else {
         topbar.classList.remove('topbar-hidden');
@@ -52,21 +33,8 @@ export default function AppShell() {
       lastScroll.current = currentY <= 0 ? 0 : currentY;
     };
 
-    // Watch for .page-content to appear (route changes re-render Outlet)
-    const observer = new MutationObserver(bindScroll);
-    observer.observe(mainEl, { childList: true, subtree: true });
-
-    // Also try immediately
-    bindScroll();
-
-    cleanup = () => {
-      observer.disconnect();
-      if (scrollEl.current) {
-        scrollEl.current.removeEventListener('scroll', onScroll);
-      }
-    };
-
-    return cleanup;
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
   const closeSidebar  = () => setSidebarOpen(false);
