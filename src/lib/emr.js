@@ -183,13 +183,11 @@ export async function createVisit(emrNumber, data, createdBy) {
 }
 
 export async function getVisits(emrNumber) {
-  const q = query(
-    collection(db, COL.VISITS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('createdAt', 'desc')
-  );
+  const q = query(collection(db, COL.VISITS), where('emrNumber', '==', emrNumber));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  docs.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+  return docs;
 }
 
 // FIX: dischargePatient — only update visit doc if a real visitId is provided
@@ -223,12 +221,12 @@ export async function addNote(emrNumber, visitId, noteData, author, role) {
 }
 
 export function listenNotes(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.NOTES),
-    where('emrNumber', '==', emrNumber),
-    orderBy('createdAt', 'desc')
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const q = query(collection(db, COL.NOTES), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -248,12 +246,12 @@ export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
 }
 
 export function listenVitals(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.VITALS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('recordedAt', 'desc')
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const q = query(collection(db, COL.VITALS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (b.recordedAt?.seconds||0) - (a.recordedAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -275,12 +273,12 @@ export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, 
 }
 
 export function listenPrescriptions(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.PRESCRIPTIONS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('createdAt', 'desc')
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const q = query(collection(db, COL.PRESCRIPTIONS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -299,12 +297,12 @@ export async function addFluidEntry(emrNumber, visitId, entry, recordedBy) {
 }
 
 export function listenFluidChart(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.FLUIDS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('recordedAt', 'asc')
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const q = query(collection(db, COL.FLUIDS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (a.recordedAt?.seconds||0) - (b.recordedAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -323,12 +321,12 @@ export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy) {
 }
 
 export function listenGlucoseChart(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.GLUCOSE),
-    where('emrNumber', '==', emrNumber),
-    orderBy('recordedAt', 'asc')
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const q = query(collection(db, COL.GLUCOSE), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (a.recordedAt?.seconds||0) - (b.recordedAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -358,12 +356,12 @@ export async function uploadPatientFile(emrNumber, visitId, file, category, uplo
 }
 
 export function listenUploads(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.UPLOADS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('uploadedAt', 'desc')
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const q = query(collection(db, COL.UPLOADS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (b.uploadedAt?.seconds||0) - (a.uploadedAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -487,23 +485,17 @@ export async function recordAdministration(data) {
 }
 
 export function listenMAR(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.MAR),
-    where('emrNumber', '==', emrNumber),
-    orderBy('createdAt', 'asc')
-  );
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  const q = query(collection(db, COL.MAR), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0));
+    callback(docs);
+  });
 }
 
 export async function getMARForDate(emrNumber, dateObj) {
   // Returns all MAR records for a given date (client-side filter)
-  const q = query(
-    collection(db, COL.MAR),
-    where('emrNumber', '==', emrNumber),
-    orderBy('createdAt', 'asc')
-  );
+  const q = query(collection(db, COL.MAR), where('emrNumber', '==', emrNumber));
   const snap = await getDocs(q);
   const start = new Date(dateObj); start.setHours(0,0,0,0);
   const end   = new Date(dateObj); end.setHours(23,59,59,999);
