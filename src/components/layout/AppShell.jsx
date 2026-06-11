@@ -1,6 +1,6 @@
 // src/components/layout/AppShell.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { getTodayStats } from '../../lib/emr';
 
@@ -9,6 +9,12 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mainRef    = useRef(null);
   const lastScroll = useRef(0);
+  const location   = useLocation();
+
+  // Auto-close sidebar on every route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     getTodayStats().then(setStats);
@@ -16,11 +22,10 @@ export default function AppShell() {
     return () => clearInterval(t);
   }, []);
 
-  // Scroll listener on main-area itself (the single scroll container on mobile)
+  // Scroll listener — hides topbar on scroll down
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
-
     const onScroll = () => {
       const topbar = el.querySelector('.topbar');
       if (!topbar) return;
@@ -32,7 +37,6 @@ export default function AppShell() {
       }
       lastScroll.current = currentY <= 0 ? 0 : currentY;
     };
-
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
@@ -51,9 +55,12 @@ export default function AppShell() {
         <i className={`ti ${sidebarOpen ? 'ti-x' : 'ti-menu-2'}`} />
       </button>
 
-      {sidebarOpen && (
-        <div className="sidebar-backdrop" onClick={closeSidebar} aria-hidden="true" />
-      )}
+      {/* Backdrop — closes sidebar on tap outside */}
+      <div
+        className={`sidebar-backdrop${sidebarOpen ? ' active' : ''}`}
+        onClick={closeSidebar}
+        aria-hidden="true"
+      />
 
       <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} />
 
