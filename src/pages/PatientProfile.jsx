@@ -867,33 +867,46 @@ export default function PatientProfile() {
               </div>
               <div className="card-body">
                 {rxForm.map((row, i) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr auto', gap:8, marginBottom:10, paddingBottom:10, borderBottom:'1px solid var(--border)' }}>
-                    <div className="form-group">
-                      {i===0 && <label className="form-label">Drug name *</label>}
-                      <input className="form-input" placeholder="e.g. Artemether 160mg"
-                        value={row.drug} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,drug:e.target.value}:x))} />
-                    </div>
-                    <div className="form-group">
-                      {i===0 && <label className="form-label">Dose</label>}
-                      <input className="form-input" placeholder="160mg"
-                        value={row.dose} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,dose:e.target.value}:x))} />
-                    </div>
-                    <div className="form-group">
-                      {i===0 && <label className="form-label">Frequency</label>}
-                      <input className="form-input" placeholder="OD / BD / TDS"
-                        value={row.frequency} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,frequency:e.target.value}:x))} />
-                    </div>
-                    <div className="form-group">
-                      {i===0 && <label className="form-label">Duration</label>}
-                      <input className="form-input" placeholder="× 3/7"
-                        value={row.duration} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,duration:e.target.value}:x))} />
-                    </div>
-                    <div style={{ display:'flex', alignItems: i===0 ? 'flex-end' : 'center' }}>
+                  <div key={i} style={{
+                    background:'var(--card-bg2)',
+                    borderRadius:10,
+                    padding:'12px',
+                    marginBottom:10,
+                    border:'1px solid var(--border)',
+                  }}>
+                    {/* Drug number + delete */}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:'var(--accent)' }}>Drug {i + 1}</span>
                       {rxForm.length > 1 && (
                         <button className="btn btn-sm btn-danger btn-icon" onClick={() => setRxForm(r => r.filter((_,j)=>j!==i))}>
                           <i className="ti ti-trash" />
                         </button>
                       )}
+                    </div>
+                    {/* Drug name full width */}
+                    <div className="form-group" style={{ marginBottom:8 }}>
+                      <label className="form-label">Drug name *</label>
+                      <input className="form-input" placeholder="e.g. Artemether 160mg"
+                        value={row.drug} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,drug:e.target.value}:x))} />
+                    </div>
+                    {/* Dose + Frequency side by side */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                      <div className="form-group">
+                        <label className="form-label">Dose</label>
+                        <input className="form-input" placeholder="160mg"
+                          value={row.dose} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,dose:e.target.value}:x))} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Frequency</label>
+                        <input className="form-input" placeholder="OD / BD / TDS"
+                          value={row.frequency} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,frequency:e.target.value}:x))} />
+                      </div>
+                    </div>
+                    {/* Duration full width */}
+                    <div className="form-group">
+                      <label className="form-label">Duration</label>
+                      <input className="form-input" placeholder="e.g. × 3/7 or 5 days"
+                        value={row.duration} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,duration:e.target.value}:x))} />
                     </div>
                   </div>
                 ))}
