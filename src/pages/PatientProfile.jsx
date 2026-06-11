@@ -21,8 +21,6 @@ const TABS = [
   { id:'fluid',    label:'Fluid I/O',       icon:'💧' },
   { id:'glucose',  label:'Glycemic',        icon:'🩸' },
   { id:'nursing',  label:'Nursing',         icon:'📋' },
-  { id:'doctor',   label:"Doctor's Report", icon:'🩺' },
-  { id:'uploads',  label:'Labs',            icon:'🧪' },
   { id:'mar',      label:'MAR',             icon:'💉' },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄' },
 ];
@@ -590,7 +588,6 @@ export default function PatientProfile() {
             { tab:'vitals',  label:'Add Vitals',     icon:'ti-heart-rate-monitor', show: true },
             { tab:'rx',      label:'Prescription',   icon:'ti-pill',               show: canPrescribe },
             { tab:'nursing', label:'Nursing Report', icon:'ti-notes-medical',      show: isNurse },
-            { tab:'doctor',  label:"Doctor's Order", icon:'ti-stethoscope',        show: isDoctor },
             { tab:'glucose', label:'Glucose',        icon:'ti-activity',           show: true },
             { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
             { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
@@ -1021,7 +1018,7 @@ export default function PatientProfile() {
         )}
 
         {/* ── NURSING / DOCTOR NOTES ── */}
-        {(activeTab==='nursing' || activeTab==='doctor') && (
+        {(activeTab==='nursing' || (activeTab==='doctor' && isDoctor)) && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {!viewOnly && <div className="card">
               <div className="card-header">
@@ -1072,7 +1069,7 @@ export default function PatientProfile() {
         )}
 
         {/* ── UPLOADS / LABS TAB ── */}
-        {activeTab==='uploads' && (
+        {activeTab==='uploads' && isDoctor && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-upload" />Upload Lab Result / Scan</div></div>
