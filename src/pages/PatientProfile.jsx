@@ -362,11 +362,13 @@ export default function PatientProfile() {
   const activeMeds   = rx.reduce((a, r) => a + (r.drugs?.length || 0), 0);
 
   // Ensure visitId exists before saving
+  // If visitId from useEffect isn't ready yet, use a local fallback so saves never block
   const ensureVisitId = async () => {
     if (visitId) return visitId;
-    const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName);
-    setVisitId(vid);
-    return vid;
+    // Fallback: generate a local ID so Firestore write is never blocked
+    const fallback = `visit_${emrNumber}_${Date.now()}`;
+    setVisitId(fallback);
+    return fallback;
   };
 
   // ── SAVE HANDLERS ──
@@ -396,10 +398,11 @@ export default function PatientProfile() {
   const saveRx = async () => {
     const valid = rxForm.filter(r => r.drug.trim());
     if (!valid.length) { toast.error('Add at least one medication'); return; }
+    if (!profile) { toast.error('Not logged in'); return; }
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addPrescription(emrNumber, vid, valid, profile.displayName, profile.role);
+      await addPrescription(emrNumber, vid, valid, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
       setRxForm([{ drug:'', dose:'', frequency:'', duration:'' }]);
       toast.success(isNurse ? 'Rx saved — countersign required' : 'Prescription saved');
     } catch(e) { console.error('saveRx',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -408,10 +411,11 @@ export default function PatientProfile() {
 
   const saveFluid = async () => {
     if (!fluidForm.time) { toast.error('Enter the time'); return; }
+    if (!profile) { toast.error('Not logged in'); return; }
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addFluidEntry(emrNumber, vid, fluidForm, profile.displayName);
+      await addFluidEntry(emrNumber, vid, fluidForm, profile.displayName || profile.email || 'Unknown');
       setFluidForm({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
       toast.success('Fluid entry added');
     } catch(e) { console.error('saveFluid',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -420,10 +424,11 @@ export default function PatientProfile() {
 
   const saveGlucose = async () => {
     if (!glucForm.reading) { toast.error('Enter glucose reading'); return; }
+    if (!profile) { toast.error('Not logged in'); return; }
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName);
+      await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown');
       setGlucForm({ time:'', reading:'', context:'' });
       toast.success('Glucose reading added');
     } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
