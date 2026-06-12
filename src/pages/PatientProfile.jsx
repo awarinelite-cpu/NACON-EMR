@@ -576,6 +576,41 @@ export default function PatientProfile() {
         </div>
       </div>
 
+      {/* ══ ALLERGY / CHRONIC CONDITION ALERT BANNER ══ */}
+      {(() => {
+        const allergies = patient.allergies?.trim();
+        const chronic   = patient.pastMedHistory?.trim();
+        const CHRONIC_KEYWORDS = ['asthma','sickle cell','diabetes','epilepsy','hypertension',
+          'hiv','hepatitis','heart','renal','kidney','liver','stroke','cancer','lupus','thyroid'];
+        const hasAllergy  = allergies && allergies.toLowerCase() !== 'none' && allergies.toLowerCase() !== 'nil';
+        const hasChronic  = chronic && CHRONIC_KEYWORDS.some(k => chronic.toLowerCase().includes(k));
+        if (!hasAllergy && !hasChronic) return null;
+        return (
+          <div style={{
+            background:'#7f1d1d', borderBottom:'2px solid #ef4444',
+            padding:'8px 14px', display:'flex', alignItems:'flex-start',
+            gap:10, flexShrink:0,
+          }}>
+            <i className="ti ti-alert-triangle" style={{ fontSize:18, color:'#fca5a5', flexShrink:0, marginTop:1 }} />
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:11, fontWeight:800, color:'#fca5a5', letterSpacing:'.05em', marginBottom:2 }}>
+                ⚠ CLINICAL ALERT
+              </div>
+              {hasAllergy && (
+                <div style={{ fontSize:12, fontWeight:700, color:'#fee2e2', marginBottom:2 }}>
+                  <span style={{ color:'#fca5a5' }}>ALLERGY: </span>{allergies.toUpperCase()}
+                </div>
+              )}
+              {hasChronic && (
+                <div style={{ fontSize:12, fontWeight:700, color:'#fee2e2' }}>
+                  <span style={{ color:'#fca5a5' }}>CHRONIC CONDITION: </span>{chronic}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ══ COLLAPSIBLE SECTION: Vitals cards + Action buttons ══ */}
       <div ref={collapseRef} className="pp-collapsible">
         {/* Vital Stat Cards — hidden for records staff */}
@@ -738,6 +773,35 @@ export default function PatientProfile() {
                       {patient.knownAllergies ? `⚠ ${patient.knownAllergies}` : '✓ No known allergies'}
                     </div>
                   </div>
+
+                  {/* Emergency contact */}
+                  {(patient.nextOfKin || patient.nextOfKinTel) && (
+                    <div style={{ borderTop:'1px solid var(--border)', paddingTop:12, marginTop:4 }}>
+                      <div style={{ fontSize:9, fontWeight:800, color:'var(--danger)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:6 }}>
+                        🚨 Emergency Contact
+                      </div>
+                      {[
+                        ['Name',         patient.nextOfKin],
+                        ['Relationship', patient.nextOfKinRel],
+                        ['Phone',        patient.nextOfKinTel],
+                      ].map(([l, v]) => v ? (
+                        <div key={l} style={{ display:'flex', gap:8, marginBottom:3 }}>
+                          <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', width:80, flexShrink:0 }}>{l}:</span>
+                          <span style={{ fontSize:11, fontWeight:700, color:'var(--t1)' }}>{v}</span>
+                        </div>
+                      ) : null)}
+                      {patient.nextOfKinTel && (
+                        <a href={`tel:${patient.nextOfKinTel}`} style={{
+                          display:'inline-flex', alignItems:'center', gap:5,
+                          marginTop:6, padding:'5px 10px',
+                          background:'var(--danger)', color:'#fff',
+                          borderRadius:6, fontSize:11, fontWeight:700, textDecoration:'none',
+                        }}>
+                          <i className="ti ti-phone" style={{fontSize:12}} /> Call now
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

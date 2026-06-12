@@ -20,7 +20,10 @@ import AuditLog         from './pages/AuditLog';
 import RolesAccess      from './pages/RolesAccess';
 import Settings         from './pages/Settings';
 import TriagePage       from './pages/TriagePage';
-import MARPage         from './pages/MARPage';
+import MARPage          from './pages/MARPage';
+import PharmacyInventory from './pages/PharmacyInventory';
+import HealthStats        from './pages/HealthStats';
+import SelfReport         from './pages/SelfReport';
 
 import './styles/global.css';
 
@@ -63,8 +66,9 @@ export default function App() {
 
         <Routes>
           {/* Public */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login"        element={<LoginPage />} />
+          <Route path="/"             element={<Navigate to="/login" replace />} />
+          <Route path="/report-sick"  element={<SelfReport />} />
 
           {/* ── PROTECTED SHELL ── */}
           <Route element={
@@ -182,6 +186,12 @@ export default function App() {
             } />
             <Route path="/admin/schedule" element={
               <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Duty Schedule" /></ProtectedRoute>
+            } />
+            <Route path="/admin/stats" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><HealthStats /></ProtectedRoute>
+            } />
+            <Route path="/pharmacy" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin','nurse','doctor']}><PharmacyInventory /></ProtectedRoute>
             } />
 
           </Route>

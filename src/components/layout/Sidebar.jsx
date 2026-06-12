@@ -15,6 +15,7 @@ const NAV = {
       { icon: 'ti-notes-medical',    label: 'Consultations',  path: '/doctor/consults' },
       { icon: 'ti-pill',             label: 'Prescriptions',  path: '/doctor/rx' },
       { icon: 'ti-file-export',      label: 'Referrals',      path: '/doctor/referrals' },
+      { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
     ]},
   ],
   nurse: [
@@ -28,6 +29,7 @@ const NAV = {
       { icon: 'ti-pill',             label: 'Medication Log', path: '/nurse/meds' },
       { icon: 'ti-temperature',      label: 'Vital Signs',    path: '/nurse/vitals' },
       { icon: 'ti-users',            label: 'All Patients',   path: '/nurse/patients' },
+      { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
     ]},
   ],
   records: [
@@ -44,7 +46,12 @@ const NAV = {
     { grp: 'Overview', items: [
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/admin' },
       { icon: 'ti-users',            label: 'All Patients',   path: '/admin/patients' },
+      { icon: 'ti-chart-line',       label: 'Health Stats',   path: '/admin/stats' },
       { icon: 'ti-chart-bar',        label: 'Reports',        path: '/admin/reports' },
+    ]},
+    { grp: 'Clinical', items: [
+      { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
+      { icon: 'ti-qrcode',           label: 'QR Self-Report', path: '/report-sick', external: true },
     ]},
     { grp: 'System', items: [
       { icon: 'ti-user-cog',         label: 'User Management', path: '/admin/users' },
@@ -57,6 +64,7 @@ const NAV = {
     { grp: 'Overview', items: [
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/admin' },
       { icon: 'ti-users',            label: 'All Patients',   path: '/admin/patients' },
+      { icon: 'ti-chart-line',       label: 'Health Stats',   path: '/admin/stats' },
       { icon: 'ti-chart-bar',        label: 'Reports',        path: '/admin/reports' },
       { icon: 'ti-user-cog',         label: 'Staff List',     path: '/admin/users' },
       { icon: 'ti-calendar',         label: 'Duty Schedule',  path: '/admin/schedule' },

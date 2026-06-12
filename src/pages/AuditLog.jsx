@@ -88,46 +88,102 @@ export default function AuditLog() {
           )}
 
           {!loading && filtered.length > 0 && (
-            <div style={{ overflowX:'auto' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Action</th>
-                    <th>Performed by</th>
-                    <th>Target</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(log => {
-                    const s = getStyle(log.action);
-                    return (
-                      <tr key={log.id}>
-                        <td style={{ fontFamily:'var(--mono)', fontSize:11, whiteSpace:'nowrap' }}>
-                          {formatDateTime(log.timestamp)}
-                        </td>
-                        <td>
-                          <span className={`badge ${s.cls}`}>
-                            <i className={`ti ${s.icon}`} />
-                            {log.action?.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight:700, fontSize:12 }}>{log.performedBy || '—'}</td>
-                        <td style={{ fontFamily:'var(--mono)', fontSize:11, color:'var(--info)' }}>
-                          {log.targetId || '—'}
-                        </td>
-                        <td style={{ fontSize:11, color:'var(--t3)', maxWidth:280 }}>
-                          {log.details ? Object.entries(log.details)
-                            .filter(([,v]) => v !== undefined && v !== null && v !== '')
-                            .map(([k,v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-                            .join(' · ') : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div style={{ padding:'8px 14px 20px' }}>
+              {/* Group logs by date */}
+              {(() => {
+                const grouped = {};
+                filtered.forEach(log => {
+                  const d = log.timestamp?.toDate?.();
+                  const key = d ? d.toLocaleDateString('en-NG', { weekday:'long', day:'2-digit', month:'long', year:'numeric' }) : 'Unknown date';
+                  if (!grouped[key]) grouped[key] = [];
+                  grouped[key].push(log);
+                });
+                return Object.entries(grouped).map(([date, entries]) => (
+                  <div key={date} style={{ marginBottom:24 }}>
+                    {/* Date separator */}
+                    <div style={{
+                      display:'flex', alignItems:'center', gap:10, marginBottom:14,
+                    }}>
+                      <div style={{ fontSize:11, fontWeight:800, color:'var(--t3)', whiteSpace:'nowrap',
+                        textTransform:'uppercase', letterSpacing:'.06em' }}>{date}</div>
+                      <div style={{ flex:1, height:1, background:'var(--border)' }} />
+                    </div>
+
+                    {/* Timeline entries */}
+                    <div style={{ position:'relative', paddingLeft:32 }}>
+                      {/* Vertical line */}
+                      <div style={{
+                        position:'absolute', left:10, top:0, bottom:0,
+                        width:2, background:'var(--border)', borderRadius:1,
+                      }} />
+
+                      {entries.map((log, idx) => {
+                        const s = getStyle(log.action);
+                        const t = log.timestamp?.toDate?.();
+                        const timeStr = t ? t.toLocaleTimeString('en-NG', { hour:'2-digit', minute:'2-digit' }) : '';
+                        const details = log.details
+                          ? Object.entries(log.details)
+                              .filter(([,v]) => v !== undefined && v !== null && v !== '')
+                              .map(([k,v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+                              .join(' · ')
+                          : '';
+                        return (
+                          <div key={log.id} style={{
+                            position:'relative', marginBottom: idx < entries.length-1 ? 14 : 0,
+                            display:'flex', gap:10, alignItems:'flex-start',
+                          }}>
+                            {/* Dot */}
+                            <div style={{
+                              position:'absolute', left:-26, top:3,
+                              width:14, height:14, borderRadius:'50%',
+                              background:'var(--card-bg)',
+                              border:`2px solid var(--border)`,
+                              display:'flex', alignItems:'center', justifyContent:'center',
+                              flexShrink:0,
+                            }}>
+                              <i className={`ti ${s.icon}`} style={{
+                                fontSize:7,
+                                color: s.cls.includes('ok') ? 'var(--success)'
+                                  : s.cls.includes('danger') ? 'var(--danger)'
+                                  : s.cls.includes('warn')   ? 'var(--warn)'
+                                  : 'var(--info)',
+                              }} />
+                            </div>
+
+                            {/* Content */}
+                            <div style={{
+                              flex:1, background:'var(--card-bg)',
+                              border:'1px solid var(--border)', borderRadius:8,
+                              padding:'8px 12px',
+                            }}>
+                              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:3 }}>
+                                <span className={`badge ${s.cls}`} style={{ fontSize:10 }}>
+                                  <i className={`ti ${s.icon}`} />
+                                  {log.action?.replace(/_/g, ' ')}
+                                </span>
+                                <span style={{ fontSize:10, color:'var(--t3)', fontFamily:'var(--mono)' }}>{timeStr}</span>
+                              </div>
+                              <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)' }}>
+                                {log.performedBy || 'System'}
+                              </div>
+                              {log.targetId && (
+                                <div style={{ fontSize:11, color:'var(--info)', fontFamily:'var(--mono)', marginTop:1 }}>
+                                  → {log.targetId}
+                                </div>
+                              )}
+                              {details && (
+                                <div style={{ fontSize:10, color:'var(--t3)', marginTop:4, lineHeight:1.5 }}>
+                                  {details}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>

@@ -55,6 +55,8 @@ export const COL = {
   AUDIT:        'audit_log',
   TRIAGE:       'triage_queue',
   MAR:          'mar_records',
+  INVENTORY:    'pharmacy_inventory',
+  SELF_REPORT:  'self_reports',
 };
 
 // ── ROLES ────────────────────────────────────
@@ -625,4 +627,145 @@ export function formatTime(ts) {
 
 export function formatDateTime(ts) {
   return `${formatTs(ts)} ${formatTime(ts)}`;
+}
+
+// ═════════════════════════════════════════════
+// PHARMACY INVENTORY
+// ═════════════════════════════════════════════
+export function listenInventory(callback) {
+  const q = query(collection(db, COL.INVENTORY), orderBy('name', 'asc'));
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addInventoryItem(data, addedBy) {
+  const ref = await addDoc(collection(db, COL.INVENTORY), {
+    ...data,
+    quantity:   Number(data.quantity) || 0,
+    reorderAt:  Number(data.reorderAt) || 10,
+    createdAt:  serverTimestamp(),
+    updatedAt:  serverTimestamp(),
+  });
+  await logAudit('INVENTORY_ADD', ref.id, addedBy, { name: data.name });
+  return ref.id;
+}
+
+export async function updateInventoryItem(id, data, updatedBy) {
+  await updateDoc(doc(db, COL.INVENTORY, id), { ...data, updatedAt: serverTimestamp() });
+  await logAudit('INVENTORY_UPDATE', id, updatedBy, data);
+}
+
+export async function deductInventory(drugName, qty, emrNumber, dispensedBy) {
+  // Find matching inventory item by name (case-insensitive match)
+  const snap = await getDocs(collection(db, COL.INVENTORY));
+  const match = snap.docs.find(d =>
+    d.data().name?.toLowerCase() === drugName?.toLowerCase()
+  );
+  if (!match) return { found: false };
+  const current = match.data().quantity || 0;
+  const newQty  = Math.max(0, current - qty);
+  await updateDoc(doc(db, COL.INVENTORY, match.id), {
+    quantity: newQty, updatedAt: serverTimestamp(),
+  });
+  await logAudit('INVENTORY_DISPENSE', match.id, dispensedBy, {
+    drug: drugName, qty, emrNumber, remaining: newQty,
+  });
+  return { found: true, remaining: newQty, low: newQty <= (match.data().reorderAt || 10) };
+}
+
+// ═════════════════════════════════════════════
+// HEALTH STATS (Admin analytics)
+// ═════════════════════════════════════════════
+export async function getHealthStats(fromDate, toDate) {
+  const fromTs = Timestamp.fromDate(fromDate);
+  const toTs   = Timestamp.fromDate(toDate);
+
+  const [visitsSnap, triageSnap, patientsSnap] = await Promise.all([
+    getDocs(query(collection(db, COL.VISITS),
+      where('createdAt', '>=', fromTs),
+      where('createdAt', '<=', toTs)
+    )),
+    getDocs(query(collection(db, COL.TRIAGE),
+      where('arrivedAt', '>=', fromTs),
+      where('arrivedAt', '<=', toTs)
+    )),
+    getDocs(collection(db, COL.PATIENTS)),
+  ]);
+
+  const visits  = visitsSnap.docs.map(d => d.data());
+  const triage  = triageSnap.docs.map(d => d.data());
+
+  // Visits per day
+  const byDay = {};
+  visits.forEach(v => {
+    const d = v.createdAt?.toDate?.();
+    if (!d) return;
+    const key = d.toLocaleDateString('en-NG', { day:'2-digit', month:'short' });
+    byDay[key] = (byDay[key] || 0) + 1;
+  });
+
+  // Priority breakdown
+  const priority = { P1: 0, P2: 0, P3: 0 };
+  triage.forEach(t => { if (priority[t.priority] !== undefined) priority[t.priority]++; });
+
+  // Status breakdown
+  const statusMap = {};
+  visits.forEach(v => { statusMap[v.status || 'open'] = (statusMap[v.status || 'open'] || 0) + 1; });
+
+  return {
+    totalVisits:    visits.length,
+    totalPatients:  patientsSnap.size,
+    totalTriage:    triage.length,
+    discharged:     visits.filter(v => v.status === 'discharged').length,
+    referred:       visits.filter(v => v.status === 'referred').length,
+    sickBay:        visits.filter(v => v.status === 'sickbay').length,
+    byDay,
+    priority,
+    statusMap,
+  };
+}
+
+// ═════════════════════════════════════════════
+// QR SELF-REPORT (Student reports sick via QR)
+// ═════════════════════════════════════════════
+export async function submitSelfReport(data) {
+  // Verify matric number matches a registered patient
+  const snap = await getDocs(
+    query(collection(db, COL.PATIENTS), where('matricNo', '==', data.matricNo))
+  );
+  if (snap.empty) throw new Error('Matric number not found. Please check and try again.');
+  const patient = { id: snap.docs[0].id, ...snap.docs[0].data() };
+
+  const ref = await addDoc(collection(db, COL.SELF_REPORT), {
+    matricNo:    data.matricNo,
+    emrNumber:   patient.emrNumber,
+    patientName: `${patient.surname} ${patient.firstName}`,
+    complaint:   data.complaint,
+    duration:    data.duration,
+    severity:    data.severity,  // 'mild' | 'moderate' | 'severe'
+    submittedAt: serverTimestamp(),
+    status:      'pending',      // nurse picks it up → 'triaged' | 'dismissed'
+  });
+
+  return { reportId: ref.id, patient };
+}
+
+export function listenSelfReports(callback) {
+  const q = query(
+    collection(db, COL.SELF_REPORT),
+    where('status', '==', 'pending'),
+    orderBy('submittedAt', 'desc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function processSelfReport(reportId, action, nurseId) {
+  await updateDoc(doc(db, COL.SELF_REPORT, reportId), {
+    status:      action,   // 'triaged' | 'dismissed'
+    processedBy: nurseId,
+    processedAt: serverTimestamp(),
+  });
 }
