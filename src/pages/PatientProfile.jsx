@@ -391,7 +391,7 @@ export default function PatientProfile() {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addNote(emrNumber, vid, { text: noteText, type: isDoctor?'doctor':'nurse' }, profile.displayName, profile.role);
+      await addNote(emrNumber, vid, { text: noteText, type: isDoctor?'doctor':'nurse' }, profile.displayName || profile.email || 'Unknown', profile.role);
       setNoteText(''); toast.success('Note saved');
     } catch(e) { console.error('saveNote',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
@@ -402,7 +402,7 @@ export default function PatientProfile() {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addVitals(emrNumber, vid, vitalForm, profile.displayName);
+      await addVitals(emrNumber, vid, vitalForm, profile.displayName || profile.email || 'Unknown');
       setVitalForm({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
       toast.success('Vitals recorded');
     } catch(e) { console.error('saveVitals',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -454,7 +454,7 @@ export default function PatientProfile() {
     if (!file) return;
     setSaving(true);
     try {
-      await uploadPatientFile(emrNumber, visitId, file, 'lab_result', profile.displayName);
+      await uploadPatientFile(emrNumber, visitId, file, 'lab_result', profile.displayName || profile.email || 'Unknown');
       toast.success(`${file.name} uploaded`);
     } catch { toast.error('Upload failed'); }
     setSaving(false);
@@ -465,7 +465,7 @@ export default function PatientProfile() {
     if (!refForm.to) { toast.error('Enter referral destination'); return; }
     setSaving(true);
     try {
-      await createReferral(emrNumber, visitId, refForm, profile.displayName);
+      await createReferral(emrNumber, visitId, refForm, profile.displayName || profile.email || 'Unknown');
       toast.success('Referral created'); navigate(-1);
     } catch { toast.error('Failed'); }
     setSaving(false);
@@ -475,7 +475,7 @@ export default function PatientProfile() {
     if (!window.confirm('Discharge this patient?')) return;
     setSaving(true);
     try {
-      await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName);
+      await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName || profile.email || 'Unknown');
       toast.success('Patient discharged'); navigate(-1);
     } catch { toast.error('Failed'); }
     setSaving(false);
