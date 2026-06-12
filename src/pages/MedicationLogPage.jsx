@@ -119,6 +119,7 @@ export default function MedicationLogPage() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* LEFT */}
+        {!selected && (
         <div style={{
           width: 260, flexShrink: 0,
           borderRight: '1px solid var(--border)',
@@ -187,6 +188,7 @@ export default function MedicationLogPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* RIGHT */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -204,6 +206,14 @@ export default function MedicationLogPage() {
                 padding: '14px 18px', background: 'var(--card-bg)',
                 borderRadius: 12, border: '1px solid var(--border)',
               }}>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setSelected(null)}
+                  style={{ flexShrink: 0 }}
+                  title="Back to patient list"
+                >
+                  <i className="ti ti-arrow-left" />
+                </button>
                 <div style={{
                   width: 44, height: 44, borderRadius: '50%',
                   background: 'var(--accent-bg)', color: 'var(--accent)',
