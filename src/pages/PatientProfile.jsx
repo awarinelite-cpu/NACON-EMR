@@ -15,8 +15,8 @@ import {
 import MARTab from '../components/patients/MARTab';
 
 const TABS = [
-  { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','records','admin','subadmin'] },
-  { id:'vitals',   label:'Vitals',          icon:'❤️',  roles: ['doctor','nurse','records','admin','subadmin'] },
+  { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','admin','subadmin'] },
+  { id:'vitals',   label:'Vitals',          icon:'❤️',  roles: ['doctor','nurse','admin','subadmin'] },
   { id:'rx',       label:'Prescription',    icon:'💊',  roles: ['doctor','nurse'] },
   { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
   { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
@@ -24,6 +24,7 @@ const TABS = [
   { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
   { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄',  roles: ['doctor','nurse'] },
+  { id:'uploads',  label:'Documents',       icon:'📁',  roles: ['doctor','nurse','records','admin','subadmin'] },
 ];
 
 const vitalFlag = (key, val) => {
@@ -42,8 +43,9 @@ export default function PatientProfile() {
   const { profile }   = useAuth();
   const navigate      = useNavigate();
 
+  const isRecordsRole = profile?.role?.toLowerCase() === ROLES.RECORDS;
   const [patient,   setPatient]   = useState(null);
-  const [activeTab, setActiveTab] = useState('visit');
+  const [activeTab, setActiveTab] = useState(isRecordsRole ? 'uploads' : 'visit');
   const [notes,     setNotes]     = useState([]);
   const [vitals,    setVitals]    = useState([]);
   const [rx,        setRx]        = useState([]);
@@ -106,6 +108,11 @@ export default function PatientProfile() {
 
   useEffect(() => {
     if (!emrNumber) return;
+    // Records staff only need uploads — skip all clinical listeners
+    if (isRecordsRole) {
+      const unsub = listenUploads(emrNumber, setUploads);
+      return () => unsub && unsub();
+    }
     const unsubs = [
       listenNotes(emrNumber,         setNotes),
       listenVitals(emrNumber,        setVitals),
@@ -363,6 +370,7 @@ export default function PatientProfile() {
 
   const isDoctor     = profile?.role?.toLowerCase() === ROLES.DOCTOR;
   const isNurse      = profile?.role?.toLowerCase() === ROLES.NURSE;
+  const isRecords    = isRecordsRole;
   const canPrescribe = isDoctor || isNurse;
   const latestV      = vitals[0];
   const activeMeds   = rx.reduce((a, r) => a + (r.drugs?.length || 0), 0);
@@ -474,11 +482,13 @@ export default function PatientProfile() {
   };
 
   // ── TIMELINE ──
+  // Records staff see only uploaded documents, not clinical events
+  const CLINICAL_TYPES = ['note', 'vitals', 'fluid', 'glucose', 'rx'];
   const timeline = [
-    ...notes.map(n   => ({ ts:n.createdAt,   type:'note',    data:n })),
-    ...vitals.map(v  => ({ ts:v.recordedAt,  type:'vitals',  data:v })),
-    ...fluid.map(f   => ({ ts:f.recordedAt,  type:'fluid',   data:f })),
-    ...glucose.map(g => ({ ts:g.recordedAt,  type:'glucose', data:g })),
+    ...(isRecords ? [] : notes.map(n   => ({ ts:n.createdAt,   type:'note',    data:n }))),
+    ...(isRecords ? [] : vitals.map(v  => ({ ts:v.recordedAt,  type:'vitals',  data:v }))),
+    ...(isRecords ? [] : fluid.map(f   => ({ ts:f.recordedAt,  type:'fluid',   data:f }))),
+    ...(isRecords ? [] : glucose.map(g => ({ ts:g.recordedAt,  type:'glucose', data:g }))),
     ...uploads.map(u => ({ ts:u.uploadedAt,  type:'upload',  data:u })),
   ].sort((a,b) => ((b.ts?.seconds||0)-(a.ts?.seconds||0)));
 
@@ -568,7 +578,8 @@ export default function PatientProfile() {
 
       {/* ══ COLLAPSIBLE SECTION: Vitals cards + Action buttons ══ */}
       <div ref={collapseRef} className="pp-collapsible">
-        {/* Vital Stat Cards */}
+        {/* Vital Stat Cards — hidden for records staff */}
+        {!isRecords && (
         <div style={{
           display:'grid',
           gridTemplateColumns:'repeat(5, 1fr)',
@@ -601,8 +612,10 @@ export default function PatientProfile() {
             );
           })}
         </div>
+        )}
 
-        {/* Action Buttons */}
+        {/* Action Buttons — hidden entirely for records staff */}
+        {!isRecords && (
         <div style={{
           display:'flex', gap:6, flexWrap:'wrap',
           padding:'8px 14px 10px',
@@ -632,6 +645,7 @@ export default function PatientProfile() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       {/* ══ TABS — always visible, sticky ══ */}
