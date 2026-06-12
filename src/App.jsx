@@ -24,6 +24,9 @@ import MARPage          from './pages/MARPage';
 import PharmacyInventory from './pages/PharmacyInventory';
 import HealthStats        from './pages/HealthStats';
 import SelfReport         from './pages/SelfReport';
+import NursingNotesPage   from './pages/NursingNotesPage';
+import MedicationLogPage  from './pages/MedicationLogPage';
+import VitalSignsPage     from './pages/VitalSignsPage';
 
 import './styles/global.css';
 
@@ -118,15 +121,14 @@ export default function App() {
               <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="sickbay" /></ProtectedRoute>
             } />
             <Route path="/nurse/notes" element={
-              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['nurse']}><NursingNotesPage /></ProtectedRoute>
             } />
             <Route path="/nurse/meds" element={
-              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['nurse']}><MedicationLogPage /></ProtectedRoute>
             } />
             <Route path="/nurse/vitals" element={
-              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['nurse']}><VitalSignsPage /></ProtectedRoute>
             } />
-
 
             {/* ── MAR ── */}
             <Route path="/mar" element={
