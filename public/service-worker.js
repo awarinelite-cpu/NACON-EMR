@@ -1,12 +1,22 @@
-/* NACON MRS EMR — Service Worker v2.0 — Offline-First */
+/* NACON MRS EMR — Service Worker v3.0 — Offline-First */
 
-const CACHE_VERSION = 'nacon-emr-v2';
+const CACHE_VERSION = 'nacon-emr-v3';
 
-// App shell resources to pre-cache on install
 const PRECACHE_URLS = [
   '/',
   '/index.html',
+  '/offline.html',
   '/manifest.json',
+  '/favicon.ico',
+  '/logo48.png',
+  '/logo72.png',
+  '/logo96.png',
+  '/logo128.png',
+  '/logo144.png',
+  '/logo152.png',
+  '/logo192.png',
+  '/logo384.png',
+  '/logo512.png',
   '/nacon-crest.png',
 ];
 
@@ -37,19 +47,22 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never intercept Firebase, Auth, or API calls — let them fail naturally offline
+  // Never intercept Firebase, Auth, or API calls
   if (
     url.hostname.includes('firebase') ||
     url.hostname.includes('googleapis') ||
     url.hostname.includes('firestore') ||
     url.hostname.includes('identitytoolkit') ||
     url.hostname.includes('securetoken') ||
+    url.hostname.includes('cdn.jsdelivr.net') ||
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com') ||
     request.method !== 'GET'
   ) {
     return;
   }
 
-  // For navigation requests (HTML pages): network-first, fallback to /index.html
+  // Navigation requests: network-first, fallback to offline.html
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -59,22 +72,23 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() =>
-          caches.match('/index.html').then(cached => cached || new Response('Offline', { status: 503 }))
+          caches.match('/index.html')
+            .then(cached => cached || caches.match('/offline.html'))
         )
     );
     return;
   }
 
-  // For JS/CSS/fonts/images: cache-first, then network
+  // JS/CSS/fonts/images: cache-first, then network
   if (
     url.pathname.includes('/static/') ||
-    url.pathname.match(/\.(js|css|woff2?|ttf|png|jpg|svg|ico)$/)
+    url.pathname.match(/\.(js|css|woff2?|ttf|png|jpg|jpeg|svg|ico|webp)$/)
   ) {
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
         return fetch(request).then(response => {
-          if (!response || response.status !== 200) return response;
+          if (!response || response.status !== 200 || response.type === 'opaque') return response;
           const clone = response.clone();
           caches.open(CACHE_VERSION).then(cache => cache.put(request, clone));
           return response;
@@ -97,10 +111,9 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ── Background sync support (if browser supports it) ─────────────────────────
+// ── Background sync ───────────────────────────────────────────────────────────
 self.addEventListener('sync', event => {
   if (event.tag === 'nacon-sync-pending') {
-    // Notify all open clients to trigger sync
     event.waitUntil(
       self.clients.matchAll().then(clients =>
         clients.forEach(client =>
@@ -108,5 +121,33 @@ self.addEventListener('sync', event => {
         )
       )
     );
+  }
+});
+
+// ── Push notifications (future-ready) ────────────────────────────────────────
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'NACON MRS', {
+      body: data.body || '',
+      icon: '/logo192.png',
+      badge: '/logo96.png',
+      data: data.url || '/',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data || '/')
+  );
+});
+
+// ── Skip waiting on demand (triggered by index.html update logic) ─────────────
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });

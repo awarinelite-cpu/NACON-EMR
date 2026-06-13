@@ -2,30 +2,74 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="theme-color" content="#0B1F3A" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+
+    <!-- Primary Meta -->
+    <title>NACON MRS EMR System</title>
     <meta name="description" content="NACON MRS EMR — Nigerian Army College of Nursing Medical Reception Station" />
+    <meta name="application-name" content="NACON MRS" />
+    <meta name="keywords" content="NACON, EMR, nursing, medical records, Nigeria Army" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#0B1F3A" />
+    <meta name="msapplication-TileColor" content="#0B1F3A" />
+    <meta name="msapplication-TileImage" content="%PUBLIC_URL%/logo144.png" />
+
+    <!-- PWA / Standalone -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NACON MRS" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+
+    <!-- Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- Favicon -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32"  href="%PUBLIC_URL%/logo48.png" />
+    <link rel="icon" type="image/png" sizes="96x96"  href="%PUBLIC_URL%/logo96.png" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon"                    href="%PUBLIC_URL%/logo192.png" />
+    <link rel="apple-touch-icon" sizes="152x152"    href="%PUBLIC_URL%/logo152.png" />
+    <link rel="apple-touch-icon" sizes="167x167"    href="%PUBLIC_URL%/logo192.png" />
+    <link rel="apple-touch-icon" sizes="180x180"    href="%PUBLIC_URL%/logo192.png" />
+
     <!-- Tabler Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+
     <!-- DM Sans font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
-    <title>NACON MRS EMR System</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js');
+          navigator.serviceWorker.register('%PUBLIC_URL%/service-worker.js')
+            .then(reg => {
+              // Check for updates every 60 seconds
+              setInterval(() => reg.update(), 60000);
+
+              // New SW waiting — reload to activate
+              reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New version available — reload silently
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                      window.location.reload();
+                    });
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              });
+            })
+            .catch(err => console.warn('SW registration failed:', err));
         });
       }
     </script>
