@@ -93,7 +93,11 @@
 
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; }
+html {
+  font-size: 14px;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
 body {
   font-family: var(--font);
   background: var(--main-bg);
@@ -101,6 +105,8 @@ body {
   min-height: 100vh;
   transition: background .2s, color .2s;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* ── SCROLLBAR ── */
@@ -183,6 +189,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 
 /* Nav */
 .sb-nav { flex: 1; padding: 8px 0; overflow-y: auto; }
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 .nav-group { padding: 0 8px; margin-bottom: 6px; }
 .nav-label {
   font-size: 9px; font-weight: 700;
@@ -271,6 +279,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   z-index: 100;
 }
 .offline-banner--offline  { background: #b91c1c; color: #fff; }
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 .offline-banner--syncing  { background: #1d4ed8; color: #fff; }
 .offline-banner--synced   { background: #15803d; color: #fff; }
 .offline-banner--pending  { background: #92400e; color: #fff; }
@@ -307,6 +317,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 }
 .btn:hover { background: var(--card-bg2); }
 .btn i { font-size: 15px; }
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 
 .btn-primary {
   background: var(--accent);
@@ -419,6 +431,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 }
 .form-input:focus,
 .form-select:focus,
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 .form-textarea:focus { border-color: var(--accent); background: var(--card-bg); }
 .form-input.auto {
   background: var(--accent-bg);
@@ -548,6 +562,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .action-btn:hover { background: var(--card-bg2); color: var(--t1); }
 .action-btn i { font-size: 14px; color: var(--accent); }
 
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 /* Profile tabs */
 .profile-tabs {
   display: flex; overflow-x: auto; gap: 0;
