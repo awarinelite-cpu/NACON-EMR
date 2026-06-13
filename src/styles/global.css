@@ -858,7 +858,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overflow: hidden;
   }
 
-  /* Main area: full width, scrollable, NOT height-locked */
+  /* Main area: full width, single continuous scroll */
   .main-area {
     margin-left: 0 !important;
     width: 100vw;
@@ -867,7 +867,6 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overflow-y: auto !important;
     overflow-x: hidden;
     overscroll-behavior: none;
-    overscroll-behavior: contain;
     display: block !important;
   }
 

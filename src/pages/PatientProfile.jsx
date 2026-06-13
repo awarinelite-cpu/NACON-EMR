@@ -509,7 +509,7 @@ export default function PatientProfile() {
   const statusColor = patient.status === 'active' ? '#22C55E' : patient.status === 'discharged' ? '#64748B' : '#F59E0B';
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden', background:'var(--main-bg)' }}>
+    <div style={{ display:'flex', flexDirection:'column', background:'var(--main-bg)' }}>
 
       {/* ══ HEADER BAR — always visible ══ */}
       <div style={{
@@ -693,7 +693,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.filter(t => t.roles.includes(profile?.role?.toLowerCase())).map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor'); if(collapseRef.current){collapseRef.current.classList.remove('pp-collapsed'); isCollapsed.current=false; if(scrollRef.current) scrollRef.current.scrollTop=0;} }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor');  }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
@@ -710,12 +710,8 @@ export default function PatientProfile() {
         ))}
       </div>
 
-      {/* ══ TAB CONTENT — scrollable ══ */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        style={{ flex:1, overflowY:'auto', padding:'14px', overscrollBehavior:'none' }}
-      >
+      {/* ══ TAB CONTENT ══ */}
+      <div style={{ padding:'14px' }}>
 
         {/* ── VISIT TAB ── */}
         {activeTab==='visit' && (
