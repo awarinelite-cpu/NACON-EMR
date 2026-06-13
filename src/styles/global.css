@@ -245,6 +245,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   display: flex; flex-direction: column;
   background: var(--main-bg);
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Topbar */
@@ -259,7 +260,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .topbar-title { font-size: 15px; font-weight: 700; color: var(--t1); flex: 1; }
 
 /* Page content scroll */
-.page-content { flex: 1; overflow-y: auto; padding: 16px; }
+.page-content { flex: 1; overflow-y: auto; padding: 16px; overscroll-behavior: none; }
 
 /* ══════════════════════════════════
    OFFLINE BANNER
@@ -503,7 +504,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .profile-scroll-body {
   flex: 1;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 
 /* Tab content area — no separate scroll, flows naturally */
@@ -865,7 +866,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     height: 100vh;
     overflow-y: auto !important;
     overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
     overscroll-behavior: contain;
     display: block !important;
   }
@@ -914,7 +915,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     flex: 1;
     overflow-y: auto;
     padding: 10px;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
     overscroll-behavior: contain;
   }
 
@@ -936,7 +937,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overflow-x: auto;
     gap: 6px;
     padding: 8px 10px;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
     scrollbar-width: none;
     flex-shrink: 0;
   }
@@ -985,7 +986,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   .profile-scroll-body {
     flex: 1;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
   }
   .profile-header,
   .action-bar,
@@ -1013,7 +1014,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   .data-table, .chart-table {
     display: block;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
     font-size: 11px;
   }
 
