@@ -174,7 +174,7 @@ export default function PatientProfile() {
             </div>
 
             {/* Drawer body — scrollable */}
-            <div style={{ overflowY:'auto', padding:'16px', WebkitOverflowScrolling:'touch' }}>
+            <div style={{ overflowY:'auto', padding:'16px', overscrollBehavior:'none' }}>
 
               {/* ── NOTE ── */}
               {selectedEvent.type === 'note' && (() => {
@@ -714,7 +714,7 @@ export default function PatientProfile() {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        style={{ flex:1, overflowY:'auto', padding:'14px', WebkitOverflowScrolling:'touch', overscrollBehavior:'contain' }}
+        style={{ flex:1, overflowY:'auto', padding:'14px', overscrollBehavior:'none' }}
       >
 
         {/* ── VISIT TAB ── */}
@@ -1352,7 +1352,7 @@ export default function PatientProfile() {
             </div>
 
             {/* Drawer body — scrollable */}
-            <div style={{ overflowY:'auto', padding:'16px', WebkitOverflowScrolling:'touch' }}>
+            <div style={{ overflowY:'auto', padding:'16px', overscrollBehavior:'none' }}>
 
               {/* ── NOTE ── */}
               {selectedEvent.type === 'note' && (() => {
