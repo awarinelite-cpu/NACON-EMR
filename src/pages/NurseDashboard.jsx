@@ -70,7 +70,7 @@ export default function NurseDashboard() {
             <div className="stat-value" style={{color:'var(--danger)'}}>0</div>
           </div>
           {/* Seen today — reported sick today AND seen by nurse/doctor */}
-          <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
+          <div className="stat-card" onClick={() => navigate('/nurse/seen-today')} style={{cursor:'pointer'}}>
             <div className="stat-label"><i className="ti ti-check" style={{color:'var(--success)'}} />Seen today</div>
             <div className="stat-value" style={{color:'var(--success)'}}>{sickSeenCount}</div>
           </div>
