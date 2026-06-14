@@ -25,11 +25,9 @@ export default function SickReportPage() {
 
   // seenIds = patients with clinical activity today (from listenSeenToday)
   const seenIds   = new Set(seenToday.map(p => p.id));
-  // On THIS page, "Seen" = reported sick today AND seen today
-  // (intersection with sickReports). Patients discharged/referred today
-  // who reported sick on a previous day belong on the dashboard's
-  // Seen card, not this page's list.
-  const seen      = sickReports.filter(p => seenIds.has(p.id));
+  // "Seen at MRS" card = union: seen today, discharged today, referred today
+  // (from listenSeenToday — independent of sickReports).
+  const seen      = seenToday;
   const notSeen   = sickReports.filter(p => !seenIds.has(p.id));
   const displayed = tab === 'seen' ? seen : tab === 'pending' ? notSeen : sickReports;
 
