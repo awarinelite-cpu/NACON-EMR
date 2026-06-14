@@ -12,6 +12,7 @@ export default function NurseDashboard() {
   const [queue,       setQueue]      = useState([]);
   const [sickReports, setSickReports]= useState([]);
   const [seenToday,   setSeenToday]  = useState([]);
+  const [classFilter, setClassFilter]= useState('all');
 
   useEffect(() => {
     const u1 = listenPatients(setPatients);
@@ -29,24 +30,52 @@ export default function NurseDashboard() {
     return d >= todayStart;
   };
 
-  // ── Derived live stats ────────────────────────────────
+  // ── All unique classes across ALL patients (for the selector) ──
+  const allClasses = [...new Set(patients.map(p => p.classSet).filter(Boolean))].sort();
+
+  // ── Apply class filter ────────────────────────────────
+  const byClass = (list) =>
+    classFilter === 'all' ? list : list.filter(p => p.classSet === classFilter);
+
+  // ── Derived live stats (class-filtered) ──────────────
+  const filteredPatients  = byClass(patients);
+  const filteredSick      = byClass(sickReports);
+  const filteredSeen      = byClass(seenToday);
+
   const waiting      = queue.filter(q => q.status === 'waiting').length;
-  const sickBay      = patients.filter(p => p.status === 'sickbay');
+  const sickBay      = byClass(patients.filter(p => p.status === 'sickbay'));
   const maleAdm      = sickBay.filter(p => p.sex === 'Male').length;
   const femaleAdm    = sickBay.filter(p => p.sex === 'Female').length;
 
-  // Sick report = reported sick today (includes seen + not yet seen)
-  const sickTotal    = sickReports.length;
-  // Among sick reports, how many were actually seen (have seenAt today)
-  const seenIds      = new Set(seenToday.map(p => p.id));
-  const sickSeenCount = sickReports.filter(p => seenIds.has(p.id)).length;
+  const seenIds       = new Set(filteredSeen.map(p => p.id));
+  const sickTotal     = filteredSick.length;
+  const sickSeenCount = filteredSick.filter(p => seenIds.has(p.id)).length;
   const notSeenCount  = sickTotal - sickSeenCount;
 
-  const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
-  const referredToday   = patients.filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
-  const active          = patients.filter(p => p.status === 'active');
+  const dischargedToday = byClass(patients).filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
+  const referredToday   = byClass(patients).filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
+  const active          = byClass(patients).filter(p => p.status === 'active');
+
+  // ── Per-class breakdown for summary bars ─────────────
+  const classBreakdown = (list) => {
+    const counts = {};
+    list.forEach(p => {
+      const c = p.classSet || '—';
+      counts[c] = (counts[c] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  };
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
+
+  // ── Class selector pill styles ────────────────────────
+  const pillStyle = (val) => ({
+    padding:'5px 12px', fontSize:11, fontWeight:700, borderRadius:20,
+    border:'none', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
+    background: classFilter === val ? 'var(--accent)' : 'var(--card-bg2)',
+    color:      classFilter === val ? '#fff'          : 'var(--t2)',
+    transition: 'all 0.15s',
+  });
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
@@ -59,10 +88,56 @@ export default function NurseDashboard() {
       </div>
       <div className="page-content" style={{ flex:1 }}>
 
+        {/* ── Class filter bar ─────────────────────────── */}
+        <div style={{
+          display:'flex', gap:6, overflowX:'auto', paddingBottom:4,
+          marginBottom:12, scrollbarWidth:'none',
+        }}>
+          <button style={pillStyle('all')} onClick={() => setClassFilter('all')}>
+            All Classes
+          </button>
+          {allClasses.map(c => (
+            <button key={c} style={pillStyle(c)} onClick={() => setClassFilter(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Active filter label ───────────────────────── */}
+        {classFilter !== 'all' && (
+          <div style={{
+            display:'flex', alignItems:'center', gap:8,
+            marginBottom:10, padding:'6px 12px',
+            background:'var(--accent-bg)', borderRadius:8,
+            fontSize:12, fontWeight:700, color:'var(--accent)',
+          }}>
+            <i className="ti ti-filter" style={{fontSize:14}} />
+            Showing: {classFilter}
+            <button onClick={() => setClassFilter('all')} style={{
+              marginLeft:'auto', background:'none', border:'none',
+              cursor:'pointer', color:'var(--accent)', fontSize:14, padding:0,
+            }}>
+              <i className="ti ti-x" />
+            </button>
+          </div>
+        )}
+
         {/* ── Total Registered Patients ── */}
         <div className="stat-card" onClick={() => navigate('/nurse/patients')} style={{cursor:'pointer', marginBottom:12}}>
           <div className="stat-label"><i className="ti ti-users" style={{color:'#8b5cf6'}} />Total Registered Patients</div>
-          <div className="stat-value" style={{color:'#8b5cf6'}}>{patients.length}</div>
+          <div className="stat-value" style={{color:'#8b5cf6'}}>{filteredPatients.length}</div>
+          {classFilter === 'all' && classBreakdown(patients).length > 0 && (
+            <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:6}}>
+              {classBreakdown(patients).map(([cls, cnt]) => (
+                <span key={cls} style={{
+                  fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10,
+                  background:'#ede9fe', color:'#7c3aed', cursor:'pointer',
+                }} onClick={e => { e.stopPropagation(); setClassFilter(cls); }}>
+                  {cls}: {cnt}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}
@@ -75,7 +150,6 @@ export default function NurseDashboard() {
             <div className="stat-label"><i className="ti ti-pill" style={{color:'var(--danger)'}} />Meds due</div>
             <div className="stat-value" style={{color:'var(--danger)'}}>0</div>
           </div>
-          {/* Seen today — reported sick today AND seen by nurse/doctor */}
           <div className="stat-card" onClick={() => navigate('/nurse/seen-today')} style={{cursor:'pointer'}}>
             <div className="stat-label"><i className="ti ti-check" style={{color:'var(--success)'}} />Seen today</div>
             <div className="stat-value" style={{color:'var(--success)'}}>{sickSeenCount}</div>
@@ -85,7 +159,7 @@ export default function NurseDashboard() {
         {/* ── Row 2: Sick Report · On Admission · D/R ── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
 
-          {/* Sick Report — shows total + seen/not seen split */}
+          {/* Sick Report */}
           <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
             <div className="stat-label">
               <i className="ti ti-stethoscope" style={{color:'#f97316'}} /> Sick Report
@@ -137,7 +211,15 @@ export default function NurseDashboard() {
         {/* ── Active patients ───────────────────────── */}
         <div className="card">
           <div className="card-header">
-            <div className="card-title"><i className="ti ti-users" />Active patients</div>
+            <div className="card-title"><i className="ti ti-users" />Active patients
+              {classFilter !== 'all' && (
+                <span style={{
+                  marginLeft:8, fontSize:10, fontWeight:700,
+                  background:'var(--accent-bg)', color:'var(--accent)',
+                  padding:'2px 8px', borderRadius:10,
+                }}>{classFilter}</span>
+              )}
+            </div>
             <span className="card-action" onClick={() => navigate('/nurse/patients')}>View all →</span>
           </div>
           {active.slice(0,8).map(p => (

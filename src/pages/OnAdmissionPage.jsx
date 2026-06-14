@@ -6,8 +6,9 @@ import { listenPatients } from '../lib/emr';
 
 export default function OnAdmissionPage() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState([]);
-  const [tab, setTab] = useState('all'); // 'all' | 'male' | 'female'
+  const [patients,    setPatients]    = useState([]);
+  const [tab,         setTab]         = useState('all');   // 'all' | 'male' | 'female'
+  const [classFilter, setClassFilter] = useState('all');
 
   useEffect(() => {
     const unsub = listenPatients(setPatients);
@@ -15,11 +16,35 @@ export default function OnAdmissionPage() {
   }, []);
 
   const admitted  = patients.filter(p => p.status === 'sickbay');
-  const males     = admitted.filter(p => p.sex === 'Male');
-  const females   = admitted.filter(p => p.sex === 'Female');
-  const displayed = tab === 'male' ? males : tab === 'female' ? females : admitted;
+
+  // ── Unique classes from admitted patients ─────────────
+  const allClasses = [...new Set(admitted.map(p => p.classSet).filter(Boolean))].sort();
+
+  // ── Apply class filter first, then gender tab ─────────
+  const byClass = (list) =>
+    classFilter === 'all' ? list : list.filter(p => p.classSet === classFilter);
+
+  const classFiltered = byClass(admitted);
+  const males         = classFiltered.filter(p => p.sex === 'Male');
+  const females       = classFiltered.filter(p => p.sex === 'Female');
+  const displayed     = tab === 'male' ? males : tab === 'female' ? females : classFiltered;
+
+  // ── Per-class counts (from all admitted, before gender filter) ──
+  const classCounts = {};
+  admitted.forEach(p => {
+    const c = p.classSet || '—';
+    classCounts[c] = (classCounts[c] || 0) + 1;
+  });
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
+
+  const daysAdmitted = (p) => {
+    if (!p.updatedAt && !p.registeredAt) return null;
+    const ts = p.updatedAt || p.registeredAt;
+    const d  = ts.toDate ? ts.toDate() : new Date(ts);
+    const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
+    return diff === 0 ? 'Today' : diff === 1 ? '1 day' : `${diff} days`;
+  };
 
   const tabStyle = (id) => ({
     flex: 1, padding:'9px 0', fontSize:12, fontWeight:700,
@@ -29,14 +54,13 @@ export default function OnAdmissionPage() {
     transition: 'all 0.15s',
   });
 
-  // Days on admission
-  const daysAdmitted = (p) => {
-    if (!p.updatedAt && !p.registeredAt) return null;
-    const ts = p.updatedAt || p.registeredAt;
-    const d  = ts.toDate ? ts.toDate() : new Date(ts);
-    const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
-    return diff === 0 ? 'Today' : diff === 1 ? '1 day' : `${diff} days`;
-  };
+  const pillStyle = (val) => ({
+    padding:'5px 12px', fontSize:11, fontWeight:700, borderRadius:20,
+    border:'none', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
+    background: classFilter === val ? '#a855f7' : 'var(--card-bg2)',
+    color:      classFilter === val ? '#fff'    : 'var(--t2)',
+    transition: 'all 0.15s',
+  });
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
@@ -55,10 +79,27 @@ export default function OnAdmissionPage() {
         <div style={{
           background:'#a855f7', color:'#fff', borderRadius:20,
           padding:'3px 14px', fontSize:12, fontWeight:800, flexShrink:0,
-        }}>{admitted.length}</div>
+        }}>{classFiltered.length}</div>
       </div>
 
       <div className="page-content" style={{ flex:1 }}>
+
+        {/* ── Class filter bar ─────────────────────────── */}
+        {allClasses.length > 0 && (
+          <div style={{
+            display:'flex', gap:6, overflowX:'auto', paddingBottom:4,
+            marginBottom:12, scrollbarWidth:'none',
+          }}>
+            <button style={pillStyle('all')} onClick={() => setClassFilter('all')}>
+              All Classes
+            </button>
+            {allClasses.map(c => (
+              <button key={c} style={pillStyle(c)} onClick={() => setClassFilter(c)}>
+                {c} ({classCounts[c] || 0})
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── Gender summary cards ──────────────────── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12}}>
@@ -86,14 +127,37 @@ export default function OnAdmissionPage() {
           </div>
         </div>
 
-        {/* ── Tab filter ───────────────────────────── */}
+        {/* ── Per-class breakdown (shown when no class selected) ── */}
+        {classFilter === 'all' && allClasses.length > 1 && (
+          <div style={{
+            background:'var(--card-bg)', border:'1px solid var(--border)',
+            borderRadius:10, padding:'10px 14px', marginBottom:12,
+          }}>
+            <div style={{fontSize:10, fontWeight:700, color:'var(--t3)', marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em'}}>
+              <i className="ti ti-chart-bar" style={{marginRight:4}} />On Admission by Class
+            </div>
+            <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+              {Object.entries(classCounts).sort((a,b)=>b[1]-a[1]).map(([cls, cnt]) => (
+                <button key={cls} onClick={() => setClassFilter(cls)} style={{
+                  padding:'4px 12px', fontSize:11, fontWeight:700, borderRadius:20,
+                  border:'none', cursor:'pointer',
+                  background:'#f5f3ff', color:'#7c3aed',
+                }}>
+                  {cls}: {cnt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Gender tab filter ─────────────────────── */}
         <div style={{
           display:'flex', gap:4, background:'var(--card-bg)',
           border:'1px solid var(--border)', borderRadius:10,
           padding:4, marginBottom:12,
         }}>
           <button style={tabStyle('all')}    onClick={() => setTab('all')}>
-            All ({admitted.length})
+            All ({classFiltered.length})
           </button>
           <button style={tabStyle('male')}   onClick={() => setTab('male')}>
             Male ({males.length})
@@ -111,16 +175,17 @@ export default function OnAdmissionPage() {
                 color:'var(--t3)', fontWeight:700, fontSize:13,
               }}>
                 <i className="ti ti-bed-off" style={{fontSize:32,display:'block',marginBottom:8,opacity:0.4}} />
-                {tab === 'male'   ? 'No male patients on admission'
-                : tab === 'female'? 'No female patients on admission'
-                : 'No patients currently on admission'}
+                {classFilter !== 'all'
+                  ? `No patients from ${classFilter} on admission`
+                  : tab === 'male'   ? 'No male patients on admission'
+                  : tab === 'female' ? 'No female patients on admission'
+                  : 'No patients currently on admission'}
               </div>
             : displayed.map(p => (
                 <div key={p.id} className="patient-row"
                   onClick={() => navigate(`/patient/${p.emrNumber}`)}
                   style={{ cursor:'pointer' }}
                 >
-                  {/* Avatar with gender colour */}
                   <div className="p-avatar" style={{
                     background: p.sex === 'Female' ? '#fce7f3' : '#dbeafe',
                     color:      p.sex === 'Female' ? '#db2777' : '#1d4ed8',
@@ -148,7 +213,7 @@ export default function OnAdmissionPage() {
           }
         </div>
 
-        {/* ── EMR tag strip at bottom ───────────────── */}
+        {/* ── EMR tag strip ───────────────────────── */}
         {displayed.length > 0 && (
           <div style={{
             marginTop:12, padding:'10px 14px',

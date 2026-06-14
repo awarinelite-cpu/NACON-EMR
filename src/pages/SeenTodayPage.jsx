@@ -7,6 +7,7 @@ export default function SeenTodayPage() {
   const navigate = useNavigate();
   const [sickReports, setSickReports] = useState([]);
   const [seenToday,   setSeenToday]   = useState([]);
+  const [classFilter, setClassFilter] = useState('all');
 
   useEffect(() => {
     const u1 = listenSickReportsToday(setSickReports);
@@ -14,7 +15,6 @@ export default function SeenTodayPage() {
     return () => { u1?.(); u2?.(); };
   }, []);
 
-  // Today boundary for discharged/referred check
   const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
   const isToday = (ts) => {
     if (!ts) return false;
@@ -22,9 +22,24 @@ export default function SeenTodayPage() {
     return d >= todayStart;
   };
 
-  // Seen today = reported sick today AND seen today
-  const seenIds = new Set(seenToday.map(p => p.id));
-  const seen    = sickReports.filter(p => seenIds.has(p.id));
+  // Seen = reported sick today AND in seenToday set
+  const seenIds   = new Set(seenToday.map(p => p.id));
+  const allSeen   = sickReports.filter(p => seenIds.has(p.id));
+
+  // ── Unique classes from seen patients ─────────────────
+  const allClasses = [...new Set(allSeen.map(p => p.classSet).filter(Boolean))].sort();
+
+  // ── Apply class filter ────────────────────────────────
+  const seen = classFilter === 'all'
+    ? allSeen
+    : allSeen.filter(p => p.classSet === classFilter);
+
+  // ── Per-class counts for the breakdown bar ────────────
+  const classCounts = {};
+  allSeen.forEach(p => {
+    const c = p.classSet || '—';
+    classCounts[c] = (classCounts[c] || 0) + 1;
+  });
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
 
@@ -32,16 +47,13 @@ export default function SeenTodayPage() {
     ? { label:'QR',     bg:'#dbeafe', color:'#1d4ed8' }
     : { label:'Manual', bg:'#fef3c7', color:'#92400e' };
 
-  // Status badge — discharged/referred today gets its own badge, else "Seen"
   const seenStatusBadge = (p) => {
-    const dischargedToday = p.status === 'discharged' && isToday(p.updatedAt);
-    const referredToday   = p.status === 'referred'   && isToday(p.updatedAt);
-    if (dischargedToday) return (
+    if (p.status === 'discharged' && isToday(p.updatedAt)) return (
       <span className="badge badge-info" style={{fontSize:9, padding:'3px 8px'}}>
         <i className="ti ti-door-exit" style={{marginRight:3}} />Discharged
       </span>
     );
-    if (referredToday) return (
+    if (p.status === 'referred' && isToday(p.updatedAt)) return (
       <span className="badge badge-warn" style={{fontSize:9, padding:'3px 8px'}}>
         <i className="ti ti-transfer" style={{marginRight:3}} />Referred
       </span>
@@ -52,6 +64,14 @@ export default function SeenTodayPage() {
       </span>
     );
   };
+
+  const pillStyle = (val) => ({
+    padding:'5px 12px', fontSize:11, fontWeight:700, borderRadius:20,
+    border:'none', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
+    background: classFilter === val ? 'var(--success)' : 'var(--card-bg2)',
+    color:      classFilter === val ? '#fff'           : 'var(--t2)',
+    transition: 'all 0.15s',
+  });
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
@@ -73,13 +93,54 @@ export default function SeenTodayPage() {
 
       <div className="page-content" style={{flex:1}}>
 
-        {/* ── Summary card ───────────────────────────── */}
+        {/* ── Class filter bar ─────────────────────────── */}
+        {allClasses.length > 0 && (
+          <div style={{
+            display:'flex', gap:6, overflowX:'auto', paddingBottom:4,
+            marginBottom:12, scrollbarWidth:'none',
+          }}>
+            <button style={pillStyle('all')} onClick={() => setClassFilter('all')}>
+              All Classes
+            </button>
+            {allClasses.map(c => (
+              <button key={c} style={pillStyle(c)} onClick={() => setClassFilter(c)}>
+                {c} ({classCounts[c] || 0})
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Summary card ──────────────────────────────── */}
         <div className="stat-card" style={{textAlign:'center', marginBottom:12}}>
           <div style={{fontSize:30, fontWeight:900, color:'var(--success)', lineHeight:1}}>{seen.length}</div>
           <div style={{fontSize:10, color:'var(--t3)', fontWeight:700, marginTop:6}}>
-            <i className="ti ti-check" style={{marginRight:3}} />Seen Today
+            <i className="ti ti-check" style={{marginRight:3}} />
+            {classFilter === 'all' ? 'Seen Today' : `Seen Today — ${classFilter}`}
           </div>
         </div>
+
+        {/* ── Per-class breakdown (shown when viewing all) ── */}
+        {classFilter === 'all' && allClasses.length > 1 && (
+          <div style={{
+            background:'var(--card-bg)', border:'1px solid var(--border)',
+            borderRadius:10, padding:'10px 14px', marginBottom:12,
+          }}>
+            <div style={{fontSize:10, fontWeight:700, color:'var(--t3)', marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em'}}>
+              <i className="ti ti-chart-bar" style={{marginRight:4}} />Seen by Class
+            </div>
+            <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+              {Object.entries(classCounts).sort((a,b)=>b[1]-a[1]).map(([cls, cnt]) => (
+                <button key={cls} onClick={() => setClassFilter(cls)} style={{
+                  padding:'4px 12px', fontSize:11, fontWeight:700, borderRadius:20,
+                  border:'none', cursor:'pointer',
+                  background:'var(--success-bg)', color:'var(--success)',
+                }}>
+                  {cls}: {cnt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Patient list ──────────────────────────── */}
         <div className="card">
@@ -87,7 +148,9 @@ export default function SeenTodayPage() {
             ? <div style={{padding:40, textAlign:'center', color:'var(--t3)', fontWeight:700, fontSize:13}}>
                 <i className="ti ti-check"
                   style={{fontSize:32, display:'block', marginBottom:8, opacity:0.3}} />
-                No patients have been seen yet today
+                {classFilter !== 'all'
+                  ? `No patients from ${classFilter} have been seen yet today`
+                  : 'No patients have been seen yet today'}
               </div>
             : seen.map(p => {
                 const mb = methodBadge(p.reportedSickHow);
@@ -96,7 +159,6 @@ export default function SeenTodayPage() {
                     onClick={() => navigate(`/patient/${p.emrNumber}`)}
                     style={{cursor:'pointer'}}
                   >
-                    {/* Gender-coded avatar */}
                     <div className="p-avatar" style={{
                       background: p.sex==='Female' ? '#fce7f3' : '#dbeafe',
                       color:      p.sex==='Female' ? '#db2777' : '#1d4ed8',
@@ -107,7 +169,6 @@ export default function SeenTodayPage() {
                       <div className="p-name">{p.surname} {p.firstName}</div>
                       <div className="p-meta" style={{display:'flex', gap:5, alignItems:'center', flexWrap:'wrap'}}>
                         <span>{p.classSet} · {p.sex}</span>
-                        {/* QR / Manual badge */}
                         <span style={{
                           fontSize:9, fontWeight:800, padding:'1px 5px', borderRadius:4,
                           background:mb.bg, color:mb.color,
@@ -115,7 +176,6 @@ export default function SeenTodayPage() {
                       </div>
                     </div>
 
-                    {/* Right side: status badge + EMR */}
                     <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3}}>
                       {seenStatusBadge(p)}
                       <span className="emr-tag" style={{fontSize:9}}>{p.emrNumber}</span>
