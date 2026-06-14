@@ -35,9 +35,6 @@ export default function NurseDashboard() {
   const maleAdm      = sickBay.filter(p => p.sex === 'Male').length;
   const femaleAdm    = sickBay.filter(p => p.sex === 'Female').length;
 
-  // Seen = seenAt today (from listenSeenToday)
-  const seenCount    = seenToday.length;
-
   // Sick report = reported sick today (includes seen + not yet seen)
   const sickTotal    = sickReports.length;
   // Among sick reports, how many were actually seen (have seenAt today)
@@ -72,10 +69,25 @@ export default function NurseDashboard() {
             <div className="stat-label"><i className="ti ti-pill" style={{color:'var(--danger)'}} />Meds due</div>
             <div className="stat-value" style={{color:'var(--danger)'}}>0</div>
           </div>
-          {/* Seen today — from listenSeenToday */}
+          {/* Seen today — Reported / Discharged / Referred */}
           <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
             <div className="stat-label"><i className="ti ti-check" style={{color:'var(--success)'}} />Seen today</div>
-            <div className="stat-value" style={{color:'var(--success)'}}>{seenCount}</div>
+            <div style={{display:'flex', gap:10, marginTop:4, alignItems:'baseline'}}>
+              <div>
+                <div style={{fontSize:18,fontWeight:800,color:'#f97316',lineHeight:1}}>{sickTotal}</div>
+                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Reported</div>
+              </div>
+              <div style={{color:'var(--border)',fontSize:16}}>|</div>
+              <div>
+                <div style={{fontSize:18,fontWeight:800,color:'var(--info)',lineHeight:1}}>{dischargedToday}</div>
+                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Discharged</div>
+              </div>
+              <div style={{color:'var(--border)',fontSize:16}}>|</div>
+              <div>
+                <div style={{fontSize:18,fontWeight:800,color:'#f59e0b',lineHeight:1}}>{referredToday}</div>
+                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Referred</div>
+              </div>
+            </div>
           </div>
         </div>
 
