@@ -254,6 +254,45 @@ export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy
 }
 
 // ─────────────────────────────────────────────
+// SEEN AT MRS — stamp helper
+// Called by every care function below.
+// If the patient reported sick TODAY and seenAt
+// has not yet been set today, stamp it now so
+// they appear on the "Seen Today" board.
+// ─────────────────────────────────────────────
+async function markSeenIfReportedSickToday(emrNumber, by) {
+  try {
+    const snap = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+    if (!snap.exists()) return;
+    const data = snap.data();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const isToday = (ts) => {
+      if (!ts) return false;
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d >= today;
+    };
+
+    // Only proceed if they reported sick today
+    if (!isToday(data.reportedSickAt)) return;
+
+    // Only stamp seenAt if it hasn't been set today already
+    if (isToday(data.seenAt)) return;
+
+    await updateDoc(doc(db, COL.PATIENTS, emrNumber), {
+      seenAt:    serverTimestamp(),
+      seenBy:    by,
+      updatedAt: serverTimestamp(),
+      updatedBy: by,
+    });
+  } catch (_) {
+    // Never let this break the main care action
+  }
+}
+
+// ─────────────────────────────────────────────
 // CLINICAL NOTES
 // ─────────────────────────────────────────────
 export async function addNote(emrNumber, visitId, noteData, author, role) {
@@ -265,6 +304,7 @@ export async function addNote(emrNumber, visitId, noteData, author, role) {
     authorRole: role,
     createdAt:  serverTimestamp(),
   });
+  await markSeenIfReportedSickToday(emrNumber, author);
   await logAudit('ADD_NOTE', emrNumber, author, { noteId: ref.id, role });
   return ref.id;
 }
@@ -290,6 +330,7 @@ export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
     recordedAt: serverTimestamp(),
   });
   await updatePatient(emrNumber, { latestVitals: vitalsData }, recordedBy);
+  await markSeenIfReportedSickToday(emrNumber, recordedBy);
   await logAudit('ADD_VITALS', emrNumber, recordedBy, vitalsData);
   return ref.id;
 }
@@ -317,6 +358,7 @@ export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, 
     countersigned: false,
     createdAt: serverTimestamp(),
   });
+  await markSeenIfReportedSickToday(emrNumber, prescribedBy);
   await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE });
   return ref.id;
 }
@@ -341,6 +383,7 @@ export async function addFluidEntry(emrNumber, visitId, entry, recordedBy) {
     recordedBy,
     recordedAt: serverTimestamp(),
   });
+  await markSeenIfReportedSickToday(emrNumber, recordedBy);
   await logAudit('FLUID_ENTRY', emrNumber, recordedBy, entry);
   return ref.id;
 }
@@ -365,6 +408,7 @@ export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy) {
     recordedBy,
     recordedAt: serverTimestamp(),
   });
+  await markSeenIfReportedSickToday(emrNumber, recordedBy);
   await logAudit('GLUCOSE_ENTRY', emrNumber, recordedBy, entry);
   return ref.id;
 }
@@ -401,6 +445,7 @@ export async function uploadPatientFile(emrNumber, visitId, file, category, uplo
   });
 
   await logAudit('FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, category });
+  await markSeenIfReportedSickToday(emrNumber, uploadedBy);
   return { id: docRef.id, downloadUrl: url };
 }
 
@@ -524,6 +569,7 @@ export async function recordAdministration(data) {
     ...data,
     createdAt: serverTimestamp(),
   });
+  await markSeenIfReportedSickToday(data.emrNumber, data.administeredBy);
   await logAudit('MAR_RECORD', data.emrNumber, data.administeredBy, {
     drug:   data.drug,
     status: data.status,
