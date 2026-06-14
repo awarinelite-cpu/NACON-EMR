@@ -771,22 +771,30 @@ export function listenSickReportsToday(callback) {
 
 // ═════════════════════════════════════════════
 // LIVE LISTENER: patients seen today at MRS
-// "Seen" = reported sick today AND a visit was
-// opened today (they physically came to clinic)
+// "Seen" = reported sick today AND seenAt is today
+// Patients who had a visit but never reported sick are excluded.
+// The callback receives only the intersection.
 // ═════════════════════════════════════════════
 export function listenSeenToday(callback) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
-  // Query patients seen today (visit opened) — front-end filters to only those who also reported sick
+  // Query patients who reported sick today
   const q = query(
     collection(db, COL.PATIENTS),
-    where('seenAt', '>=', todayTs),
-    orderBy('seenAt', 'desc')
+    where('reportedSickAt', '>=', todayTs),
+    orderBy('reportedSickAt', 'desc')
   );
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  return onSnapshot(q, snap => {
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Keep only those whose seenAt is also today (they physically came to MRS)
+    const seen = all.filter(p => {
+      if (!p.seenAt) return false;
+      const d = p.seenAt.toDate ? p.seenAt.toDate() : new Date(p.seenAt);
+      return d >= today;
+    });
+    callback(seen);
+  });
 }
 
 // ═════════════════════════════════════════════
