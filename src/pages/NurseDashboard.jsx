@@ -75,7 +75,7 @@ export default function NurseDashboard() {
             <div style={{display:'flex', gap:10, marginTop:4, alignItems:'baseline'}}>
               <div>
                 <div style={{fontSize:18,fontWeight:800,color:'#f97316',lineHeight:1}}>{sickTotal}</div>
-                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Reported</div>
+                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Seen</div>
               </div>
               <div style={{color:'var(--border)',fontSize:16}}>|</div>
               <div>
