@@ -1,99 +1,171 @@
 // src/pages/SickReportPage.jsx
-// Live list of students who reported sick today (via QR or manual nurse entry)
-// Counts ONLY patients with reportedSickAt = today — discharged patients excluded
+// Students who reported sick today (QR or manual)
+// Splits into: Seen (came to MRS, vitals/notes recorded) vs Not Yet Seen
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listenSickReportsToday } from '../lib/emr';
+import { listenSickReportsToday, listenSeenToday } from '../lib/emr';
 
 export default function SickReportPage() {
-  const navigate  = useNavigate();
-  const [patients, setPatients] = useState([]);
+  const navigate = useNavigate();
+  const [sickReports, setSickReports] = useState([]);
+  const [seenToday,   setSeenToday]   = useState([]);
+  const [tab, setTab] = useState('all'); // 'all' | 'seen' | 'pending'
 
   useEffect(() => {
-    const unsub = listenSickReportsToday(setPatients);
-    return unsub;
+    const u1 = listenSickReportsToday(setSickReports);
+    const u2 = listenSeenToday(setSeenToday);
+    return () => { u1?.(); u2?.(); };
   }, []);
 
-  const males   = patients.filter(p => p.sex === 'Male');
-  const females = patients.filter(p => p.sex === 'Female');
+  // Cross-reference: who among sick reports was actually seen today
+  const seenIds   = new Set(seenToday.map(p => p.id));
+  const seen      = sickReports.filter(p => seenIds.has(p.id));
+  const notSeen   = sickReports.filter(p => !seenIds.has(p.id));
+  const displayed = tab === 'seen' ? seen : tab === 'pending' ? notSeen : sickReports;
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
 
   const methodBadge = (how) => how === 'qr'
-    ? { label:'QR Scan', bg:'#dbeafe', color:'#1d4ed8' }
-    : { label:'Manual',  bg:'#fef3c7', color:'#92400e' };
+    ? { label:'QR', bg:'#dbeafe', color:'#1d4ed8' }
+    : { label:'Manual', bg:'#fef3c7', color:'#92400e' };
 
-  const statusCls   = s => s==='discharged'?'badge-ok':s==='referred'?'badge-warn':s==='sickbay'?'badge-danger':'badge-info';
-  const statusLabel = s => s==='discharged'?'Discharged':s==='referred'?'Referred':s==='sickbay'?'Admitted':s==='active'?'In Clinic':'Waiting';
+  const tabStyle = (id) => ({
+    flex:1, padding:'9px 0', fontSize:12, fontWeight:700,
+    border:'none', borderRadius:8, cursor:'pointer',
+    background: tab===id ? 'var(--accent)' : 'transparent',
+    color:      tab===id ? '#fff'          : 'var(--t2)',
+    transition: 'all 0.15s',
+  });
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
+      {/* ── Top bar ──────────────────────────────── */}
       <div className="topbar">
-        <button className="btn btn-ghost" onClick={() => navigate('/nurse')} style={{padding:'6px 10px', flexShrink:0}}>
+        <button className="btn btn-ghost" onClick={() => navigate('/nurse')} style={{padding:'6px 10px',flexShrink:0}}>
           <i className="ti ti-arrow-left" />
         </button>
         <div className="topbar-title">
-          <i className="ti ti-stethoscope" style={{color:'#f97316', marginRight:6}} />
+          <i className="ti ti-stethoscope" style={{color:'#f97316',marginRight:6}} />
           Sick Report — Today
         </div>
         <div style={{
           background:'#f97316', color:'#fff', borderRadius:20,
           padding:'3px 14px', fontSize:12, fontWeight:800, flexShrink:0,
-        }}>{patients.length}</div>
+        }}>{sickReports.length}</div>
       </div>
 
-      <div className="page-content" style={{ flex:1 }}>
+      <div className="page-content" style={{flex:1}}>
 
-        {/* Gender summary */}
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12}}>
-          <div className="stat-card" style={{textAlign:'center'}}>
-            <div style={{fontSize:32,fontWeight:900,color:'#3b82f6',lineHeight:1}}>{males.length}</div>
-            <div style={{fontSize:11,color:'var(--t3)',fontWeight:700,marginTop:6}}>
-              <i className="ti ti-gender-male" style={{marginRight:4}} />Male
+        {/* ── Summary cards ────────────────────────── */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:12}}>
+
+          {/* Total reported */}
+          <div className="stat-card" style={{textAlign:'center', cursor:'pointer'}} onClick={() => setTab('all')}>
+            <div style={{
+              fontSize:30, fontWeight:900, color:'#f97316', lineHeight:1,
+              opacity: tab!=='all' ? 0.45 : 1, transition:'opacity 0.2s',
+            }}>{sickReports.length}</div>
+            <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}>
+              <i className="ti ti-stethoscope" style={{marginRight:3}} />Reported
             </div>
           </div>
-          <div className="stat-card" style={{textAlign:'center'}}>
-            <div style={{fontSize:32,fontWeight:900,color:'#ec4899',lineHeight:1}}>{females.length}</div>
-            <div style={{fontSize:11,color:'var(--t3)',fontWeight:700,marginTop:6}}>
-              <i className="ti ti-gender-female" style={{marginRight:4}} />Female
+
+          {/* Seen — actually came to MRS */}
+          <div className="stat-card" style={{textAlign:'center', cursor:'pointer'}} onClick={() => setTab('seen')}>
+            <div style={{
+              fontSize:30, fontWeight:900, color:'#10b981', lineHeight:1,
+              opacity: tab!=='seen' ? 0.45 : 1, transition:'opacity 0.2s',
+            }}>{seen.length}</div>
+            <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}>
+              <i className="ti ti-check" style={{marginRight:3}} />Seen at MRS
+            </div>
+          </div>
+
+          {/* Not yet seen */}
+          <div className="stat-card" style={{textAlign:'center', cursor:'pointer'}} onClick={() => setTab('pending')}>
+            <div style={{
+              fontSize:30, fontWeight:900, color:'#94a3b8', lineHeight:1,
+              opacity: tab!=='pending' ? 0.45 : 1, transition:'opacity 0.2s',
+            }}>{notSeen.length}</div>
+            <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}>
+              <i className="ti ti-clock" style={{marginRight:3}} />Not Yet Seen
             </div>
           </div>
         </div>
 
-        {/* Patient list */}
+        {/* ── Explanation pill ─────────────────────── */}
+        <div style={{
+          background:'var(--card-bg)', border:'1px solid var(--border)',
+          borderRadius:10, padding:'10px 14px', marginBottom:12,
+          fontSize:11, color:'var(--t3)', lineHeight:1.6,
+        }}>
+          <strong style={{color:'var(--t2)'}}>Seen at MRS</strong> — reported sick and vitals/clinical data were recorded today (physically attended).
+          {' '}<strong style={{color:'var(--t2)'}}>Not Yet Seen</strong> — reported sick but have not yet been attended to.
+        </div>
+
+        {/* ── Tab filter ───────────────────────────── */}
+        <div style={{
+          display:'flex', gap:4, background:'var(--card-bg)',
+          border:'1px solid var(--border)', borderRadius:10,
+          padding:4, marginBottom:12,
+        }}>
+          <button style={tabStyle('all')}     onClick={() => setTab('all')}>All ({sickReports.length})</button>
+          <button style={tabStyle('seen')}    onClick={() => setTab('seen')}>Seen ({seen.length})</button>
+          <button style={tabStyle('pending')} onClick={() => setTab('pending')}>Not Seen ({notSeen.length})</button>
+        </div>
+
+        {/* ── Patient list ─────────────────────────── */}
         <div className="card">
-          {patients.length === 0
+          {displayed.length === 0
             ? <div style={{padding:40,textAlign:'center',color:'var(--t3)',fontWeight:700,fontSize:13}}>
-                <i className="ti ti-stethoscope" style={{fontSize:32,display:'block',marginBottom:8,opacity:0.3}} />
-                No students have reported sick today
+                <i className={`ti ${tab==='seen'?'ti-check':'ti-stethoscope'}`}
+                  style={{fontSize:32,display:'block',marginBottom:8,opacity:0.3}} />
+                {tab==='seen'    ? 'No patients seen yet today'
+                : tab==='pending'? 'All reported patients have been seen'
+                : 'No students have reported sick today'}
               </div>
-            : patients.map(p => {
-                const mb = methodBadge(p.reportedSickHow);
+            : displayed.map(p => {
+                const mb        = methodBadge(p.reportedSickHow);
+                const wasSeen   = seenIds.has(p.id);
                 return (
                   <div key={p.id} className="patient-row"
                     onClick={() => navigate(`/patient/${p.emrNumber}`)}
-                    style={{ cursor:'pointer' }}
+                    style={{cursor:'pointer'}}
                   >
+                    {/* Avatar — gender colour */}
                     <div className="p-avatar" style={{
-                      background: p.sex==='Female'?'#fce7f3':'#dbeafe',
-                      color:      p.sex==='Female'?'#db2777':'#1d4ed8',
+                      background: p.sex==='Female' ? '#fce7f3' : '#dbeafe',
+                      color:      p.sex==='Female' ? '#db2777' : '#1d4ed8',
                       fontWeight:800,
                     }}>{getInitials(p)}</div>
 
                     <div className="p-info" style={{flex:1}}>
                       <div className="p-name">{p.surname} {p.firstName}</div>
-                      <div className="p-meta" style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
-                        <span>{p.classSet} · {p.sex} · {p.folderNumber}</span>
+                      <div className="p-meta" style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
+                        <span>{p.classSet} · {p.sex}</span>
                         <span style={{
-                          fontSize:9,fontWeight:800,padding:'1px 6px',borderRadius:4,
+                          fontSize:9,fontWeight:800,padding:'1px 5px',borderRadius:4,
                           background:mb.bg, color:mb.color,
                         }}>{mb.label}</span>
                       </div>
                     </div>
 
-                    <span className={`badge ${statusCls(p.status)}`}>
-                      {statusLabel(p.status)}
-                    </span>
+                    {/* Seen / Pending badge */}
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3}}>
+                      {wasSeen
+                        ? <span className="badge badge-ok" style={{fontSize:9,padding:'3px 8px'}}>
+                            <i className="ti ti-check" style={{marginRight:3}} />Seen
+                          </span>
+                        : <span className="badge" style={{
+                            fontSize:9,padding:'3px 8px',
+                            background:'var(--card-bg)',border:'1px solid var(--border)',
+                            color:'var(--t3)',
+                          }}>
+                            <i className="ti ti-clock" style={{marginRight:3}} />Pending
+                          </span>
+                      }
+                      <span className="emr-tag" style={{fontSize:9}}>{p.emrNumber}</span>
+                    </div>
                   </div>
                 );
               })

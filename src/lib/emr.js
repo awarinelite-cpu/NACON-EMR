@@ -207,7 +207,12 @@ export async function createVisit(emrNumber, data, createdBy) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  await updatePatient(emrNumber, { lastVisit: serverTimestamp(), status: 'active' }, createdBy);
+  // seenAt = moment they physically arrived at MRS (visit opened)
+  await updatePatient(emrNumber, {
+    lastVisit: serverTimestamp(),
+    seenAt:    serverTimestamp(),
+    status:    'active',
+  }, createdBy);
   await logAudit('CREATE_VISIT', emrNumber, createdBy, { visitId: visitRef.id });
   return visitRef.id;
 }
@@ -758,6 +763,26 @@ export function listenSickReportsToday(callback) {
     collection(db, COL.PATIENTS),
     where('reportedSickAt', '>=', todayTs),
     orderBy('reportedSickAt', 'desc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+// ═════════════════════════════════════════════
+// LIVE LISTENER: patients seen today at MRS
+// "Seen" = reported sick today AND a visit was
+// opened today (they physically came to clinic)
+// ═════════════════════════════════════════════
+export function listenSeenToday(callback) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayTs = Timestamp.fromDate(today);
+  // Query patients seen today (visit opened) — front-end filters to only those who also reported sick
+  const q = query(
+    collection(db, COL.PATIENTS),
+    where('seenAt', '>=', todayTs),
+    orderBy('seenAt', 'desc')
   );
   return onSnapshot(q, snap =>
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))

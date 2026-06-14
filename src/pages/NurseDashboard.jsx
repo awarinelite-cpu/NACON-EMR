@@ -3,20 +3,22 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
-import { listenPatients, listenTriageQueue, listenSickReportsToday } from '../lib/emr';
+import { listenPatients, listenTriageQueue, listenSickReportsToday, listenSeenToday } from '../lib/emr';
 
 export default function NurseDashboard() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
-  const [patients,     setPatients]    = useState([]);
-  const [queue,        setQueue]       = useState([]);
-  const [sickReports,  setSickReports] = useState([]);
+  const [patients,    setPatients]   = useState([]);
+  const [queue,       setQueue]      = useState([]);
+  const [sickReports, setSickReports]= useState([]);
+  const [seenToday,   setSeenToday]  = useState([]);
 
   useEffect(() => {
     const u1 = listenPatients(setPatients);
     const u2 = listenTriageQueue(setQueue);
     const u3 = listenSickReportsToday(setSickReports);
-    return () => { u1 && u1(); u2 && u2(); u3 && u3(); };
+    const u4 = listenSeenToday(setSeenToday);
+    return () => { u1?.(); u2?.(); u3?.(); u4?.(); };
   }, []);
 
   // ── Today boundary ────────────────────────────────────
@@ -28,28 +30,26 @@ export default function NurseDashboard() {
   };
 
   // ── Derived live stats ────────────────────────────────
-  const waiting   = queue.filter(q => q.status === 'waiting').length;
-  const sickBay   = patients.filter(p => p.status === 'sickbay');
-  const maleAdm   = sickBay.filter(p => p.sex === 'Male').length;
-  const femaleAdm = sickBay.filter(p => p.sex === 'Female').length;
+  const waiting      = queue.filter(q => q.status === 'waiting').length;
+  const sickBay      = patients.filter(p => p.status === 'sickbay');
+  const maleAdm      = sickBay.filter(p => p.sex === 'Male').length;
+  const femaleAdm    = sickBay.filter(p => p.sex === 'Female').length;
 
-  // sickReports = live from listenSickReportsToday — discharged patients excluded by design
-  const sickReportCount = sickReports.length;
+  // Seen = seenAt today (from listenSeenToday)
+  const seenCount    = seenToday.length;
+
+  // Sick report = reported sick today (includes seen + not yet seen)
+  const sickTotal    = sickReports.length;
+  // Among sick reports, how many were actually seen (have seenAt today)
+  const seenIds      = new Set(seenToday.map(p => p.id));
+  const sickSeenCount = sickReports.filter(p => seenIds.has(p.id)).length;
+  const notSeenCount  = sickTotal - sickSeenCount;
 
   const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
   const referredToday   = patients.filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
-
-  const seenToday = patients.filter(p => p.status === 'discharged').length;
-  const active    = patients.filter(p => p.status === 'active');
+  const active          = patients.filter(p => p.status === 'active');
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
-
-  // ── Top stat cards: Waiting, Meds due, Seen today ────
-  const stats = [
-    { label:'Waiting',    value: waiting,   icon:'ti-clock', color:'var(--accent)', route:'/nurse/queue'   },
-    { label:'Meds due',   value: 0,         icon:'ti-pill',  color:'var(--danger)', route:'/nurse/meds'    },
-    { label:'Seen today', value: seenToday, icon:'ti-check', color:'var(--success)',route:'/nurse/patients' },
-  ];
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
@@ -62,41 +62,40 @@ export default function NurseDashboard() {
       </div>
       <div className="page-content" style={{ flex:1 }}>
 
-        {/* ── 3 top stat cards ─────────────────────── */}
+        {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
-          {stats.map(s => (
-            <div key={s.label} className="stat-card"
-              onClick={() => navigate(s.route)}
-              style={{ cursor:'pointer' }}
-            >
-              <div className="stat-label">
-                <i className={`ti ${s.icon}`} style={{color:s.color}} />{s.label}
-              </div>
-              <div className="stat-value" style={{color:s.color}}>{s.value}</div>
-            </div>
-          ))}
+          <div className="stat-card" onClick={() => navigate('/nurse/queue')} style={{cursor:'pointer'}}>
+            <div className="stat-label"><i className="ti ti-clock" style={{color:'var(--accent)'}} />Waiting</div>
+            <div className="stat-value" style={{color:'var(--accent)'}}>{waiting}</div>
+          </div>
+          <div className="stat-card" onClick={() => navigate('/nurse/meds')} style={{cursor:'pointer'}}>
+            <div className="stat-label"><i className="ti ti-pill" style={{color:'var(--danger)'}} />Meds due</div>
+            <div className="stat-value" style={{color:'var(--danger)'}}>0</div>
+          </div>
+          {/* Seen today — from listenSeenToday */}
+          <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
+            <div className="stat-label"><i className="ti ti-check" style={{color:'var(--success)'}} />Seen today</div>
+            <div className="stat-value" style={{color:'var(--success)'}}>{seenCount}</div>
+          </div>
         </div>
 
-        {/* ── 3 new cards: Sick Report, On Admission, D/R ── */}
+        {/* ── Row 2: Sick Report · On Admission · D/R ── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
 
-          {/* Sick Report */}
-          <div className="stat-card"
-            onClick={() => navigate('/nurse/sick-report')}
-            style={{ cursor:'pointer' }}
-          >
+          {/* Sick Report — shows total + seen/not seen split */}
+          <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
             <div className="stat-label">
               <i className="ti ti-stethoscope" style={{color:'#f97316'}} /> Sick Report
             </div>
-            <div className="stat-value" style={{color:'#f97316'}}>{sickReportCount}</div>
-            <div style={{fontSize:10,color:'var(--t3)',marginTop:4,fontWeight:600}}>Reported today</div>
+            <div className="stat-value" style={{color:'#f97316'}}>{sickTotal}</div>
+            <div style={{display:'flex', gap:8, marginTop:4}}>
+              <span style={{fontSize:9,fontWeight:800,color:'#10b981'}}>✓ {sickSeenCount} seen</span>
+              <span style={{fontSize:9,fontWeight:800,color:'#94a3b8'}}>· {notSeenCount} pending</span>
+            </div>
           </div>
 
           {/* On Admission */}
-          <div className="stat-card"
-            onClick={() => navigate('/nurse/on-admission')}
-            style={{ cursor:'pointer' }}
-          >
+          <div className="stat-card" onClick={() => navigate('/nurse/on-admission')} style={{cursor:'pointer'}}>
             <div className="stat-label">
               <i className="ti ti-bed" style={{color:'#a855f7'}} /> On Admission
             </div>
@@ -114,10 +113,7 @@ export default function NurseDashboard() {
           </div>
 
           {/* Discharged / Referred */}
-          <div className="stat-card"
-            onClick={() => navigate('/nurse/discharged-referred')}
-            style={{ cursor:'pointer' }}
-          >
+          <div className="stat-card" onClick={() => navigate('/nurse/discharged-referred')} style={{cursor:'pointer'}}>
             <div className="stat-label">
               <i className="ti ti-logout" style={{color:'#10b981'}} /> D/R Today
             </div>
