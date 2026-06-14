@@ -7,7 +7,7 @@ export default function SickReportPage() {
   const navigate = useNavigate();
   const [sickReports, setSickReports] = useState([]);
   const [seenToday,   setSeenToday]   = useState([]);
-  const [tab, setTab] = useState('all'); // 'all' | 'discharged' | 'referred'
+  const [tab, setTab] = useState('all'); // 'all' | 'seen' | 'pending'
 
   useEffect(() => {
     const u1 = listenSickReportsToday(setSickReports);
@@ -25,10 +25,11 @@ export default function SickReportPage() {
 
   // seenIds = patients with clinical activity today (from listenSeenToday)
   const seenIds   = new Set(seenToday.map(p => p.id));
-  // Discharged today / Referred today — independent of when they reported sick
-  const dischargedToday = seenToday.filter(p => p.status === 'discharged' && isToday(p.updatedAt));
-  const referredToday   = seenToday.filter(p => p.status === 'referred'   && isToday(p.updatedAt));
-  const displayed = tab === 'discharged' ? dischargedToday : tab === 'referred' ? referredToday : sickReports;
+  // "Seen at MRS" card = union: seen today, discharged today, referred today
+  // (from listenSeenToday — independent of sickReports).
+  const seen      = seenToday;
+  const notSeen   = sickReports.filter(p => !seenIds.has(p.id));
+  const displayed = tab === 'seen' ? seen : tab === 'pending' ? notSeen : sickReports;
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
 
@@ -99,24 +100,24 @@ export default function SickReportPage() {
           </div>
 
           <div className="stat-card" style={{textAlign:'center', cursor:'pointer'}}
-            onClick={() => setTab('discharged')}>
+            onClick={() => setTab('seen')}>
             <div style={{
-              fontSize:30, fontWeight:900, color:'var(--info)', lineHeight:1,
-              opacity: tab!=='discharged' ? 0.4 : 1, transition:'opacity 0.2s',
-            }}>{dischargedToday.length}</div>
+              fontSize:30, fontWeight:900, color:'#10b981', lineHeight:1,
+              opacity: tab!=='seen' ? 0.4 : 1, transition:'opacity 0.2s',
+            }}>{seen.length}</div>
             <div style={{fontSize:10, color:'var(--t3)', fontWeight:700, marginTop:6}}>
-              <i className="ti ti-door-exit" style={{marginRight:3}} />Discharged
+              <i className="ti ti-check" style={{marginRight:3}} />Seen at MRS
             </div>
           </div>
 
           <div className="stat-card" style={{textAlign:'center', cursor:'pointer'}}
-            onClick={() => setTab('referred')}>
+            onClick={() => setTab('pending')}>
             <div style={{
-              fontSize:30, fontWeight:900, color:'#f59e0b', lineHeight:1,
-              opacity: tab!=='referred' ? 0.4 : 1, transition:'opacity 0.2s',
-            }}>{referredToday.length}</div>
+              fontSize:30, fontWeight:900, color:'#94a3b8', lineHeight:1,
+              opacity: tab!=='pending' ? 0.4 : 1, transition:'opacity 0.2s',
+            }}>{notSeen.length}</div>
             <div style={{fontSize:10, color:'var(--t3)', fontWeight:700, marginTop:6}}>
-              <i className="ti ti-transfer" style={{marginRight:3}} />Referred
+              <i className="ti ti-clock" style={{marginRight:3}} />Not Yet Seen
             </div>
           </div>
         </div>
@@ -127,20 +128,20 @@ export default function SickReportPage() {
           border:'1px solid var(--border)', borderRadius:10,
           padding:4, marginBottom:12,
         }}>
-          <button style={tabStyle('all')}        onClick={() => setTab('all')}>All ({sickReports.length})</button>
-          <button style={tabStyle('discharged')} onClick={() => setTab('discharged')}>Discharged ({dischargedToday.length})</button>
-          <button style={tabStyle('referred')}   onClick={() => setTab('referred')}>Referred ({referredToday.length})</button>
+          <button style={tabStyle('all')}     onClick={() => setTab('all')}>All ({sickReports.length})</button>
+          <button style={tabStyle('seen')}    onClick={() => setTab('seen')}>Seen ({seen.length})</button>
+          <button style={tabStyle('pending')} onClick={() => setTab('pending')}>Not Seen ({notSeen.length})</button>
         </div>
 
         {/* ── Patient list ──────────────────────────── */}
         <div className="card">
           {displayed.length === 0
             ? <div style={{padding:40, textAlign:'center', color:'var(--t3)', fontWeight:700, fontSize:13}}>
-                <i className={`ti ${tab==='discharged' ? 'ti-door-exit' : tab==='referred' ? 'ti-transfer' : 'ti-stethoscope'}`}
+                <i className={`ti ${tab==='seen' ? 'ti-check' : 'ti-stethoscope'}`}
                   style={{fontSize:32, display:'block', marginBottom:8, opacity:0.3}} />
-                {tab==='discharged' ? 'No patients have been discharged today'
-                : tab==='referred'  ? 'No patients have been referred today'
-                :                     'No students have reported sick today'}
+                {tab==='seen'     ? 'No patients have been seen yet today'
+                : tab==='pending' ? 'All reported patients have been attended to'
+                :                  'No students have reported sick today'}
               </div>
             : displayed.map(p => {
                 const mb      = methodBadge(p.reportedSickHow);
