@@ -9,7 +9,7 @@ import {
   addNote, addVitals, addPrescription, addFluidEntry,
   addGlucoseReading, uploadPatientFile, createReferral,
   dischargePatient, createVisit, formatTs, formatTime,
-  formatDateTime, ROLES,
+  formatDateTime, ROLES, reportSick,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
@@ -481,6 +481,19 @@ export default function PatientProfile() {
     setSaving(false);
   };
 
+  const handleReportSick = async () => {
+    if (!window.confirm(`Record ${patient.surname} ${patient.firstName} as reported sick today?`)) return;
+    setSaving(true);
+    try {
+      await reportSick(emrNumber, profile.displayName || profile.email || 'Unknown', 'manual');
+      toast.success('Reported sick — recorded successfully');
+      // Refresh patient data to show updated badge
+      const p = await getPatient(emrNumber);
+      if (p) setPatient(p);
+    } catch { toast.error('Failed to record sick report'); }
+    setSaving(false);
+  };
+
   // ── TIMELINE ──
   // Records staff see only uploaded documents, not clinical events
   const CLINICAL_TYPES = ['note', 'vitals', 'fluid', 'glucose', 'rx'];
@@ -507,6 +520,15 @@ export default function PatientProfile() {
   const tlTitle = { note:'Clinical note', vitals:'Vitals recorded', rx:'Prescription', fluid:'Fluid entry', glucose:'Glucose reading', upload:'File uploaded' };
 
   const statusColor = patient.status === 'active' ? '#22C55E' : patient.status === 'discharged' ? '#64748B' : '#F59E0B';
+
+  // Check if patient already reported sick today
+  const reportedSickToday = (() => {
+    const ts = patient.reportedSickAt;
+    if (!ts) return false;
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    const today = new Date(); today.setHours(0,0,0,0);
+    return d >= today;
+  })();
 
   return (
     <div style={{ display:'flex', flexDirection:'column', background:'var(--main-bg)' }}>
@@ -555,6 +577,19 @@ export default function PatientProfile() {
         </div>
 
         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+          {isNurse && (
+            <button onClick={handleReportSick} disabled={saving || reportedSickToday} style={{
+              background: reportedSickToday ? 'var(--success-bg, #d1fae5)' : '#f97316',
+              border: 'none', borderRadius:8,
+              padding:'5px 10px', cursor: reportedSickToday ? 'default' : 'pointer',
+              color: reportedSickToday ? '#065f46' : '#fff',
+              fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5,
+              fontFamily:'var(--font)', opacity: saving ? 0.6 : 1,
+            }}>
+              <i className={`ti ${reportedSickToday ? 'ti-check' : 'ti-stethoscope'}`} style={{fontSize:13}} />
+              {reportedSickToday ? 'Reported Sick ✓' : 'Report Sick'}
+            </button>
+          )}
           {(isDoctor || isNurse) && (
             <button onClick={() => setActiveTab('referral')} style={{
               background:'none', border:'1px solid var(--border)', borderRadius:8,

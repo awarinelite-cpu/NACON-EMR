@@ -727,6 +727,44 @@ export async function getHealthStats(fromDate, toDate) {
 }
 
 // ═════════════════════════════════════════════
+// REPORT SICK — stamps patient doc independently
+// of status so discharged patients are excluded
+// ═════════════════════════════════════════════
+export async function reportSick(emrNumber, by, method = 'manual') {
+  // Stamp the patient document with today's sick-report timestamp
+  await updateDoc(doc(db, COL.PATIENTS, emrNumber), {
+    reportedSickAt:  serverTimestamp(),
+    reportedSickBy:  by,
+    reportedSickHow: method,   // 'qr' | 'manual'
+    updatedAt:       serverTimestamp(),
+    updatedBy:       by,
+  });
+  // Also log into a subcollection for history
+  await addDoc(collection(db, COL.PATIENTS, emrNumber, 'sickReports'), {
+    reportedAt:  serverTimestamp(),
+    reportedBy:  by,
+    method,
+  });
+}
+
+// ═════════════════════════════════════════════
+// LIVE LISTENER: today's sick reports across all patients
+// ═════════════════════════════════════════════
+export function listenSickReportsToday(callback) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayTs = Timestamp.fromDate(today);
+  const q = query(
+    collection(db, COL.PATIENTS),
+    where('reportedSickAt', '>=', todayTs),
+    orderBy('reportedSickAt', 'desc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+// ═════════════════════════════════════════════
 // QR SELF-REPORT (Student reports sick via QR)
 // ═════════════════════════════════════════════
 export async function submitSelfReport(data) {
@@ -736,6 +774,9 @@ export async function submitSelfReport(data) {
   );
   if (snap.empty) throw new Error('Matric number not found. Please check and try again.');
   const patient = { id: snap.docs[0].id, ...snap.docs[0].data() };
+
+  // Stamp the patient doc as reported sick today (QR method)
+  await reportSick(patient.emrNumber, data.matricNo, 'qr');
 
   const ref = await addDoc(collection(db, COL.SELF_REPORT), {
     matricNo:    data.matricNo,

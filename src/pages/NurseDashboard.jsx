@@ -3,18 +3,20 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
-import { listenPatients, listenTriageQueue } from '../lib/emr';
+import { listenPatients, listenTriageQueue, listenSickReportsToday } from '../lib/emr';
 
 export default function NurseDashboard() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
-  const [patients,  setPatients] = useState([]);
-  const [queue,     setQueue]    = useState([]);
+  const [patients,     setPatients]    = useState([]);
+  const [queue,        setQueue]       = useState([]);
+  const [sickReports,  setSickReports] = useState([]);
 
   useEffect(() => {
     const u1 = listenPatients(setPatients);
     const u2 = listenTriageQueue(setQueue);
-    return () => { u1 && u1(); u2 && u2(); };
+    const u3 = listenSickReportsToday(setSickReports);
+    return () => { u1 && u1(); u2 && u2(); u3 && u3(); };
   }, []);
 
   // ── Today boundary ────────────────────────────────────
@@ -31,8 +33,8 @@ export default function NurseDashboard() {
   const maleAdm   = sickBay.filter(p => p.sex === 'Male').length;
   const femaleAdm = sickBay.filter(p => p.sex === 'Female').length;
 
-  const reportedToday   = patients.filter(p => isToday(p.updatedAt) || isToday(p.registeredAt));
-  const sickReportCount = reportedToday.length;
+  // sickReports = live from listenSickReportsToday — discharged patients excluded by design
+  const sickReportCount = sickReports.length;
 
   const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
   const referredToday   = patients.filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
