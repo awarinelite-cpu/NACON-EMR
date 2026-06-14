@@ -784,33 +784,72 @@ export function listenSickReportsToday(callback) {
 }
 
 // ═════════════════════════════════════════════
-// LIVE LISTENER: patients seen today at MRS
-// "Seen" = patient has clinical activity today (seenAt today,
-// OR status changed today — e.g. discharged/referred/admitted),
-// regardless of when they originally reported sick.
+// LIVE LISTENER: patients on the "Seen" card
+//
+// Seen = union of:
+//   1. Patients discharged today   (status === 'discharged', updated today)
+//      — regardless of whether admitted today or earlier
+//   2. Patients referred today     (status === 'referred', updated today)
+//      — regardless of whether admitted today or earlier
+//   3. Patients who reported sick today AND were seen today
+//      (reportedSickAt today AND seenAt today)
 // ═════════════════════════════════════════════
 export function listenSeenToday(callback) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
-  const q = query(
+  const isTodayTs = (ts) => {
+    if (!ts) return false;
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d >= today;
+  };
+
+  // Query A: patients updated today (covers discharged/referred today)
+  const qUpdated = query(
     collection(db, COL.PATIENTS),
     where('updatedAt', '>=', todayTs),
     orderBy('updatedAt', 'desc')
   );
-  return onSnapshot(q, snap => {
-    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const seen = all.filter(p => {
-      // Came in today
-      if (p.seenAt) {
-        const d = p.seenAt.toDate ? p.seenAt.toDate() : new Date(p.seenAt);
-        if (d >= today) return true;
+  // Query B: patients who reported sick today
+  const qReported = query(
+    collection(db, COL.PATIENTS),
+    where('reportedSickAt', '>=', todayTs),
+    orderBy('reportedSickAt', 'desc')
+  );
+
+  let updatedDocs  = [];
+  let reportedDocs = [];
+
+  const emit = () => {
+    const result = new Map();
+
+    // 1 & 2: discharged or referred today
+    updatedDocs.forEach(p => {
+      if (isTodayTs(p.updatedAt) && (p.status === 'discharged' || p.status === 'referred')) {
+        result.set(p.id, p);
       }
-      // Discharged / referred / still active or in sickbay today
-      return ['discharged', 'referred', 'active', 'sickbay'].includes(p.status);
     });
-    callback(seen);
+
+    // 3: reported sick today AND seen today
+    reportedDocs.forEach(p => {
+      if (isTodayTs(p.seenAt)) {
+        result.set(p.id, p);
+      }
+    });
+
+    callback(Array.from(result.values()));
+  };
+
+  const u1 = onSnapshot(qUpdated, snap => {
+    updatedDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    emit();
   });
+  const u2 = onSnapshot(qReported, snap => {
+    reportedDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    emit();
+  });
+
+  return () => { u1(); u2(); };
 }
 
 // ═════════════════════════════════════════════
