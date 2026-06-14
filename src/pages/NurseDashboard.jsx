@@ -69,25 +69,10 @@ export default function NurseDashboard() {
             <div className="stat-label"><i className="ti ti-pill" style={{color:'var(--danger)'}} />Meds due</div>
             <div className="stat-value" style={{color:'var(--danger)'}}>0</div>
           </div>
-          {/* Seen today — Reported / Discharged / Referred */}
+          {/* Seen today — reported sick today AND seen by nurse/doctor */}
           <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
             <div className="stat-label"><i className="ti ti-check" style={{color:'var(--success)'}} />Seen today</div>
-            <div style={{display:'flex', gap:10, marginTop:4, alignItems:'baseline'}}>
-              <div>
-                <div style={{fontSize:18,fontWeight:800,color:'#f97316',lineHeight:1}}>{sickTotal}</div>
-                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Seen</div>
-              </div>
-              <div style={{color:'var(--border)',fontSize:16}}>|</div>
-              <div>
-                <div style={{fontSize:18,fontWeight:800,color:'var(--info)',lineHeight:1}}>{dischargedToday}</div>
-                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Discharged</div>
-              </div>
-              <div style={{color:'var(--border)',fontSize:16}}>|</div>
-              <div>
-                <div style={{fontSize:18,fontWeight:800,color:'#f59e0b',lineHeight:1}}>{referredToday}</div>
-                <div style={{fontSize:9,color:'var(--t3)',fontWeight:600}}>Referred</div>
-              </div>
-            </div>
+            <div className="stat-value" style={{color:'var(--success)'}}>{sickSeenCount}</div>
           </div>
         </div>
 
