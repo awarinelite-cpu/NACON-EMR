@@ -59,6 +59,12 @@ export default function NurseDashboard() {
       </div>
       <div className="page-content" style={{ flex:1 }}>
 
+        {/* ── Total Registered Patients ── */}
+        <div className="stat-card" onClick={() => navigate('/nurse/patients')} style={{cursor:'pointer', marginBottom:12}}>
+          <div className="stat-label"><i className="ti ti-users" style={{color:'#8b5cf6'}} />Total Registered Patients</div>
+          <div className="stat-value" style={{color:'#8b5cf6'}}>{patients.length}</div>
+        </div>
+
         {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
           <div className="stat-card" onClick={() => navigate('/nurse/queue')} style={{cursor:'pointer'}}>
