@@ -40,7 +40,7 @@ export default function SickReportPage() {
     const dischargedToday = p.status === 'discharged' && isToday(p.updatedAt);
     const referredToday   = p.status === 'referred'   && isToday(p.updatedAt);
     if (dischargedToday) return (
-      <span className="badge badge-ok" style={{fontSize:9, padding:'3px 8px', background:'#d1fae5', color:'#065f46', border:'1px solid #6ee7b7'}}>
+      <span className="badge badge-info" style={{fontSize:9, padding:'3px 8px'}}>
         <i className="ti ti-door-exit" style={{marginRight:3}} />Discharged
       </span>
     );
