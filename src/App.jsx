@@ -24,9 +24,11 @@ import MARPage          from './pages/MARPage';
 import PharmacyInventory from './pages/PharmacyInventory';
 import HealthStats        from './pages/HealthStats';
 import SelfReport         from './pages/SelfReport';
-import NursingNotesPage   from './pages/NursingNotesPage';
-import MedicationLogPage  from './pages/MedicationLogPage';
-import VitalSignsPage     from './pages/VitalSignsPage';
+import NursingNotesPage        from './pages/NursingNotesPage';
+import MedicationLogPage       from './pages/MedicationLogPage';
+import VitalSignsPage          from './pages/VitalSignsPage';
+import SickReportPage          from './pages/SickReportPage';
+import DischargedReferredPage  from './pages/DischargedReferredPage';
 
 import './styles/global.css';
 
@@ -128,6 +130,12 @@ export default function App() {
             } />
             <Route path="/nurse/vitals" element={
               <ProtectedRoute allowedRoles={['nurse']}><VitalSignsPage /></ProtectedRoute>
+            } />
+            <Route path="/nurse/sick-report" element={
+              <ProtectedRoute allowedRoles={['nurse']}><SickReportPage /></ProtectedRoute>
+            } />
+            <Route path="/nurse/discharged-referred" element={
+              <ProtectedRoute allowedRoles={['nurse']}><DischargedReferredPage /></ProtectedRoute>
             } />
 
             {/* ── MAR ── */}

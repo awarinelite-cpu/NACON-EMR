@@ -17,19 +17,38 @@ export default function NurseDashboard() {
     return () => { u1 && u1(); u2 && u2(); };
   }, []);
 
-  // Stats derived from live data
+  // ── Today boundary (midnight local) ──────────────────
+  const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+  const isToday = (ts) => {
+    if (!ts) return false;
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d >= todayStart;
+  };
+
+  // ── Derived live stats ────────────────────────────────
   const waiting   = queue.filter(q => q.status === 'waiting').length;
   const sickBay   = patients.filter(p => p.status === 'sickbay');
+  const maleAdm   = sickBay.filter(p => p.sex === 'Male').length;
+  const femaleAdm = sickBay.filter(p => p.sex === 'Female').length;
+
+  // patients whose latest visit started today (visited today = registeredAt or updatedAt today)
+  const reportedToday = patients.filter(p => isToday(p.updatedAt) || isToday(p.registeredAt));
+  const sickReportCount = reportedToday.length;
+
+  const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
+  const referredToday   = patients.filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
+
   const seenToday = patients.filter(p => p.status === 'discharged').length;
   const active    = patients.filter(p => p.status === 'active');
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
 
+  // ── Top stat cards (original 4) ──────────────────────
   const stats = [
-    { label:'Waiting',    value: waiting,         icon:'ti-clock',  color:'var(--accent)', route:'/nurse/queue'   },
-    { label:'Sick Bay',   value: sickBay.length,  icon:'ti-bed',    color:'var(--warn)',   route:'/nurse/sickbay' },
-    { label:'Meds due',   value: 0,               icon:'ti-pill',   color:'var(--danger)', route:'/nurse/meds'    },
-    { label:'Seen today', value: seenToday,        icon:'ti-check',  color:'var(--success)',route:'/nurse/patients'},
+    { label:'Waiting',    value: waiting,        icon:'ti-clock', color:'var(--accent)', route:'/nurse/queue'   },
+    { label:'Sick Bay',   value: sickBay.length, icon:'ti-bed',   color:'var(--warn)',   route:'/nurse/sickbay' },
+    { label:'Meds due',   value: 0,              icon:'ti-pill',  color:'var(--danger)', route:'/nurse/meds'    },
+    { label:'Seen today', value: seenToday,       icon:'ti-check', color:'var(--success)',route:'/nurse/patients'},
   ];
 
   return (
@@ -42,6 +61,8 @@ export default function NurseDashboard() {
         </button>
       </div>
       <div className="page-content" style={{ flex:1 }}>
+
+        {/* ── Original 4 stat cards ─────────────────── */}
         <div className="stats-grid">
           {stats.map(s => (
             <div key={s.label} className="stat-card"
@@ -56,6 +77,65 @@ export default function NurseDashboard() {
           ))}
         </div>
 
+        {/* ── NEW: 3 additional stat cards ─────────── */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
+
+          {/* Sick Report */}
+          <div className="stat-card"
+            onClick={() => navigate('/nurse/sick-report')}
+            style={{ cursor:'pointer' }}
+          >
+            <div className="stat-label">
+              <i className="ti ti-stethoscope" style={{color:'#f97316'}} /> Sick Report
+            </div>
+            <div className="stat-value" style={{color:'#f97316'}}>{sickReportCount}</div>
+            <div style={{fontSize:10,color:'var(--t3)',marginTop:4,fontWeight:600}}>Reported today</div>
+          </div>
+
+          {/* On Admission — Male / Female */}
+          <div className="stat-card"
+            onClick={() => navigate('/nurse/sickbay')}
+            style={{ cursor:'pointer' }}
+          >
+            <div className="stat-label">
+              <i className="ti ti-bed" style={{color:'#a855f7'}} /> On Admission
+            </div>
+            <div style={{display:'flex', gap:12, marginTop:4, alignItems:'baseline'}}>
+              <div>
+                <div style={{fontSize:22,fontWeight:800,color:'#3b82f6',lineHeight:1}}>{maleAdm}</div>
+                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Male</div>
+              </div>
+              <div style={{color:'var(--border)',fontSize:18}}>|</div>
+              <div>
+                <div style={{fontSize:22,fontWeight:800,color:'#ec4899',lineHeight:1}}>{femaleAdm}</div>
+                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Female</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Discharged / Referred */}
+          <div className="stat-card"
+            onClick={() => navigate('/nurse/discharged-referred')}
+            style={{ cursor:'pointer' }}
+          >
+            <div className="stat-label">
+              <i className="ti ti-logout" style={{color:'#10b981'}} /> D/R Today
+            </div>
+            <div style={{display:'flex', gap:12, marginTop:4, alignItems:'baseline'}}>
+              <div>
+                <div style={{fontSize:22,fontWeight:800,color:'#10b981',lineHeight:1}}>{dischargedToday}</div>
+                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Discharged</div>
+              </div>
+              <div style={{color:'var(--border)',fontSize:18}}>|</div>
+              <div>
+                <div style={{fontSize:22,fontWeight:800,color:'#f59e0b',lineHeight:1}}>{referredToday}</div>
+                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Referred</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Queue & Sick Bay panels ───────────────── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           {/* Queue */}
           <div className="card">
@@ -99,7 +179,7 @@ export default function NurseDashboard() {
                 <div className="p-avatar" style={{background:'var(--danger-bg)',color:'var(--danger)'}}>{getInitials(p)}</div>
                 <div className="p-info">
                   <div className="p-name">{p.surname} {p.firstName}</div>
-                  <div className="p-meta">{p.classSet}</div>
+                  <div className="p-meta">{p.classSet} · {p.sex}</div>
                 </div>
                 <span className="badge badge-danger">Admitted</span>
               </div>
