@@ -208,11 +208,25 @@ export async function createVisit(emrNumber, data, createdBy) {
     updatedAt: serverTimestamp(),
   });
   // seenAt = moment they physically arrived at MRS (visit opened)
-  await updatePatient(emrNumber, {
+  const patientUpdate = {
     lastVisit: serverTimestamp(),
     seenAt:    serverTimestamp(),
     status:    'active',
-  }, createdBy);
+  };
+  // Ensure patients seen today via direct visit (not via Report Sick)
+  // still show up on the "Sick Report — Today" / "Seen" tabs.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayTs = Timestamp.fromDate(today);
+  const existing = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+  const reportedSickAt = existing.exists() ? existing.data().reportedSickAt : null;
+  const reportedToday = reportedSickAt &&
+    (reportedSickAt.toDate ? reportedSickAt.toDate() : new Date(reportedSickAt)) >= today;
+  if (!reportedToday) {
+    patientUpdate.reportedSickAt  = serverTimestamp();
+    patientUpdate.reportedSickBy  = createdBy;
+    patientUpdate.reportedSickHow = 'visit';
+  }
+  await updatePatient(emrNumber, patientUpdate, createdBy);
   await logAudit('CREATE_VISIT', emrNumber, createdBy, { visitId: visitRef.id });
   return visitRef.id;
 }
@@ -771,27 +785,29 @@ export function listenSickReportsToday(callback) {
 
 // ═════════════════════════════════════════════
 // LIVE LISTENER: patients seen today at MRS
-// "Seen" = reported sick today AND seenAt is today
-// Patients who had a visit but never reported sick are excluded.
-// The callback receives only the intersection.
+// "Seen" = patient has clinical activity today (seenAt today,
+// OR status changed today — e.g. discharged/referred/admitted),
+// regardless of when they originally reported sick.
 // ═════════════════════════════════════════════
 export function listenSeenToday(callback) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
-  // Query patients who reported sick today
   const q = query(
     collection(db, COL.PATIENTS),
-    where('reportedSickAt', '>=', todayTs),
-    orderBy('reportedSickAt', 'desc')
+    where('updatedAt', '>=', todayTs),
+    orderBy('updatedAt', 'desc')
   );
   return onSnapshot(q, snap => {
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // Keep only those whose seenAt is also today (they physically came to MRS)
     const seen = all.filter(p => {
-      if (!p.seenAt) return false;
-      const d = p.seenAt.toDate ? p.seenAt.toDate() : new Date(p.seenAt);
-      return d >= today;
+      // Came in today
+      if (p.seenAt) {
+        const d = p.seenAt.toDate ? p.seenAt.toDate() : new Date(p.seenAt);
+        if (d >= today) return true;
+      }
+      // Discharged / referred / still active or in sickbay today
+      return ['discharged', 'referred', 'active', 'sickbay'].includes(p.status);
     });
     callback(seen);
   });
