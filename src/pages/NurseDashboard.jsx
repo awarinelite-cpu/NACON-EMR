@@ -17,7 +17,7 @@ export default function NurseDashboard() {
     return () => { u1 && u1(); u2 && u2(); };
   }, []);
 
-  // ── Today boundary (midnight local) ──────────────────
+  // ── Today boundary ────────────────────────────────────
   const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
   const isToday = (ts) => {
     if (!ts) return false;
@@ -31,8 +31,7 @@ export default function NurseDashboard() {
   const maleAdm   = sickBay.filter(p => p.sex === 'Male').length;
   const femaleAdm = sickBay.filter(p => p.sex === 'Female').length;
 
-  // patients whose latest visit started today (visited today = registeredAt or updatedAt today)
-  const reportedToday = patients.filter(p => isToday(p.updatedAt) || isToday(p.registeredAt));
+  const reportedToday   = patients.filter(p => isToday(p.updatedAt) || isToday(p.registeredAt));
   const sickReportCount = reportedToday.length;
 
   const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
@@ -43,12 +42,11 @@ export default function NurseDashboard() {
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
 
-  // ── Top stat cards (original 4) ──────────────────────
+  // ── Top stat cards: Waiting, Meds due, Seen today ────
   const stats = [
-    { label:'Waiting',    value: waiting,        icon:'ti-clock', color:'var(--accent)', route:'/nurse/queue'   },
-    { label:'Sick Bay',   value: sickBay.length, icon:'ti-bed',   color:'var(--warn)',   route:'/nurse/sickbay' },
-    { label:'Meds due',   value: 0,              icon:'ti-pill',  color:'var(--danger)', route:'/nurse/meds'    },
-    { label:'Seen today', value: seenToday,       icon:'ti-check', color:'var(--success)',route:'/nurse/patients'},
+    { label:'Waiting',    value: waiting,   icon:'ti-clock', color:'var(--accent)', route:'/nurse/queue'   },
+    { label:'Meds due',   value: 0,         icon:'ti-pill',  color:'var(--danger)', route:'/nurse/meds'    },
+    { label:'Seen today', value: seenToday, icon:'ti-check', color:'var(--success)',route:'/nurse/patients' },
   ];
 
   return (
@@ -62,8 +60,8 @@ export default function NurseDashboard() {
       </div>
       <div className="page-content" style={{ flex:1 }}>
 
-        {/* ── Original 4 stat cards ─────────────────── */}
-        <div className="stats-grid">
+        {/* ── 3 top stat cards ─────────────────────── */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
           {stats.map(s => (
             <div key={s.label} className="stat-card"
               onClick={() => navigate(s.route)}
@@ -77,7 +75,7 @@ export default function NurseDashboard() {
           ))}
         </div>
 
-        {/* ── NEW: 3 additional stat cards ─────────── */}
+        {/* ── 3 new cards: Sick Report, On Admission, D/R ── */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
 
           {/* Sick Report */}
@@ -92,9 +90,9 @@ export default function NurseDashboard() {
             <div style={{fontSize:10,color:'var(--t3)',marginTop:4,fontWeight:600}}>Reported today</div>
           </div>
 
-          {/* On Admission — Male / Female */}
+          {/* On Admission */}
           <div className="stat-card"
-            onClick={() => navigate('/nurse/sickbay')}
+            onClick={() => navigate('/nurse/on-admission')}
             style={{ cursor:'pointer' }}
           >
             <div className="stat-label">
@@ -135,61 +133,8 @@ export default function NurseDashboard() {
           </div>
         </div>
 
-        {/* ── Queue & Sick Bay panels ───────────────── */}
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-          {/* Queue */}
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title"><i className="ti ti-clock" />Queue</div>
-              <span className="card-action" onClick={() => navigate('/nurse/queue')}>All →</span>
-            </div>
-            {queue.filter(q=>q.status==='waiting').slice(0,6).map(q => (
-              <div key={q.id} className="patient-row"
-                onClick={() => navigate(`/patient/${q.emrNumber}`)}
-                style={{ cursor:'pointer' }}
-              >
-                <div style={{
-                  width:28, height:28, borderRadius:6,
-                  background: q.priority==='P1'?'var(--danger-bg)':q.priority==='P2'?'var(--warn-bg)':'var(--accent-bg)',
-                  color: q.priority==='P1'?'var(--danger)':q.priority==='P2'?'var(--warn)':'var(--accent)',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:10, fontWeight:700, flexShrink:0,
-                }}>{q.priority}</div>
-                <div className="p-info">
-                  <div className="p-name">{q.surname} {q.firstName}</div>
-                  <div className="p-meta">{q.classSet}</div>
-                </div>
-                <span className="badge badge-warn">Waiting</span>
-              </div>
-            ))}
-            {waiting===0 && <div style={{padding:16,textAlign:'center',color:'var(--t3)',fontWeight:700}}>Queue is empty</div>}
-          </div>
-
-          {/* Sick Bay */}
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title"><i className="ti ti-bed" />Sick Bay</div>
-              <span className="card-action" onClick={() => navigate('/nurse/sickbay')}>All →</span>
-            </div>
-            {sickBay.slice(0,6).map(p => (
-              <div key={p.id} className="patient-row"
-                onClick={() => navigate(`/patient/${p.emrNumber}`)}
-                style={{ cursor:'pointer' }}
-              >
-                <div className="p-avatar" style={{background:'var(--danger-bg)',color:'var(--danger)'}}>{getInitials(p)}</div>
-                <div className="p-info">
-                  <div className="p-name">{p.surname} {p.firstName}</div>
-                  <div className="p-meta">{p.classSet} · {p.sex}</div>
-                </div>
-                <span className="badge badge-danger">Admitted</span>
-              </div>
-            ))}
-            {sickBay.length===0 && <div style={{padding:16,textAlign:'center',color:'var(--t3)',fontWeight:700}}>Sick bay is empty</div>}
-          </div>
-        </div>
-
-        {/* Active patients */}
-        <div className="card" style={{marginTop:12}}>
+        {/* ── Active patients ───────────────────────── */}
+        <div className="card">
           <div className="card-header">
             <div className="card-title"><i className="ti ti-users" />Active patients</div>
             <span className="card-action" onClick={() => navigate('/nurse/patients')}>View all →</span>

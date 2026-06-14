@@ -29,6 +29,7 @@ import MedicationLogPage       from './pages/MedicationLogPage';
 import VitalSignsPage          from './pages/VitalSignsPage';
 import SickReportPage          from './pages/SickReportPage';
 import DischargedReferredPage  from './pages/DischargedReferredPage';
+import OnAdmissionPage         from './pages/OnAdmissionPage';
 
 import './styles/global.css';
 
@@ -133,6 +134,9 @@ export default function App() {
             } />
             <Route path="/nurse/sick-report" element={
               <ProtectedRoute allowedRoles={['nurse']}><SickReportPage /></ProtectedRoute>
+            } />
+            <Route path="/nurse/on-admission" element={
+              <ProtectedRoute allowedRoles={['nurse']}><OnAdmissionPage /></ProtectedRoute>
             } />
             <Route path="/nurse/discharged-referred" element={
               <ProtectedRoute allowedRoles={['nurse']}><DischargedReferredPage /></ProtectedRoute>
