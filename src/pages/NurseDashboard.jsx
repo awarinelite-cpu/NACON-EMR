@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
+import MonthlySickChart from '../components/shared/MonthlySickChart';
 import { listenPatients, listenTriageQueue, listenSickReportsToday, listenSeenToday } from '../lib/emr';
 
 export default function NurseDashboard() {
@@ -208,35 +209,8 @@ export default function NurseDashboard() {
           </div>
         </div>
 
-        {/* ── Active patients ───────────────────────── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title"><i className="ti ti-users" />Active patients
-              {classFilter !== 'all' && (
-                <span style={{
-                  marginLeft:8, fontSize:10, fontWeight:700,
-                  background:'var(--accent-bg)', color:'var(--accent)',
-                  padding:'2px 8px', borderRadius:10,
-                }}>{classFilter}</span>
-              )}
-            </div>
-            <span className="card-action" onClick={() => navigate('/nurse/patients')}>View all →</span>
-          </div>
-          {active.slice(0,8).map(p => (
-            <div key={p.id} className="patient-row"
-              onClick={() => navigate(`/patient/${p.emrNumber}`)}
-              style={{ cursor:'pointer' }}
-            >
-              <div className="p-avatar" style={{background:'var(--accent-bg)',color:'var(--accent)'}}>{getInitials(p)}</div>
-              <div className="p-info">
-                <div className="p-name">{p.surname} {p.firstName}</div>
-                <div className="p-meta">{p.classSet} · {p.folderNumber}</div>
-              </div>
-              <span className="emr-tag">{p.emrNumber}</span>
-            </div>
-          ))}
-          {active.length===0 && <div style={{padding:16,textAlign:'center',color:'var(--t3)',fontWeight:700}}>No active patients</div>}
-        </div>
+        {/* ── Monthly Sick Report Chart ─────────────── */}
+        <MonthlySickChart />
       </div>
     </div>
   );

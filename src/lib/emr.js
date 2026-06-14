@@ -944,3 +944,42 @@ export async function processSelfReport(reportId, action, nurseId) {
     processedAt: serverTimestamp(),
   });
 }
+
+// ═════════════════════════════════════════════
+// LIVE LISTENER: Monthly sick reports (last 12 months)
+// Returns patients who reported sick, grouped by month, class, and sex
+// ═════════════════════════════════════════════
+export function listenSickReportsMonthly(callback) {
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+  twelveMonthsAgo.setDate(1);
+  twelveMonthsAgo.setHours(0, 0, 0, 0);
+  const fromTs = Timestamp.fromDate(twelveMonthsAgo);
+
+  const q = query(
+    collection(db, COL.PATIENTS),
+    where('reportedSickAt', '>=', fromTs),
+    orderBy('reportedSickAt', 'asc')
+  );
+
+  return onSnapshot(q, snap => {
+    // Build map: { 'YYYY-MM': { classSet: { male: N, female: N } } }
+    const monthly = {};
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (!data.reportedSickAt) return;
+      const date = data.reportedSickAt.toDate ? data.reportedSickAt.toDate() : new Date(data.reportedSickAt);
+      const key  = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const cls  = data.classSet || 'Unknown';
+      const sex  = (data.sex || '').toLowerCase();
+
+      if (!monthly[key]) monthly[key] = {};
+      if (!monthly[key][cls]) monthly[key][cls] = { male: 0, female: 0, total: 0 };
+
+      if (sex === 'male')        monthly[key][cls].male++;
+      else if (sex === 'female') monthly[key][cls].female++;
+      monthly[key][cls].total++;
+    });
+    callback(monthly);
+  });
+}
