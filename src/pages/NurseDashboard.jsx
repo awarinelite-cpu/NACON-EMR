@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
-import MonthlySickChart from '../components/shared/MonthlySickChart';
 import { listenPatients, listenTriageQueue, listenSickReportsToday, listenSeenToday } from '../lib/emr';
 
 // ── Reusable inline class-filter toggle ──────────────────────
@@ -259,8 +258,6 @@ export default function NurseDashboard() {
           </div>
         </div>
 
-        {/* ── Monthly Sick Report Chart ─────────────── */}
-        <MonthlySickChart />
       </div>
     </div>
   );
