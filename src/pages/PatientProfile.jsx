@@ -1070,11 +1070,19 @@ export default function PatientProfile() {
               const formLabel   = isSoldier ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
               const formIcon    = isSoldier ? 'ti-shield-filled' : 'ti-user';
 
-              // Build a pre-filled Rx string from any current rxForm drugs
-              const autoRxText = rxForm
+              // Build a pre-filled Rx string from saved prescriptions (Prescription
+              // History) plus any drugs currently being written in "Write Prescription"
+              // that haven't been saved yet — so nurses/doctors don't have to retype.
+              const savedRxLines = rx
+                .flatMap(r => r.drugs || [])
+                .map(d => [d.drug, d.dose, d.frequency, d.duration].filter(Boolean).join('  '))
+                .filter(Boolean);
+
+              const draftRxLines = rxForm
                 .filter(r => r.drug.trim())
-                .map(r => [r.drug, r.dose, r.frequency, r.duration].filter(Boolean).join('  '))
-                .join('\n');
+                .map(r => [r.drug, r.dose, r.frequency, r.duration].filter(Boolean).join('  '));
+
+              const autoRxText = [...savedRxLines, ...draftRxLines].join('\n');
 
               // Compute patient age from DOB
               const age = patient.dob
