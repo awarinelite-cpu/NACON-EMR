@@ -1024,13 +1024,18 @@ export function listenNACONForms(callback) {
   );
 }
 
-/** Listen to saved official Rx forms for a specific patient (both NHIS and NACON). */
+/** Listen to saved official Rx forms for a specific patient (both NHIS and NACON).
+ *  No composite index needed — filters by emrNumber only, sorts client-side. */
 export function listenPatientForms(emrNumber, callback) {
-  const nhisQ  = query(collection(db, 'nhis_prescriptions'),  where('emrNumber','==',emrNumber), orderBy('savedAt','desc'));
-  const naconQ = query(collection(db, 'nacon_prescriptions'), where('emrNumber','==',emrNumber), orderBy('savedAt','desc'));
+  const nhisQ  = query(collection(db, 'nhis_prescriptions'),  where('emrNumber','==',emrNumber));
+  const naconQ = query(collection(db, 'nacon_prescriptions'), where('emrNumber','==',emrNumber));
   let nhisDocs  = [];
   let naconDocs = [];
-  const merge = () => callback([...nhisDocs, ...naconDocs].sort((a,b)=>(b.savedAt?.seconds||0)-(a.savedAt?.seconds||0)));
+  const merge = () => {
+    const all = [...nhisDocs, ...naconDocs]
+      .sort((a,b) => (b.savedAt?.seconds||0) - (a.savedAt?.seconds||0));
+    callback(all);
+  };
   const u1 = onSnapshot(nhisQ,  snap => { nhisDocs  = snap.docs.map(d=>({id:d.id,...d.data()})); merge(); });
   const u2 = onSnapshot(naconQ, snap => { naconDocs = snap.docs.map(d=>({id:d.id,...d.data()})); merge(); });
   return () => { u1(); u2(); };

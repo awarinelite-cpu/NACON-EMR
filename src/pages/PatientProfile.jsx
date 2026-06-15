@@ -1076,9 +1076,13 @@ export default function PatientProfile() {
               const formLabel   = isSoldier ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
               const formIcon    = isSoldier ? 'ti-shield-filled' : 'ti-user';
 
-              // Build a pre-filled Rx string — ONLY prescriptions added since the last
-              // official form was saved (so next form starts fresh, not cluttered with old Rx).
-              const cutoff = officialRxSavedAt || 0;
+              // Build a pre-filled Rx string — ONLY prescriptions added AFTER the last
+              // official form was saved. Use the latest saved form's timestamp (from Firestore)
+              // so this persists across page reloads, not just the current session.
+              const lastSavedFormAt = savedForms.length > 0
+                ? (savedForms[0].savedAt?.seconds || 0) * 1000
+                : 0;
+              const cutoff = Math.max(lastSavedFormAt, officialRxSavedAt || 0);
               const savedRxLines = rx
                 .filter(r => {
                   const ts = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : (r.createdAt || 0);
