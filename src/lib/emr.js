@@ -1023,3 +1023,15 @@ export function listenNACONForms(callback) {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
   );
 }
+
+/** Listen to saved official Rx forms for a specific patient (both NHIS and NACON). */
+export function listenPatientForms(emrNumber, callback) {
+  const nhisQ  = query(collection(db, 'nhis_prescriptions'),  where('emrNumber','==',emrNumber), orderBy('savedAt','desc'));
+  const naconQ = query(collection(db, 'nacon_prescriptions'), where('emrNumber','==',emrNumber), orderBy('savedAt','desc'));
+  let nhisDocs  = [];
+  let naconDocs = [];
+  const merge = () => callback([...nhisDocs, ...naconDocs].sort((a,b)=>(b.savedAt?.seconds||0)-(a.savedAt?.seconds||0)));
+  const u1 = onSnapshot(nhisQ,  snap => { nhisDocs  = snap.docs.map(d=>({id:d.id,...d.data()})); merge(); });
+  const u2 = onSnapshot(naconQ, snap => { naconDocs = snap.docs.map(d=>({id:d.id,...d.data()})); merge(); });
+  return () => { u1(); u2(); };
+}

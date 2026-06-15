@@ -10,7 +10,7 @@ import {
   addGlucoseReading, uploadPatientFile, createReferral,
   dischargePatient, createVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
-  saveNHISForm, saveNACONForm,
+  saveNHISForm, saveNACONForm, listenPatientForms,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
@@ -68,6 +68,11 @@ export default function PatientProfile() {
   const [officialRx,    setOfficialRx]    = useState(null);   // null = collapsed, object = open
   const [officialRxSaving, setOfficialRxSaving] = useState(false);
   const officialRxPrintRef = useRef(null);
+  // Saved official forms history
+  const [savedForms,    setSavedForms]    = useState([]);
+  const [viewSavedForms, setViewSavedForms] = useState(false);  // modal open/close
+  // Tracks when the last official form was saved; used to exclude already-printed Rx from next form
+  const [officialRxSavedAt, setOfficialRxSavedAt] = useState(null);
   const [fluidForm, setFluidForm] = useState({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
@@ -125,6 +130,7 @@ export default function PatientProfile() {
       listenFluidChart(emrNumber,    setFluid),
       listenGlucoseChart(emrNumber,  setGlucose),
       listenUploads(emrNumber,       setUploads),
+      listenPatientForms(emrNumber,  setSavedForms),
     ];
     return () => unsubs.forEach(u => u && u());
   }, [emrNumber]);
@@ -1070,10 +1076,14 @@ export default function PatientProfile() {
               const formLabel   = isSoldier ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
               const formIcon    = isSoldier ? 'ti-shield-filled' : 'ti-user';
 
-              // Build a pre-filled Rx string from saved prescriptions (Prescription
-              // History) plus any drugs currently being written in "Write Prescription"
-              // that haven't been saved yet — so nurses/doctors don't have to retype.
+              // Build a pre-filled Rx string — ONLY prescriptions added since the last
+              // official form was saved (so next form starts fresh, not cluttered with old Rx).
+              const cutoff = officialRxSavedAt || 0;
               const savedRxLines = rx
+                .filter(r => {
+                  const ts = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : (r.createdAt || 0);
+                  return ts > cutoff;
+                })
                 .flatMap(r => r.drugs || [])
                 .map(d => [d.drug, d.dose, d.frequency, d.duration].filter(Boolean).join('  '))
                 .filter(Boolean);
@@ -1160,6 +1170,10 @@ export default function PatientProfile() {
                   }
                   toast.success(`${formLabel} saved to records`);
                   setOfficialRx(null);
+                  // Mark the save time so next form open starts fresh (only new Rx appear)
+                  setOfficialRxSavedAt(Date.now());
+                  // Clear the write-prescription draft too
+                  setRxForm([{ drug:'', dose:'', frequency:'', duration:'' }]);
                 } catch(e) {
                   console.error('handleSaveOfficial', e);
                   toast.error('Failed to save: ' + (e?.message || e));
@@ -1180,6 +1194,7 @@ export default function PatientProfile() {
                 display:'block', marginBottom:2, color:'var(--t3)' };
 
               return (
+                <>
                 <div className="card" style={{ border:`2px solid ${accentColor}22` }}>
                   {/* Collapsed header — click to open */}
                   <div className="card-header"
@@ -1192,14 +1207,26 @@ export default function PatientProfile() {
                         — patient info auto-filled
                       </span>
                     </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); setOfficialRx(officialRx ? null : defaultRx); }}
-                      style={{ background:'none', border:`1px solid ${accentColor}`, borderRadius:8,
-                        padding:'4px 12px', cursor:'pointer', color: accentColor,
-                        fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5 }}>
-                      <i className={`ti ${officialRx ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
-                      {officialRx ? 'Collapse' : 'Open Form'}
-                    </button>
+                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                      {savedForms.length > 0 && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setViewSavedForms(true); }}
+                          style={{ background:'none', border:`1px solid ${accentColor}`, borderRadius:8,
+                            padding:'4px 12px', cursor:'pointer', color: accentColor,
+                            fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5 }}>
+                          <i className="ti ti-files" />
+                          View Saved ({savedForms.length})
+                        </button>
+                      )}
+                      <button
+                        onClick={e => { e.stopPropagation(); setOfficialRx(officialRx ? null : defaultRx); }}
+                        style={{ background: accentColor, border:'none', borderRadius:8,
+                          padding:'4px 12px', cursor:'pointer', color:'#fff',
+                          fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5 }}>
+                        <i className={`ti ${officialRx ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
+                        {officialRx ? 'Collapse' : 'Open Form'}
+                      </button>
+                    </div>
                   </div>
 
                   {officialRx && (
@@ -1398,6 +1425,136 @@ export default function PatientProfile() {
                     </div>
                   )}
                 </div>
+
+                {/* ── Saved Forms Modal ── */}
+                {viewSavedForms && (
+                  <div style={{
+                    position:'fixed', inset:0, zIndex:3000,
+                    background:'rgba(0,0,0,0.55)',
+                    display:'flex', alignItems:'flex-end',
+                  }} onClick={() => setViewSavedForms(false)}>
+                    <div style={{
+                      width:'100%', maxHeight:'88vh',
+                      background:'var(--card-bg)',
+                      borderRadius:'18px 18px 0 0',
+                      display:'flex', flexDirection:'column',
+                      overflow:'hidden',
+                      boxShadow:'0 -4px 32px rgba(0,0,0,0.3)',
+                    }} onClick={e => e.stopPropagation()}>
+                      {/* Header */}
+                      <div style={{
+                        display:'flex', alignItems:'center', justifyContent:'space-between',
+                        padding:'14px 16px', borderBottom:'1px solid var(--border)',
+                        background: accentColor, color:'#fff', borderRadius:'18px 18px 0 0',
+                      }}>
+                        <div style={{ fontWeight:700, fontSize:15, display:'flex', alignItems:'center', gap:8 }}>
+                          <i className="ti ti-files" /> Saved {formLabel}s
+                        </div>
+                        <button onClick={() => setViewSavedForms(false)}
+                          style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8,
+                            padding:'4px 10px', color:'#fff', cursor:'pointer', fontWeight:700, fontSize:13 }}>
+                          ✕ Close
+                        </button>
+                      </div>
+
+                      {/* List */}
+                      <div style={{ overflowY:'auto', flex:1, padding:12, display:'flex', flexDirection:'column', gap:10 }}>
+                        {savedForms.length === 0 ? (
+                          <div style={{ textAlign:'center', color:'var(--t3)', padding:32, fontWeight:700 }}>
+                            No saved forms yet
+                          </div>
+                        ) : savedForms.map((form, idx) => {
+                          const savedDate = form.savedAt?.seconds
+                            ? new Date(form.savedAt.seconds * 1000).toLocaleString()
+                            : 'Unknown date';
+
+                          // Build share text
+                          const shareText = [
+                            `${form.formType === 'NHIS' ? 'NHIS' : 'NACON Civilian'} Prescription Form`,
+                            `Patient: ${form.patientName || ''}`,
+                            form.formType === 'NHIS' ? `NHIS ID: ${form.nhisId || ''}` : `Matric No: ${form.matricNo || ''}`,
+                            `Date: ${form.date || ''}`,
+                            `Age: ${form.age || ''}   Sex: ${form.sex || ''}`,
+                            ``,
+                            `Rx:`,
+                            form.rx || '',
+                            ``,
+                            `Prescriber: ${form.prescriberName || ''}`,
+                            `Saved by: ${form.savedBy || ''}  on ${savedDate}`,
+                          ].join('\n');
+
+                          const handleShare = async () => {
+                            if (navigator.share) {
+                              try {
+                                await navigator.share({ title: `Rx Form — ${form.patientName}`, text: shareText });
+                              } catch(e) { /* user cancelled */ }
+                            } else {
+                              await navigator.clipboard.writeText(shareText);
+                              toast.success('Copied to clipboard!');
+                            }
+                          };
+
+                          const handlePrintSaved = () => {
+                            const label = form.formType === 'NHIS' ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
+                            const w = window.open('', '_blank', 'width=820,height=700');
+                            w.document.write(`<!DOCTYPE html><html><head><title>${label}</title>
+                              <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Times New Roman',Times,serif;background:#fff;color:#000;padding:28px}.uline{display:inline-block;border-bottom:1px solid #000;min-width:80px;vertical-align:bottom}.rx-box{border:2px solid #000;padding:8px;min-height:120px;font-size:12px;white-space:pre-wrap;margin:6px 0}@media print{body{padding:10px}}</style>
+                              </head><body>
+                              <div style="text-align:center;font-weight:bold;font-size:14px;margin-bottom:12px">${label}</div>
+                              <p><b>Patient:</b> ${form.patientName || ''} &nbsp; <b>Date:</b> ${form.date || ''}</p>
+                              <p><b>Age:</b> ${form.age || ''} &nbsp; <b>Sex:</b> ${form.sex || ''}</p>
+                              ${form.formType==='NHIS' ? `<p><b>NHIS ID:</b> ${form.nhisId || ''}</p>` : `<p><b>Matric No:</b> ${form.matricNo || ''}</p>`}
+                              <div class="rx-box"><b style="font-size:20px;font-family:serif">℞</b>&nbsp;${(form.rx||'').replace(/\n/g,'<br/>')}</div>
+                              <p><b>Prescriber:</b> ${form.prescriberName || ''}</p>
+                              <hr style="margin:10px 0"/><p style="font-size:10px;color:#666">Saved by ${form.savedBy||''} on ${savedDate}</p>
+                              </body></html>`);
+                            w.document.close(); w.focus();
+                            setTimeout(() => w.print(), 400);
+                          };
+
+                          return (
+                            <div key={form.id || idx} style={{
+                              border:`1px solid ${accentColor}33`, borderRadius:12,
+                              padding:12, background:'var(--main-bg)',
+                            }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
+                                <div>
+                                  <div style={{ fontWeight:700, fontSize:13, color: accentColor }}>
+                                    <i className={`ti ${form.formType==='NHIS' ? 'ti-shield-filled' : 'ti-user'}`} style={{ marginRight:5 }} />
+                                    {form.formType==='NHIS' ? 'NHIS' : 'NACON Civilian'} Form
+                                  </div>
+                                  <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{savedDate}</div>
+                                  <div style={{ fontSize:11, color:'var(--t3)' }}>Saved by: {form.savedBy || 'Unknown'}</div>
+                                </div>
+                                <div style={{ display:'flex', gap:6 }}>
+                                  <button onClick={handlePrintSaved}
+                                    style={{ background: accentColor, color:'#fff', border:'none', borderRadius:8,
+                                      padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer',
+                                      display:'flex', alignItems:'center', gap:4 }}>
+                                    <i className="ti ti-printer" /> Print
+                                  </button>
+                                  <button onClick={handleShare}
+                                    style={{ background:'#16a34a', color:'#fff', border:'none', borderRadius:8,
+                                      padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer',
+                                      display:'flex', alignItems:'center', gap:4 }}>
+                                    <i className="ti ti-share" /> Share
+                                  </button>
+                                </div>
+                              </div>
+                              {/* Rx preview */}
+                              <div style={{ fontSize:11, background:'var(--card-bg)', borderRadius:8,
+                                padding:'8px 10px', border:'1px solid var(--border)', whiteSpace:'pre-wrap', marginTop:4 }}>
+                                <span style={{ fontWeight:700, fontFamily:'serif', fontSize:16, marginRight:4 }}>℞</span>
+                                {form.rx || <span style={{ color:'var(--t3)' }}>No Rx content</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
               );
             })()}
 
