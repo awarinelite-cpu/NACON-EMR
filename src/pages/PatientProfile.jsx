@@ -1166,6 +1166,13 @@ export default function PatientProfile() {
                 if (!officialRx) setOfficialRx(defaultRx);
               };
 
+              // When the form is open, keep the rx field in sync with newly saved prescriptions.
+              // useEffect inside IIFE is fine here — IIFE always runs, so hook call order is stable.
+              useEffect(() => { // eslint-disable-line
+                if (!officialRx) return;
+                setOfficialRx(prev => ({ ...prev, rx: autoRxText }));
+              }, [autoRxText]); // eslint-disable-line
+
               const setR = (k, v) => setOfficialRx(r => ({ ...r, [k]: v }));
 
               // Print handler
