@@ -64,6 +64,7 @@ export default function PatientProfile() {
   const [noteText,  setNoteText]  = useState('');
   const [vitalForm, setVitalForm] = useState({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
   const [rxForm,    setRxForm]    = useState([{ drug:'', dose:'', frequency:'', duration:'' }]);
+  const [rxHistoryOpen, setRxHistoryOpen] = useState(false); // prescription history collapsed by default
   // Official printed Rx form state (NHIS for soldiers, NACON for civilians)
   const [officialRx,    setOfficialRx]    = useState(null);   // null = collapsed, object = open
   const [officialRxSaving, setOfficialRxSaving] = useState(false);
@@ -1046,22 +1047,45 @@ export default function PatientProfile() {
               </div>
             </div>}
             <div className="card">
-              <div className="card-header"><div className="card-title"><i className="ti ti-history" />Prescription History</div></div>
-              {rx.map(r => (
-                <div key={r.id} style={{ borderBottom:'1px solid var(--border)' }}>
-                  <div style={{ padding:'6px 16px', background:'var(--card-bg2)', display:'flex', gap:8, alignItems:'center' }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:'var(--t3)' }}>{formatDateTime(r.createdAt)} — {r.prescribedBy}</span>
-                    {r.requiresCountersign && <span className="badge badge-warn">Needs countersign</span>}
-                  </div>
-                  {r.drugs?.map((d,i) => (
-                    <div className="rx-row" key={i}>
-                      <div className="rx-drug">{d.drug} {d.dose}</div>
-                      <div className="rx-dose">{d.frequency} {d.duration}</div>
+              <div className="card-header"
+                onClick={() => setRxHistoryOpen(o => !o)}
+                style={{ cursor:'pointer', userSelect:'none' }}>
+                <div className="card-title">
+                  <i className="ti ti-history" />
+                  Prescription History
+                  {rx.length > 0 && (
+                    <span style={{ fontSize:10, fontWeight:700, background:'var(--accent)', color:'#fff',
+                      borderRadius:20, padding:'1px 7px', marginLeft:8 }}>
+                      {rx.length}
+                    </span>
+                  )}
+                </div>
+                <button style={{ background:'none', border:'1px solid var(--border)', borderRadius:8,
+                  padding:'4px 12px', cursor:'pointer', color:'var(--t2)',
+                  fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5 }}>
+                  <i className={`ti ${rxHistoryOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
+                  {rxHistoryOpen ? 'Collapse' : `Show${rx.length > 0 ? ` (${rx.length})` : ''}`}
+                </button>
+              </div>
+              {rxHistoryOpen && (
+                <div style={{ maxHeight:420, overflowY:'auto' }}>
+                  {rx.map(r => (
+                    <div key={r.id} style={{ borderBottom:'1px solid var(--border)' }}>
+                      <div style={{ padding:'6px 16px', background:'var(--card-bg2)', display:'flex', gap:8, alignItems:'center' }}>
+                        <span style={{ fontSize:11, fontWeight:700, color:'var(--t3)' }}>{formatDateTime(r.createdAt)} — {r.prescribedBy}</span>
+                        {r.requiresCountersign && <span className="badge badge-warn">Needs countersign</span>}
+                      </div>
+                      {r.drugs?.map((d,i) => (
+                        <div className="rx-row" key={i}>
+                          <div className="rx-drug">{d.drug} {d.dose}</div>
+                          <div className="rx-dose">{d.frequency} {d.duration}</div>
+                        </div>
+                      ))}
                     </div>
                   ))}
+                  {rx.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No prescriptions yet</div>}
                 </div>
-              ))}
-              {rx.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No prescriptions yet</div>}
+              )}
             </div>
 
             {/* ── OFFICIAL PRINTED Rx FORM (auto-selects based on patientIdentity) ── */}
