@@ -10,6 +10,7 @@ import {
   addGlucoseReading, uploadPatientFile, createReferral,
   dischargePatient, createVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
+  saveNHISForm, saveNACONForm,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
@@ -63,6 +64,10 @@ export default function PatientProfile() {
   const [noteText,  setNoteText]  = useState('');
   const [vitalForm, setVitalForm] = useState({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
   const [rxForm,    setRxForm]    = useState([{ drug:'', dose:'', frequency:'', duration:'' }]);
+  // Official printed Rx form state (NHIS for soldiers, NACON for civilians)
+  const [officialRx,    setOfficialRx]    = useState(null);   // null = collapsed, object = open
+  const [officialRxSaving, setOfficialRxSaving] = useState(false);
+  const officialRxPrintRef = useRef(null);
   const [fluidForm, setFluidForm] = useState({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
@@ -1052,6 +1057,336 @@ export default function PatientProfile() {
               ))}
               {rx.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No prescriptions yet</div>}
             </div>
+
+            {/* ── OFFICIAL PRINTED Rx FORM (auto-selects based on patientType) ── */}
+            {(() => {
+              const pType = patient.patientType; // 'soldier' | 'civilian'
+              if (!pType) return null; // only show if patientType was set at registration
+
+              const isSoldier  = pType === 'soldier';
+              const accentColor = isSoldier ? '#1d4ed8' : '#7c3aed';
+              const formLabel   = isSoldier ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
+              const formIcon    = isSoldier ? 'ti-shield-filled' : 'ti-user';
+
+              // Build a pre-filled Rx string from any current rxForm drugs
+              const autoRxText = rxForm
+                .filter(r => r.drug.trim())
+                .map(r => [r.drug, r.dose, r.frequency, r.duration].filter(Boolean).join('  '))
+                .join('\n');
+
+              // Compute patient age from DOB
+              const age = patient.dob
+                ? Math.floor((Date.now() - new Date(patient.dob)) / (365.25 * 24 * 3600 * 1000))
+                : '';
+
+              // Default form values pre-filled from patient record
+              const defaultRx = isSoldier
+                ? {
+                    patientName:     `${patient.surname || ''} ${patient.firstName || ''} ${patient.otherNames || ''}`.trim(),
+                    nhisId:          patient.hmo || patient.matricNo || '',
+                    address:         patient.homeAddress || '',
+                    age:             String(age),
+                    sex:             patient.sex || '',
+                    providerName:    'NACON MRS',
+                    date:            new Date().toISOString().split('T')[0],
+                    providerAddress: 'Nigerian Army College of Nursing, Yaba, Lagos',
+                    telFax:          '',
+                    rx:              autoRxText,
+                    prescriberName:  profile?.displayName || '',
+                    pharmacist:      '',
+                    pharmacy:        '',
+                    pharmacistNo:    '',
+                    nhisRegNo:       '',
+                    pcnRegNo:        '',
+                  }
+                : {
+                    patientName:     `${patient.surname || ''} ${patient.firstName || ''} ${patient.otherNames || ''}`.trim(),
+                    matricNo:        patient.matricNo || '',
+                    address:         patient.homeAddress || '',
+                    age:             String(age),
+                    sex:             patient.sex || '',
+                    class:           patient.classSet || '',
+                    date:            new Date().toISOString().split('T')[0],
+                    tel:             patient.tel || '',
+                    rx:              autoRxText,
+                    prescriberName:  profile?.displayName || '',
+                    pharmacyTel:     '',
+                  };
+
+              // Open the form with defaults on first click
+              const openOfficialRx = () => {
+                if (!officialRx) setOfficialRx(defaultRx);
+              };
+
+              const setR = (k, v) => setOfficialRx(r => ({ ...r, [k]: v }));
+
+              // Print handler
+              const handlePrint = () => {
+                const el = officialRxPrintRef.current;
+                if (!el) return;
+                const w = window.open('', '_blank', 'width=820,height=700');
+                w.document.write(`<!DOCTYPE html><html><head><title>${formLabel}</title>
+                  <style>
+                    *{box-sizing:border-box;margin:0;padding:0}
+                    body{font-family:'Times New Roman',Times,serif;background:#fff;color:#000;padding:28px}
+                    .uline{display:inline-block;border-bottom:1px solid #000;min-width:80px;vertical-align:bottom}
+                    .rx-box{border:2px solid #000;padding:8px;min-height:180px;font-size:12px;white-space:pre-wrap;margin:6px 0}
+                    @media print{body{padding:10px}}
+                  </style></head><body>${el.innerHTML}</body></html>`);
+                w.document.close(); w.focus();
+                setTimeout(() => w.print(), 400);
+              };
+
+              // Save handler
+              const handleSaveOfficial = async () => {
+                if (!officialRx?.patientName?.trim()) { toast.error('Patient name is required'); return; }
+                setOfficialRxSaving(true);
+                try {
+                  if (isSoldier) {
+                    await saveNHISForm({ ...officialRx, emrNumber }, profile.displayName);
+                  } else {
+                    await saveNACONForm({ ...officialRx, emrNumber }, profile.displayName);
+                  }
+                  toast.success(`${formLabel} saved to records`);
+                  setOfficialRx(null);
+                } catch(e) { toast.error('Failed to save'); }
+                setOfficialRxSaving(false);
+              };
+
+              // Shared field renderer
+              const F = {
+                line: { display:'inline-block', borderBottom:'1px solid #000', minWidth:100, verticalAlign:'bottom', fontSize:11 },
+                rxBox: { border:'2px solid #000', padding:8, minHeight:140, fontSize:12, whiteSpace:'pre-wrap', marginTop:4 },
+                rxSym: { fontWeight:'bold', fontSize:22, fontFamily:'serif', verticalAlign:'top', marginRight:4 },
+              };
+              const inp = { padding:'6px 8px', borderRadius:6, border:'1px solid var(--border)',
+                background:'var(--input-bg,#f4f4f4)', fontSize:12, width:'100%',
+                fontFamily:'inherit', color:'var(--t1)' };
+              const lbl = { fontSize:10, fontWeight:700, textTransform:'uppercase',
+                display:'block', marginBottom:2, color:'var(--t3)' };
+
+              return (
+                <div className="card" style={{ border:`2px solid ${accentColor}22` }}>
+                  {/* Collapsed header — click to open */}
+                  <div className="card-header"
+                    style={{ cursor:'pointer', userSelect:'none' }}
+                    onClick={openOfficialRx}>
+                    <div className="card-title" style={{ color: accentColor }}>
+                      <i className={`ti ${formIcon}`} style={{ color: accentColor }} />
+                      {formLabel}
+                      <span style={{ fontSize:10, fontWeight:400, color:'var(--t3)', marginLeft:8 }}>
+                        — patient info auto-filled
+                      </span>
+                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setOfficialRx(officialRx ? null : defaultRx); }}
+                      style={{ background:'none', border:`1px solid ${accentColor}`, borderRadius:8,
+                        padding:'4px 12px', cursor:'pointer', color: accentColor,
+                        fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5 }}>
+                      <i className={`ti ${officialRx ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
+                      {officialRx ? 'Collapse' : 'Open Form'}
+                    </button>
+                  </div>
+
+                  {officialRx && (
+                    <div className="card-body">
+                      {/* ── Editable fields ── */}
+                      {isSoldier ? (
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 14px', marginBottom:14 }}>
+                          {[
+                            { k:'patientName',     label:'Patient Name',           col:2, readOnly:true },
+                            { k:'nhisId',          label:'NHIS ID No.' },
+                            { k:'age',             label:'Age', readOnly:true },
+                            { k:'sex',             label:'Sex', readOnly:true },
+                            { k:'address',         label:'Patient Address',        col:2 },
+                            { k:'providerName',    label:'Provider Name',          col:2 },
+                            { k:'providerAddress', label:'Provider Address',       col:2 },
+                            { k:'date',            label:'Date', type:'date' },
+                            { k:'telFax',          label:'Tel / Fax' },
+                            { k:'rx',              label:'Rx — Drug, Dose, Duration (one per line)', col:2, ta:true },
+                            { k:'prescriberName',  label:"Prescriber's Name",      col:2 },
+                            { k:'pharmacist',      label:'Pharmacist Name' },
+                            { k:'pharmacy',        label:'Pharmacy Name' },
+                            { k:'pharmacistNo',    label:'Pharmacist No.' },
+                            { k:'nhisRegNo',       label:'NHIS Reg. No.' },
+                            { k:'pcnRegNo',        label:'PCN Reg. No.' },
+                          ].map(f => (
+                            <div key={f.k} style={{ gridColumn: f.col===2 ? 'span 2' : undefined }}>
+                              <label style={lbl}>{f.label}</label>
+                              {f.ta
+                                ? <textarea rows={3} style={{ ...inp, resize:'vertical', background: f.readOnly ? 'var(--card-bg2)' : undefined }}
+                                    value={officialRx[f.k]||''} onChange={e => setR(f.k, e.target.value)} />
+                                : <input style={{ ...inp, background: f.readOnly ? 'var(--card-bg2)' : undefined }}
+                                    type={f.type||'text'} readOnly={f.readOnly}
+                                    value={officialRx[f.k]||''} onChange={e => !f.readOnly && setR(f.k, e.target.value)} />
+                              }
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 14px', marginBottom:14 }}>
+                          {[
+                            { k:'patientName',   label:'Patient Name',  col:2, readOnly:true },
+                            { k:'matricNo',      label:'Matric No.',           readOnly:true },
+                            { k:'address',       label:'Address' },
+                            { k:'age',           label:'Age',                  readOnly:true },
+                            { k:'sex',           label:'Sex',                  readOnly:true },
+                            { k:'class',         label:'Class',                readOnly:true },
+                            { k:'date',          label:'Date', type:'date' },
+                            { k:'tel',           label:'Tel',                  readOnly:true },
+                            { k:'rx',            label:'Rx — Drug, Dose, Duration (one per line)', col:2, ta:true },
+                            { k:'prescriberName',label:"Prescriber's Name",    col:2 },
+                            { k:'pharmacyTel',   label:'Pharmacy Tel No.',     col:2 },
+                          ].map(f => (
+                            <div key={f.k} style={{ gridColumn: f.col===2 ? 'span 2' : undefined }}>
+                              <label style={lbl}>{f.label}</label>
+                              {f.ta
+                                ? <textarea rows={3} style={{ ...inp, resize:'vertical' }}
+                                    value={officialRx[f.k]||''} onChange={e => setR(f.k, e.target.value)} />
+                                : <input style={{ ...inp, background: f.readOnly ? 'var(--card-bg2)' : undefined }}
+                                    type={f.type||'text'} readOnly={f.readOnly}
+                                    value={officialRx[f.k]||''} onChange={e => !f.readOnly && setR(f.k, e.target.value)} />
+                              }
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* ── Print preview ── */}
+                      <div style={{ background:'#f8f8f8', border:'1px dashed #ccc', borderRadius:6, padding:10, marginBottom:14 }}>
+                        <div style={{ fontSize:9, color:'#999', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>Print Preview</div>
+                        <div ref={officialRxPrintRef}>
+                          {isSoldier ? (
+                            /* ── NHIS layout ── */
+                            <div style={{ fontFamily:"'Times New Roman',Times,serif", color:'#000', background:'#fff',
+                              border:'2px solid #000', padding:'14px 18px 18px', maxWidth:640, margin:'0 auto' }}>
+                              <div style={{ textAlign:'center', fontSize:14, fontWeight:'bold',
+                                textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>
+                                National Health Insurance Scheme
+                              </div>
+                              <div style={{ textAlign:'center', fontSize:12, fontWeight:'bold',
+                                textTransform:'uppercase', marginBottom:10, borderBottom:'2px solid #000', paddingBottom:6 }}>
+                                Prescription Form
+                              </div>
+                              <div style={{ fontSize:10, fontWeight:'bold', textTransform:'uppercase', marginBottom:4 }}>A. Patient's Identification</div>
+                              <div style={{ fontSize:11, marginBottom:5 }}>
+                                <b>Name: </b><span style={F.line}>{officialRx.patientName}</span>
+                                <span style={{ marginLeft:16 }}><b>NHIS ID: </b><span style={F.line}>{officialRx.nhisId}</span></span>
+                              </div>
+                              <div style={{ fontSize:11, marginBottom:5 }}>
+                                <b>Address: </b><span style={F.line}>{officialRx.address}</span>
+                                <span style={{ marginLeft:10 }}><b>Age: </b><span style={F.line}>{officialRx.age}</span></span>
+                                <span style={{ marginLeft:10 }}><b>Sex: </b><span style={F.line}>{officialRx.sex}</span></span>
+                              </div>
+                              <div style={{ fontSize:10, fontWeight:'bold', textTransform:'uppercase', margin:'8px 0 4px' }}>B. Healthcare Provider's Identification</div>
+                              <div style={{ fontSize:11, marginBottom:5 }}>
+                                <b>Name: </b><span style={F.line}>{officialRx.providerName}</span>
+                                <span style={{ marginLeft:16 }}><b>Date: </b><span style={F.line}>{officialRx.date}</span></span>
+                              </div>
+                              <div style={{ fontSize:11, marginBottom:8 }}>
+                                <b>Address: </b><span style={F.line}>{officialRx.providerAddress}</span>
+                                <span style={{ marginLeft:10 }}><b>Tel/Fax: </b><span style={F.line}>{officialRx.telFax}</span></span>
+                              </div>
+                              <div style={{ display:'flex', gap:4, alignItems:'flex-start' }}>
+                                <span style={F.rxSym}>Rx</span>
+                                <div style={{ ...F.rxBox, flex:1 }}>{officialRx.rx}</div>
+                              </div>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:11 }}>
+                                <div><b>Prescriber's Name: </b><span style={F.line}>{officialRx.prescriberName}</span></div>
+                                <div><b>Signature: </b><span style={{ ...F.line, minWidth:100 }}></span></div>
+                              </div>
+                              <div style={{ borderTop:'1px solid #000', margin:'10px 0' }} />
+                              <div style={{ fontSize:10, fontWeight:'bold', textTransform:'uppercase', marginBottom:6 }}>Pharmacy Provider Identification</div>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, fontSize:11 }}>
+                                {[
+                                  ['Pharmacist', officialRx.pharmacist],
+                                  ['Pharmacy',   officialRx.pharmacy],
+                                  ['No.',        officialRx.pharmacistNo],
+                                  ['NHIS Reg. No.', officialRx.nhisRegNo],
+                                  ['PCN Reg. No.',  officialRx.pcnRegNo],
+                                  ['Signature', ''],
+                                ].map(([l,v]) => (
+                                  <div key={l}><b>{l}: </b><span style={F.line}>{v}</span></div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── NACON Civilian layout ── */
+                            <div style={{ fontFamily:"'Times New Roman',Times,serif", color:'#000', background:'#fff',
+                              border:'2px solid #000', padding:'14px 18px 18px', maxWidth:600, margin:'0 auto' }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:6 }}>
+                                <div style={{ width:50, height:50, border:'2px solid #000', display:'flex',
+                                  alignItems:'center', justifyContent:'center', fontSize:7,
+                                  fontWeight:'bold', textAlign:'center', flexShrink:0, lineHeight:1.2 }}>
+                                  NACON<br/>CREST
+                                </div>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ fontWeight:'bold', textDecoration:'underline', fontStyle:'italic', fontSize:14 }}>
+                                    Nigerian Army College Of Nursing Yaba-Lagos
+                                  </div>
+                                  <div style={{ fontWeight:'bold', fontStyle:'italic', fontSize:11, textAlign:'center' }}>
+                                    Civilian Prescription Form
+                                  </div>
+                                </div>
+                                <div style={{ fontSize:9, fontWeight:'bold' }}>NACON MRS</div>
+                              </div>
+                              <div style={{ fontSize:11, fontWeight:'bold', marginBottom:5 }}>A. &nbsp;Patient's Identification</div>
+                              <div style={{ fontSize:11, marginBottom:4 }}>
+                                <b>NAME:—</b><span style={F.line}>{officialRx.patientName}</span>
+                                <span style={{ marginLeft:14 }}><b>MATRIC NO:—</b><span style={F.line}>{officialRx.matricNo}</span></span>
+                              </div>
+                              <div style={{ fontSize:11, marginBottom:4 }}>
+                                <b>ADDRESS:—</b><span style={F.line}>{officialRx.address}</span>
+                                <span style={{ marginLeft:10 }}><b>AGE:—</b><span style={F.line}>{officialRx.age}</span></span>
+                                <span style={{ marginLeft:8 }}><b>SEX:—</b><span style={F.line}>{officialRx.sex}</span></span>
+                              </div>
+                              <div style={{ fontSize:11, marginBottom:8 }}>
+                                <b>CLASS:—</b><span style={F.line}>{officialRx.class}</span>
+                                <span style={{ marginLeft:10 }}><b>DATE:—</b><span style={F.line}>{officialRx.date}</span></span>
+                                <span style={{ marginLeft:8 }}><b>TEL:—</b><span style={F.line}>{officialRx.tel}</span></span>
+                              </div>
+                              <div style={F.rxBox}>
+                                <span style={F.rxSym}>R<sub style={{fontSize:13}}>x</sub></span>
+                                <span style={{ fontSize:12, whiteSpace:'pre-wrap' }}>{officialRx.rx}</span>
+                              </div>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:11 }}>
+                                <div><b>PRESCRIBER'S NAME </b><span style={F.line}>{officialRx.prescriberName}</span></div>
+                                <div><b>SIGNATURE </b><span style={{ ...F.line, minWidth:110 }}></span></div>
+                              </div>
+                              <div style={{ fontSize:11, fontWeight:'bold', margin:'10px 0 5px' }}>B. &nbsp;Pharmacy Provider Identification</div>
+                              <div style={{ fontSize:11 }}>
+                                <b>TEL NO:—</b><span style={F.line}>{officialRx.pharmacyTel}</span>
+                                <span style={{ marginLeft:18 }}><b>SIGNATURE</b><span style={{ ...F.line, minWidth:130 }}></span></span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ── Action buttons ── */}
+                      <div style={{ display:'flex', gap:10 }}>
+                        <button onClick={handlePrint}
+                          style={{ flex:1, padding:'10px', background: accentColor, color:'#fff',
+                            border:'none', borderRadius:9, fontSize:13, fontWeight:700,
+                            cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+                          <i className="ti ti-printer" /> Print Form
+                        </button>
+                        <button onClick={handleSaveOfficial} disabled={officialRxSaving}
+                          style={{ flex:1, padding:'10px', background:'#16a34a', color:'#fff',
+                            border:'none', borderRadius:9, fontSize:13, fontWeight:700,
+                            cursor: officialRxSaving ? 'not-allowed' : 'pointer',
+                            opacity: officialRxSaving ? 0.7 : 1,
+                            display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+                          <i className="ti ti-device-floppy" />
+                          {officialRxSaving ? 'Saving…' : 'Save to Records'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
           </div>
         )}
 
