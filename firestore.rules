@@ -42,6 +42,14 @@ service cloud.firestore {
       allow read:  if isAnyStaff();
       allow write: if isClinical() || isAdmin();
     }
+    match /nhis_prescriptions/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /nacon_prescriptions/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
     match /fluid_charts/{doc} {
       allow read:  if isAnyStaff();
       allow write: if isClinical() || isAdmin();
