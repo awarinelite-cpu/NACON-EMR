@@ -9,6 +9,7 @@ const EMPTY = {
   surname:'', firstName:'', otherNames:'',
   dob:'', sex:'', maritalStatus:'', religion:'', tribe:'',
   placeOfOrigin:'', occupation:'Student',
+  patientType:'',   // 'soldier' | 'civilian' — drives which Rx form appears in profile
   matricNo:'', classSet:'', level:'', department:'Nursing Science',
   hmo:'', homeAddress:'', tel:'', email:'',
   nextOfKin:'', nextOfKinRel:'', nextOfKinTel:'', nextOfKinAddress:'',
@@ -35,6 +36,10 @@ export default function RegisterPatient() {
     }
     if (step === 1 && (!form.matricNo || !form.classSet)) {
       toast.error('Matric number and Class/SET are required');
+      return false;
+    }
+    if (step === 1 && !form.patientType) {
+      toast.error('Please select Patient Type — Soldier or Civilian');
       return false;
     }
     return true;
@@ -89,6 +94,7 @@ export default function RegisterPatient() {
                 <div style={{ fontSize:11, fontWeight:700, color:'var(--t3)', marginBottom:8, textTransform:'uppercase' }}>Patient details</div>
                 {[
                   ['Name',    `${form.surname} ${form.firstName} ${form.otherNames}`],
+                  ['Type',    form.patientType === 'soldier' ? '🪖 Soldier / Military' : form.patientType === 'civilian' ? '👤 Civilian' : '—'],
                   ['Class',   form.classSet],
                   ['Matric',  form.matricNo],
                   ['Sex',     form.sex],
@@ -236,13 +242,57 @@ export default function RegisterPatient() {
                   <i className="ti ti-search" />
                   These fields are used for patient search across the EMR — Nurses and Doctors will find this patient by their EMR number, full name, or class/SET.
                 </div>
+
+                {/* ── Patient Type selector — drives which Rx form appears in profile ── */}
+                <div style={{ marginBottom:18 }}>
+                  <label className="form-label" style={{ marginBottom:8, display:'block' }}>
+                    Patient Type <span className="req">*</span>
+                    <span style={{ fontWeight:400, color:'var(--t3)', marginLeft:6, fontSize:10 }}>
+                      — determines which prescription form appears on this patient's profile
+                    </span>
+                  </label>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                    {[
+                      { value:'soldier',  label:'Soldier / Military',  icon:'ti-shield-filled',   desc:'NHIS Prescription Form',            color:'#1d4ed8' },
+                      { value:'civilian', label:'Civilian',             icon:'ti-user',            desc:'NACON Civilian Prescription Form',  color:'#7c3aed' },
+                    ].map(opt => (
+                      <div key={opt.value}
+                        onClick={() => set('patientType', opt.value)}
+                        style={{
+                          border: `2px solid ${form.patientType === opt.value ? opt.color : 'var(--border)'}`,
+                          borderRadius:10, padding:'14px 16px', cursor:'pointer',
+                          background: form.patientType === opt.value ? opt.color + '12' : 'var(--card-bg2)',
+                          transition:'all 0.15s',
+                          display:'flex', alignItems:'center', gap:12,
+                        }}>
+                        <div style={{
+                          width:40, height:40, borderRadius:10,
+                          background: form.patientType === opt.value ? opt.color : 'var(--border)',
+                          display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+                        }}>
+                          <i className={`ti ${opt.icon}`} style={{ fontSize:20, color: form.patientType === opt.value ? '#fff' : 'var(--t3)' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:800, fontSize:13,
+                            color: form.patientType === opt.value ? opt.color : 'var(--t1)' }}>
+                            {opt.label}
+                          </div>
+                          <div style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>{opt.desc}</div>
+                        </div>
+                        {form.patientType === opt.value && (
+                          <i className="ti ti-circle-check" style={{ marginLeft:'auto', color:opt.color, fontSize:18 }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="form-grid-3" style={{ gap:14 }}>
                   {[
                     { id:'matricNo',    label:'Matric / registration number', req:true,  ph:'e.g. NACON/2023/0041' },
                     { id:'classSet',    label:'Class / SET',                  req:true,  ph:'e.g. SET 49' },
                     { id:'level',       label:'Level / year',                 req:false, ph:'e.g. Year 2' },
                     { id:'department',  label:'Department',                   req:false, ph:'e.g. Nursing Science' },
-                    { id:'occupation',  label:'Occupation / status',          req:false, select:['Student','Staff','Civilian'] },
+                    { id:'occupation',  label:'Occupation / status',          req:false, select:['Student','Staff','Civilian','Military'] },
                     { id:'hmo',         label:'HMO / NHIS number',            req:false, ph:'e.g. NHIS · ZONAL/79/1661' },
                   ].map(f => (
                     <div key={f.id} className="form-group">
