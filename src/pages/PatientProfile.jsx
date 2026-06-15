@@ -1058,12 +1058,14 @@ export default function PatientProfile() {
               {rx.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No prescriptions yet</div>}
             </div>
 
-            {/* ── OFFICIAL PRINTED Rx FORM (auto-selects based on patientType) ── */}
+            {/* ── OFFICIAL PRINTED Rx FORM (auto-selects based on patientIdentity) ── */}
             {(() => {
-              const pType = patient.patientType; // 'soldier' | 'civilian'
-              if (!pType) return null; // only show if patientType was set at registration
+              // patientIdentity: 'Soldier' | 'Civilian' (new field).
+              // Falls back to legacy patientType ('soldier' | 'civilian') for older records.
+              const rawIdentity = patient.patientIdentity || patient.patientType;
+              if (!rawIdentity) return null; // only show if identity was set at registration
 
-              const isSoldier  = pType === 'soldier';
+              const isSoldier   = String(rawIdentity).toLowerCase() === 'soldier';
               const accentColor = isSoldier ? '#1d4ed8' : '#7c3aed';
               const formLabel   = isSoldier ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
               const formIcon    = isSoldier ? 'ti-shield-filled' : 'ti-user';
