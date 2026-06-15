@@ -983,3 +983,43 @@ export function listenSickReportsMonthly(callback) {
     callback(monthly);
   });
 }
+
+
+// ═════════════════════════════════════════════
+// NHIS & NACON PRESCRIPTION FORM PERSISTENCE
+// ═════════════════════════════════════════════
+export async function saveNHISForm(formData, savedBy) {
+  const docRef = await addDoc(collection(db, 'nhis_prescriptions'), {
+    ...formData,
+    formType: 'NHIS',
+    savedBy,
+    savedAt:  serverTimestamp(),
+  });
+  await logAudit('NHIS_FORM_SAVE', docRef.id, savedBy, { patientName: formData.patientName });
+  return docRef.id;
+}
+
+export async function saveNACONForm(formData, savedBy) {
+  const docRef = await addDoc(collection(db, 'nacon_prescriptions'), {
+    ...formData,
+    formType: 'NACON_CIVILIAN',
+    savedBy,
+    savedAt:  serverTimestamp(),
+  });
+  await logAudit('NACON_FORM_SAVE', docRef.id, savedBy, { patientName: formData.patientName });
+  return docRef.id;
+}
+
+export function listenNHISForms(callback) {
+  const q = query(collection(db, 'nhis_prescriptions'), orderBy('savedAt', 'desc'));
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export function listenNACONForms(callback) {
+  const q = query(collection(db, 'nacon_prescriptions'), orderBy('savedAt', 'desc'));
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
