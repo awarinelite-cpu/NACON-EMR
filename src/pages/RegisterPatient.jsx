@@ -1,15 +1,15 @@
 // src/pages/RegisterPatient.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
-import { registerPatient, emrToFolderNumber } from '../lib/emr';
+import { registerPatient, getPatient, updatePatient, emrToFolderNumber } from '../lib/emr';
 
 const EMPTY = {
   surname:'', firstName:'', otherNames:'',
   dob:'', sex:'', maritalStatus:'', religion:'', tribe:'',
   placeOfOrigin:'', occupation:'Student',
-  patientType:'',   // 'soldier' | 'civilian' — drives which Rx form appears in profile
+  patientIdentity:'Civilian',   // 'Soldier' | 'Civilian'
   matricNo:'', classSet:'', level:'', department:'Nursing Science',
   hmo:'', homeAddress:'', tel:'', email:'',
   nextOfKin:'', nextOfKinRel:'', nextOfKinTel:'', nextOfKinAddress:'',
@@ -21,11 +21,28 @@ const STEP_LABELS = ['Identity', 'Academic Info', 'Contact', 'Medical Background
 export default function RegisterPatient() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
+  const { emrNumber: editEmr } = useParams(); // present on /records/edit/:emrNumber
+  const isEdit = !!editEmr;
 
   const [step,    setStep]    = useState(0);
   const [form,    setForm]    = useState(EMPTY);
   const [saving,  setSaving]  = useState(false);
   const [preview, setPreview] = useState(null); // { emrNumber, folderNumber }
+  const [loadingEdit, setLoadingEdit] = useState(isEdit);
+
+  // Load patient in edit mode
+  useEffect(() => {
+    if (!editEmr) return;
+    getPatient(editEmr).then(p => {
+      if (p) {
+        setForm({ ...EMPTY, ...p, patientIdentity: p.patientIdentity || p.patientType || 'Civilian' });
+      } else {
+        toast.error('Patient not found');
+        navigate(-1);
+      }
+      setLoadingEdit(false);
+    });
+  }, [editEmr]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -38,29 +55,39 @@ export default function RegisterPatient() {
       toast.error('Matric number and Class/SET are required');
       return false;
     }
-    if (step === 1 && !form.patientType) {
-      toast.error('Please select Patient Type — Soldier or Civilian');
-      return false;
-    }
     return true;
   };
 
-  const next = () => { if (validateStep()) setStep(s => Math.min(s + 1, 3)); };
+  const next = () => { if (isEdit || validateStep()) setStep(s => Math.min(s + 1, 3)); };
   const back = () => setStep(s => Math.max(s - 1, 0));
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
     setSaving(true);
     try {
-      const result = await registerPatient(form, profile?.displayName);
-      setPreview(result);
-      toast.success(`Patient registered! EMR: ${result.emrNumber}`);
+      if (isEdit) {
+        await updatePatient(editEmr, form, profile?.displayName);
+        toast.success('Patient record updated');
+        navigate(-1);
+      } else {
+        const result = await registerPatient(form, profile?.displayName);
+        setPreview(result);
+        toast.success(`Patient registered! EMR: ${result.emrNumber}`);
+      }
     } catch (err) {
-      toast.error('Registration failed. Please try again.');
+      toast.error((isEdit ? 'Update' : 'Registration') + ' failed. Please try again.');
       console.error(err);
     }
     setSaving(false);
   };
+
+  if (loadingEdit) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', gap:8, color:'var(--t3)', fontWeight:700 }}>
+      <i className="ti ti-loader-2" style={{ fontSize:22, animation:'spin 1s linear infinite' }} />
+      Loading patient record…
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
 
   // ── Success screen after registration
   if (preview) {
@@ -94,7 +121,7 @@ export default function RegisterPatient() {
                 <div style={{ fontSize:11, fontWeight:700, color:'var(--t3)', marginBottom:8, textTransform:'uppercase' }}>Patient details</div>
                 {[
                   ['Name',    `${form.surname} ${form.firstName} ${form.otherNames}`],
-                  ['Type',    form.patientType === 'soldier' ? '🪖 Soldier / Military' : form.patientType === 'civilian' ? '👤 Civilian' : '—'],
+                  ['Type',    form.patientIdentity === 'Soldier' ? '🪖 Soldier / Military' : '👤 Civilian'],
                   ['Class',   form.classSet],
                   ['Matric',  form.matricNo],
                   ['Sex',     form.sex],
@@ -132,9 +159,9 @@ export default function RegisterPatient() {
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
       <div className="topbar">
-        <div className="topbar-title">Register New Patient</div>
-        <button className="btn" onClick={() => navigate('/records')}>
-          <i className="ti ti-arrow-left" /> Cancel
+        <div className="topbar-title">{isEdit ? `Edit Patient — ${editEmr}` : 'Register New Patient'}</div>
+        <button className="btn" onClick={() => navigate(isEdit ? -1 : '/records')}>
+          <i className="ti ti-arrow-left" /> {isEdit ? 'Back' : 'Cancel'}
         </button>
       </div>
 
@@ -243,43 +270,43 @@ export default function RegisterPatient() {
                   These fields are used for patient search across the EMR — Nurses and Doctors will find this patient by their EMR number, full name, or class/SET.
                 </div>
 
-                {/* ── Patient Type selector — drives which Rx form appears in profile ── */}
+                {/* ── Patient Identity selector ── */}
                 <div style={{ marginBottom:18 }}>
                   <label className="form-label" style={{ marginBottom:8, display:'block' }}>
-                    Patient Type <span className="req">*</span>
+                    Patient Identity <span className="req">*</span>
                     <span style={{ fontWeight:400, color:'var(--t3)', marginLeft:6, fontSize:10 }}>
                       — determines which prescription form appears on this patient's profile
                     </span>
                   </label>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                     {[
-                      { value:'soldier',  label:'Soldier / Military',  icon:'ti-shield-filled',   desc:'NHIS Prescription Form',            color:'#1d4ed8' },
-                      { value:'civilian', label:'Civilian',             icon:'ti-user',            desc:'NACON Civilian Prescription Form',  color:'#7c3aed' },
+                      { value:'Soldier',  label:'Soldier / Military',  icon:'ti-shield-filled',   desc:'NHIS Prescription Form',            color:'#1d4ed8' },
+                      { value:'Civilian', label:'Civilian',             icon:'ti-user',            desc:'NACON Civilian Prescription Form',  color:'#7c3aed' },
                     ].map(opt => (
                       <div key={opt.value}
-                        onClick={() => set('patientType', opt.value)}
+                        onClick={() => set('patientIdentity', opt.value)}
                         style={{
-                          border: `2px solid ${form.patientType === opt.value ? opt.color : 'var(--border)'}`,
+                          border: `2px solid ${form.patientIdentity === opt.value ? opt.color : 'var(--border)'}`,
                           borderRadius:10, padding:'14px 16px', cursor:'pointer',
-                          background: form.patientType === opt.value ? opt.color + '12' : 'var(--card-bg2)',
+                          background: form.patientIdentity === opt.value ? opt.color + '12' : 'var(--card-bg2)',
                           transition:'all 0.15s',
                           display:'flex', alignItems:'center', gap:12,
                         }}>
                         <div style={{
                           width:40, height:40, borderRadius:10,
-                          background: form.patientType === opt.value ? opt.color : 'var(--border)',
+                          background: form.patientIdentity === opt.value ? opt.color : 'var(--border)',
                           display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
                         }}>
-                          <i className={`ti ${opt.icon}`} style={{ fontSize:20, color: form.patientType === opt.value ? '#fff' : 'var(--t3)' }} />
+                          <i className={`ti ${opt.icon}`} style={{ fontSize:20, color: form.patientIdentity === opt.value ? '#fff' : 'var(--t3)' }} />
                         </div>
                         <div>
                           <div style={{ fontWeight:800, fontSize:13,
-                            color: form.patientType === opt.value ? opt.color : 'var(--t1)' }}>
+                            color: form.patientIdentity === opt.value ? opt.color : 'var(--t1)' }}>
                             {opt.label}
                           </div>
                           <div style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>{opt.desc}</div>
                         </div>
-                        {form.patientType === opt.value && (
+                        {form.patientIdentity === opt.value && (
                           <i className="ti ti-circle-check" style={{ marginLeft:'auto', color:opt.color, fontSize:18 }} />
                         )}
                       </div>
@@ -377,7 +404,9 @@ export default function RegisterPatient() {
                   <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
                     {saving
                       ? <><i className="ti ti-loader-2" style={{animation:'spin 1s linear infinite'}} /> Saving…</>
-                      : <><i className="ti ti-device-floppy" /> Save &amp; generate EMR</>}
+                      : isEdit
+                        ? <><i className="ti ti-device-floppy" /> Save changes</>
+                        : <><i className="ti ti-device-floppy" /> Save &amp; generate EMR</>}
                   </button>
                 )}
               </div>

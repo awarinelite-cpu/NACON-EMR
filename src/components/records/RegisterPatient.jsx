@@ -1,8 +1,8 @@
 // src/components/records/RegisterPatient.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
-import { registerPatient, searchPatients } from '../../lib/emr';
+import { registerPatient, searchPatients, getPatient, updatePatient } from '../../lib/emr';
 import toast from 'react-hot-toast';
 
 const EMPTY = {
@@ -15,22 +15,44 @@ const EMPTY = {
   nextOfKin:'', nextOfKinPhone:'', nextOfKinRelationship:'',
   knownAllergies:'', bloodGroup:'', genotype:'',
   xRayNumber:'',
+  patientIdentity:'Civilian',
 };
 
-export default function RegisterPatient() {
+// Pass emrNumber prop to enter edit mode for existing patient
+export default function RegisterPatient({ emrNumber: editEmr }) {
   const { profile }  = useAuth();
   const navigate     = useNavigate();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving]       = useState(false);
-  const [generated, setGenerated] = useState(null);  // { emrNumber, folderNumber }
-  const [dupCheck, setDupCheck]   = useState(null);  // possible duplicates
+  const [generated, setGenerated] = useState(null);
+  const [dupCheck, setDupCheck]   = useState(null);
   const [checking, setChecking]   = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(!!editEmr);
+
+  const isEdit = !!editEmr;
+
+  // Load existing patient data in edit mode
+  useEffect(() => {
+    if (!editEmr) return;
+    getPatient(editEmr).then(p => {
+      if (p) {
+        setForm({
+          ...EMPTY,
+          ...p,
+          patientIdentity: p.patientIdentity || 'Civilian',
+        });
+      } else {
+        toast.error('Patient not found');
+        navigate(-1);
+      }
+      setLoadingEdit(false);
+    });
+  }, [editEmr]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Check for duplicates before final save
   const checkDuplicates = async () => {
-    if (!form.surname || !form.firstName) return;
+    if (isEdit || !form.surname || !form.firstName) return;
     setChecking(true);
     const found = await searchPatients(`${form.surname} ${form.firstName}`);
     setDupCheck(found);
@@ -45,16 +67,30 @@ export default function RegisterPatient() {
 
     setSaving(true);
     try {
-      const result = await registerPatient(form, profile?.displayName);
-      setGenerated(result);
-      toast.success(`Patient registered! EMR: ${result.emrNumber}`);
+      if (isEdit) {
+        await updatePatient(editEmr, form, profile?.displayName);
+        toast.success('Patient record updated');
+        navigate(-1);
+      } else {
+        const result = await registerPatient(form, profile?.displayName);
+        setGenerated(result);
+        toast.success(`Patient registered! EMR: ${result.emrNumber}`);
+      }
     } catch (err) {
-      toast.error('Registration failed: ' + err.message);
+      toast.error((isEdit ? 'Update' : 'Registration') + ' failed: ' + err.message);
     }
     setSaving(false);
   };
 
-  // ── SUCCESS STATE ──
+  if (loadingEdit) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, gap:8, color:'var(--t3)', fontWeight:700 }}>
+      <i className="ti ti-loader-2" style={{ fontSize:22, animation:'spin 1s linear infinite' }} />
+      Loading patient record…
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  // ── SUCCESS STATE (register only) ──
   if (generated) {
     return (
       <div>
@@ -115,25 +151,38 @@ export default function RegisterPatient() {
   return (
     <div style={{ maxWidth:900 }}>
 
-      {/* EMR Banner */}
-      <div className="emr-banner">
-        <div style={{ width:42, height:42, borderRadius:10, background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <i className="ti ti-id-badge" style={{ fontSize:22, color:'#FFF' }} />
-        </div>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'var(--info)', textTransform:'uppercase', letterSpacing:'.04em' }}>
-            EMR Number
-          </div>
-          <div className="emr-number">Auto-generated on save</div>
-          <div style={{ fontSize:11, color:'var(--t3)', fontWeight:500, marginTop:2 }}>
-            Format: EMR-{new Date().getFullYear()}-XXXX · Unique · Cannot be changed after creation
+      {/* Edit mode banner */}
+      {isEdit && (
+        <div className="alert alert-info" style={{ marginBottom:16 }}>
+          <i className="ti ti-edit" style={{ fontSize:18 }} />
+          <div>
+            <div style={{ fontWeight:700 }}>Editing existing patient record</div>
+            <div style={{ fontSize:11, marginTop:2 }}>EMR: <strong>{editEmr}</strong> · Changes are saved immediately and logged.</div>
           </div>
         </div>
-        <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>Folder No.</div>
-          <div style={{ fontSize:16, fontWeight:700, color:'var(--t2)', fontFamily:'var(--mono)' }}>FN: XXXX/{String(new Date().getFullYear()).slice(2)}</div>
+      )}
+
+      {/* EMR Banner (register only) */}
+      {!isEdit && (
+        <div className="emr-banner">
+          <div style={{ width:42, height:42, borderRadius:10, background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <i className="ti ti-id-badge" style={{ fontSize:22, color:'#FFF' }} />
+          </div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--info)', textTransform:'uppercase', letterSpacing:'.04em' }}>
+              EMR Number
+            </div>
+            <div className="emr-number">Auto-generated on save</div>
+            <div style={{ fontSize:11, color:'var(--t3)', fontWeight:500, marginTop:2 }}>
+              Format: EMR-{new Date().getFullYear()}-XXXX · Unique · Cannot be changed after creation
+            </div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>Folder No.</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--t2)', fontFamily:'var(--mono)' }}>FN: XXXX/{String(new Date().getFullYear()).slice(2)}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Duplicate check warning */}
       {dupCheck && dupCheck.length > 0 && (
@@ -157,6 +206,38 @@ export default function RegisterPatient() {
           </div>
         </div>
       )}
+
+      {/* ── SECTION: PATIENT IDENTITY ── */}
+      <div className="card" style={{ marginBottom:12 }}>
+        <div className="card-header">
+          <div className="card-title"><i className="ti ti-shield" />Patient Identity</div>
+          <span className="badge badge-info">Required</span>
+        </div>
+        <div className="card-body">
+          <div className="form-group" style={{ maxWidth:320 }}>
+            <label className="form-label">Patient category<span className="req">*</span></label>
+            <div style={{ display:'flex', gap:8, marginTop:4 }}>
+              {['Soldier','Civilian'].map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => set('patientIdentity', opt)}
+                  style={{
+                    flex:1, padding:'10px 0', borderRadius:8, border:'2px solid',
+                    fontWeight:700, fontSize:13, cursor:'pointer', transition:'all .15s',
+                    borderColor: form.patientIdentity === opt ? 'var(--accent)' : 'var(--border)',
+                    background: form.patientIdentity === opt ? 'var(--accent-bg)' : 'var(--bg)',
+                    color: form.patientIdentity === opt ? 'var(--accent)' : 'var(--t2)',
+                  }}
+                >
+                  <i className={`ti ${opt === 'Soldier' ? 'ti-shield-check' : 'ti-user'}`}
+                    style={{ display:'block', fontSize:20, marginBottom:4 }} />
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ── SECTION: IDENTITY ── */}
       <div className="card" style={{ marginBottom:12 }}>
@@ -221,7 +302,7 @@ export default function RegisterPatient() {
         </div>
       </div>
 
-      {/* ── SECTION: ACADEMIC (search criteria) ── */}
+      {/* ── SECTION: ACADEMIC ── */}
       <div className="card" style={{ marginBottom:12 }}>
         <div className="card-header">
           <div className="card-title"><i className="ti ti-school" />Academic Info — used for patient search</div>
@@ -359,13 +440,17 @@ export default function RegisterPatient() {
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', padding:'4px 0 20px' }}>
         <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={saving}>
           {saving
-            ? <><i className="ti ti-loader-2" style={{ animation:'spin 1s linear infinite' }} /> Registering…</>
-            : <><i className="ti ti-user-check" /> Save &amp; Generate EMR Number</>
+            ? <><i className="ti ti-loader-2" style={{ animation:'spin 1s linear infinite' }} /> {isEdit ? 'Saving…' : 'Registering…'}</>
+            : isEdit
+              ? <><i className="ti ti-device-floppy" /> Save Changes</>
+              : <><i className="ti ti-user-check" /> Save &amp; Generate EMR Number</>
           }
         </button>
-        <button className="btn btn-lg" onClick={() => setForm(EMPTY)}>
-          <i className="ti ti-eraser" /> Clear form
-        </button>
+        {!isEdit && (
+          <button className="btn btn-lg" onClick={() => setForm(EMPTY)}>
+            <i className="ti ti-eraser" /> Clear form
+          </button>
+        )}
         <button className="btn btn-lg" onClick={() => navigate(-1)}>
           <i className="ti ti-arrow-left" /> Cancel
         </button>

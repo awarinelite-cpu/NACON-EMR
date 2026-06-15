@@ -167,6 +167,9 @@ export default function App() {
             <Route path="/records/register" element={
               <ProtectedRoute allowedRoles={['records']}><RegisterPatient /></ProtectedRoute>
             } />
+            <Route path="/records/edit/:emrNumber" element={
+              <ProtectedRoute allowedRoles={['records']}><RegisterPatient /></ProtectedRoute>
+            } />
             <Route path="/records/patients" element={
               <ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>
             } />

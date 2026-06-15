@@ -243,7 +243,7 @@ export default function PatientProfile({ backPath }) {
             )}
             <RxForm emr={emr} profile={profile} role={role}
               onSaved={() => toast.success('Prescription saved')} />
-            <RxHistory rxList={rxList} />
+            <RxHistory rxList={rxList} patient={patient} />
           </>
         )}
 
@@ -318,6 +318,7 @@ export default function PatientProfile({ backPath }) {
 function BioCard({ patient }) {
   const fields = [
     ['Full name',        `${patient.surname} ${patient.firstName} ${patient.otherNames || ''}`],
+    ['Patient identity', patient.patientIdentity || patient.patientType || '—'],
     ['Date of birth',    patient.dob],
     ['Sex',              patient.sex],
     ['Marital status',   patient.maritalStatus],
@@ -642,26 +643,204 @@ function RxForm({ emr, profile, role, onSaved }) {
   );
 }
 
-function RxHistory({ rxList }) {
+function RxHistory({ rxList, patient }) {
+  const [openId, setOpenId] = useState(null);
+
   if (!rxList.length) return null;
+
+  // Group prescriptions by date string (same day + same minute = same session)
+  // We group by: prescribedBy + truncated-to-minute timestamp
+  const grouped = [];
+  const seenKeys = {};
+  rxList.forEach(rx => {
+    const ts = rx.createdAt?.seconds || 0;
+    // Round to nearest minute for grouping prescriptions saved in quick succession
+    const minute = Math.floor(ts / 60);
+    const key = `${rx.prescribedBy}__${minute}`;
+    if (!seenKeys[key]) {
+      seenKeys[key] = { key, at: rx.createdAt, by: rx.prescribedBy, requiresCountersign: rx.requiresCountersign, rxs: [] };
+      grouped.push(seenKeys[key]);
+    }
+    seenKeys[key].rxs.push(rx);
+  });
+
+  const handleShare = (group) => {
+    const patientName = patient ? `${patient.surname} ${patient.firstName} ${patient.otherNames||''}`.trim() : '';
+    const emrNo = patient?.emrNumber || '';
+    const dateStr = formatDateTime(group.at);
+    const drugLines = group.rxs.flatMap(rx =>
+      (rx.drugs||[]).map(d => `• ${d.name} ${d.dose} — ${d.frequency} ${d.duration}`)
+    ).join('\n');
+    const text =
+`NACON EMR — Prescription
+Patient: ${patientName}
+EMR: ${emrNo}
+Date: ${dateStr}
+Prescribed by: ${group.by}${group.requiresCountersign ? ' (Nurse Rx — awaiting countersign)' : ''}
+
+MEDICATIONS:
+${drugLines}
+
+— Nigerian Army College of Nursing (NACON), Yaba, Lagos`;
+
+    if (navigator.share) {
+      navigator.share({ title: `Prescription — ${patientName}`, text }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(text).then(() => toast.success('Copied to clipboard'));
+    }
+  };
+
+  const handleReprint = (group) => {
+    const patientName = patient ? `${patient.surname} ${patient.firstName} ${patient.otherNames||''}`.trim() : '';
+    const emrNo   = patient?.emrNumber || '';
+    const folder  = patient?.folderNumber || '';
+    const dateStr = formatDateTime(group.at);
+    const drugRows = group.rxs.flatMap(rx =>
+      (rx.drugs||[]).map(d =>
+        `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${d.name}</td><td style="padding:6px 8px;border-bottom:1px solid #eee">${d.dose||'—'}</td><td style="padding:6px 8px;border-bottom:1px solid #eee">${d.frequency||'—'}</td><td style="padding:6px 8px;border-bottom:1px solid #eee">${d.duration||'—'}</td></tr>`
+      )
+    ).join('');
+    const html = `<!DOCTYPE html><html><head><title>Prescription</title>
+<style>body{font-family:Arial,sans-serif;padding:32px;max-width:700px;margin:auto}
+h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}
+th{background:#1855A3;color:#fff;padding:8px;text-align:left}
+.header{border-bottom:2px solid #1855A3;padding-bottom:12px;margin-bottom:16px}
+.badge{display:inline-block;background:#FFF3CD;color:#856404;padding:2px 8px;border-radius:4px;font-size:11px}
+@media print{button{display:none}}</style></head><body>
+<div class="header">
+  <h2>NACON EMR — Prescription</h2>
+  <div style="font-size:13px;color:#555">Nigerian Army College of Nursing, Yaba, Lagos</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;margin-bottom:16px">
+  <div><strong>Patient:</strong> ${patientName}</div>
+  <div><strong>EMR No:</strong> ${emrNo}</div>
+  <div><strong>Folder:</strong> ${folder}</div>
+  <div><strong>Date:</strong> ${dateStr}</div>
+  <div><strong>Prescribed by:</strong> ${group.by}</div>
+  ${group.requiresCountersign ? '<div><span class="badge">⚠ Nurse Rx — Countersign needed</span></div>' : ''}
+</div>
+<table>
+  <thead><tr><th>Drug</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead>
+  <tbody>${drugRows}</tbody>
+</table>
+<div style="margin-top:32px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:12px">
+  Printed from NACON EMR · ${new Date().toLocaleString()}
+</div>
+<br><button onclick="window.print()">🖨 Print</button>
+</body></html>`;
+    const win = window.open('','_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+  };
+
   return (
     <div className="card">
-      <div className="card-header"><div className="card-title"><i className="ti ti-history" />Prescription History</div></div>
-      {rxList.map(rx => (
-        <div key={rx.id} style={{ borderBottom:'1px solid var(--border)' }}>
-          <div style={{ padding:'8px 14px 4px', display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:11, fontWeight:700, color:'var(--t3)' }}>{formatDateTime(rx.createdAt)} · {rx.prescribedBy}</span>
-            {rx.requiresCountersign && <span className="badge badge-warn">⚠ Nurse Rx — needs countersign</span>}
-          </div>
-          {(rx.drugs||[]).map((d,i) => (
-            <div className="rx-row" key={i}>
-              <div className="rx-drug">{d.name} {d.dose}</div>
-              <div className="rx-dose">{d.frequency} {d.duration}</div>
-              <span className="badge badge-ok" style={{ fontSize:9 }}>Prescribed</span>
+      <div className="card-header">
+        <div className="card-title"><i className="ti ti-history" />Prescription History</div>
+        <span style={{ fontSize:11, fontWeight:600, color:'var(--t3)' }}>{grouped.length} session{grouped.length!==1?'s':''}</span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        {grouped.map((group, gi) => {
+          const isOpen = openId === group.key;
+          const drugCount = group.rxs.reduce((s,r) => s + (r.drugs?.length||0), 0);
+          return (
+            <div key={group.key} style={{ borderBottom:'1px solid var(--border)' }}>
+              {/* ── SESSION ROW (collapsed header) ── */}
+              <div
+                onClick={() => setOpenId(isOpen ? null : group.key)}
+                style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+                  cursor:'pointer', background: isOpen ? 'var(--accent-bg)' : 'transparent',
+                  transition:'background .15s',
+                }}
+              >
+                <div style={{
+                  width:32, height:32, borderRadius:8, flexShrink:0,
+                  background:'#1855A3', display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <i className="ti ti-pill" style={{ fontSize:15, color:'#fff' }} />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)' }}>
+                    {formatDateTime(group.at)}
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--t3)', fontWeight:500, marginTop:1 }}>
+                    {drugCount} medication{drugCount!==1?'s':''} · {group.by}
+                    {group.requiresCountersign && (
+                      <span className="badge badge-warn" style={{ fontSize:9, marginLeft:6 }}>⚠ Nurse Rx</span>
+                    )}
+                  </div>
+                </div>
+                <i className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`}
+                  style={{ fontSize:16, color:'var(--t3)', flexShrink:0 }} />
+              </div>
+
+              {/* ── EXPANDED CONTENT ── */}
+              {isOpen && (
+                <div style={{ padding:'0 14px 14px', background:'var(--accent-bg)' }}>
+                  {/* Drug table */}
+                  <div style={{
+                    background:'var(--bg)', borderRadius:8, border:'1px solid var(--border)',
+                    overflow:'hidden', marginBottom:12,
+                  }}>
+                    <div style={{
+                      display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr',
+                      padding:'6px 12px', background:'rgba(24,85,163,.08)',
+                      borderBottom:'1px solid var(--border)',
+                    }}>
+                      {['Drug','Dose','Frequency','Duration'].map(h => (
+                        <div key={h} style={{ fontSize:9, fontWeight:700, color:'#1855A3', textTransform:'uppercase', letterSpacing:'.04em' }}>{h}</div>
+                      ))}
+                    </div>
+                    {group.rxs.flatMap(rx => rx.drugs||[]).map((d, di) => (
+                      <div key={di} style={{
+                        display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr',
+                        padding:'8px 12px', borderBottom:'1px solid var(--border)',
+                        background: di%2===0 ? 'transparent' : 'rgba(0,0,0,.02)',
+                      }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)' }}>{d.name}</div>
+                        <div style={{ fontSize:12, color:'var(--t2)', fontWeight:600 }}>{d.dose||'—'}</div>
+                        <div style={{ fontSize:12, color:'var(--t2)' }}>{d.frequency||'—'}</div>
+                        <div style={{ fontSize:12, color:'var(--t3)' }}>{d.duration||'—'}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Prescription meta */}
+                  <div style={{
+                    padding:'8px 12px', borderRadius:8, background:'rgba(24,85,163,.05)',
+                    border:'1px solid rgba(24,85,163,.12)', marginBottom:12,
+                    fontSize:11, color:'var(--t3)', display:'flex', gap:16, flexWrap:'wrap',
+                  }}>
+                    <span><strong style={{color:'var(--t2)'}}>Prescribed by:</strong> {group.by}</span>
+                    <span><strong style={{color:'var(--t2)'}}>Date:</strong> {formatDateTime(group.at)}</span>
+                    {group.requiresCountersign && (
+                      <span className="badge badge-warn">⚠ Nurse Rx — countersign required</span>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleReprint(group)}
+                      style={{ display:'flex', alignItems:'center', gap:6, fontWeight:700 }}
+                    >
+                      <i className="ti ti-printer" /> Reprint
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleShare(group)}
+                      style={{ display:'flex', alignItems:'center', gap:6, fontWeight:700, background:'rgba(24,85,163,.1)', borderColor:'rgba(24,85,163,.2)', color:'#1855A3' }}
+                    >
+                      <i className="ti ti-share" /> Share
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }

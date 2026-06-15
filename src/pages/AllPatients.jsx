@@ -83,12 +83,32 @@ export default function AllPatients({ role, filter }) {
               </div>
               <div className="p-info">
                 <div className="p-name">{p.surname} {p.firstName} {p.otherNames}</div>
-                <div className="p-meta">{p.classSet} · {p.folderNumber} · {p.matricNo}</div>
+                <div className="p-meta">{p.classSet} · {p.folderNumber} · {p.matricNo}
+                  {p.patientIdentity && (
+                    <span style={{
+                      marginLeft:6, fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:4,
+                      background: p.patientIdentity === 'Soldier' ? 'rgba(29,78,216,.12)' : 'rgba(124,58,237,.12)',
+                      color: p.patientIdentity === 'Soldier' ? '#1d4ed8' : '#7c3aed',
+                    }}>
+                      {p.patientIdentity === 'Soldier' ? '🪖' : '👤'} {p.patientIdentity}
+                    </span>
+                  )}
+                </div>
               </div>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                 <span className="emr-tag">{p.emrNumber}</span>
                 <span className={`badge ${statusCls(p.status)}`}>{p.status}</span>
               </div>
+              {role === 'records' && (
+                <button
+                  className="btn btn-sm"
+                  onClick={e => { e.stopPropagation(); navigate(`/records/edit/${p.emrNumber}`); }}
+                  style={{ marginLeft:4, flexShrink:0 }}
+                  title="Edit patient record"
+                >
+                  <i className="ti ti-edit" />
+                </button>
+              )}
               <i className="ti ti-chevron-right" style={{ fontSize:16, color:'var(--t3)', marginLeft:4 }} />
             </div>
           ))}
