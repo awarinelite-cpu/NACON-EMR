@@ -1151,15 +1151,19 @@ export default function PatientProfile() {
               const handleSaveOfficial = async () => {
                 if (!officialRx?.patientName?.trim()) { toast.error('Patient name is required'); return; }
                 setOfficialRxSaving(true);
+                const savedBy = profile?.displayName || profile?.email || 'Unknown';
                 try {
                   if (isSoldier) {
-                    await saveNHISForm({ ...officialRx, emrNumber }, profile.displayName);
+                    await saveNHISForm({ ...officialRx, emrNumber }, savedBy);
                   } else {
-                    await saveNACONForm({ ...officialRx, emrNumber }, profile.displayName);
+                    await saveNACONForm({ ...officialRx, emrNumber }, savedBy);
                   }
                   toast.success(`${formLabel} saved to records`);
                   setOfficialRx(null);
-                } catch(e) { toast.error('Failed to save'); }
+                } catch(e) {
+                  console.error('handleSaveOfficial', e);
+                  toast.error('Failed to save: ' + (e?.message || e));
+                }
                 setOfficialRxSaving(false);
               };
 
