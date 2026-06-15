@@ -136,6 +136,30 @@ export default function PatientProfile() {
     return () => unsubs.forEach(u => u && u());
   }, [emrNumber]);
 
+  // Auto-sync the official Rx form's drug field whenever new prescriptions are saved.
+  // Runs at top level (not inside IIFE) so React hook rules are respected.
+  useEffect(() => {
+    if (!officialRx) return;
+    // Compute cutoff: latest saved official form timestamp, persists across reloads
+    const lastSavedFormAt = savedForms.length > 0
+      ? (savedForms[0].savedAt?.seconds || 0) * 1000
+      : 0;
+    const cutoff = Math.max(lastSavedFormAt, officialRxSavedAt || 0);
+    const newRxLines = rx
+      .filter(r => {
+        const ts = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : (r.createdAt || 0);
+        return ts > cutoff;
+      })
+      .flatMap(r => r.drugs || [])
+      .map(d => [d.drug, d.dose, d.frequency, d.duration].filter(Boolean).join('  '))
+      .filter(Boolean);
+    const draftLines = rxForm
+      .filter(r => r.drug.trim())
+      .map(r => [r.drug, r.dose, r.frequency, r.duration].filter(Boolean).join('  '));
+    const autoRxText = [...newRxLines, ...draftLines].join('\n');
+    setOfficialRx(prev => prev ? { ...prev, rx: autoRxText } : prev);
+  }, [rx, rxForm, savedForms, officialRxSavedAt]);
+
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--main-bg)' }}>
       <i className="ti ti-loader-2" style={{ fontSize:32, animation:'spin 1s linear infinite', color:'var(--accent)' }} />
@@ -1165,13 +1189,6 @@ export default function PatientProfile() {
               const openOfficialRx = () => {
                 if (!officialRx) setOfficialRx(defaultRx);
               };
-
-              // When the form is open, keep the rx field in sync with newly saved prescriptions.
-              // useEffect inside IIFE is fine here — IIFE always runs, so hook call order is stable.
-              useEffect(() => { // eslint-disable-line
-                if (!officialRx) return;
-                setOfficialRx(prev => ({ ...prev, rx: autoRxText }));
-              }, [autoRxText]); // eslint-disable-line
 
               const setR = (k, v) => setOfficialRx(r => ({ ...r, [k]: v }));
 
