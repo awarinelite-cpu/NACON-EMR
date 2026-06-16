@@ -361,8 +361,19 @@ export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, 
     prescribedByRole: role,
     requiresCountersign: role === ROLES.NURSE,
     countersigned: false,
+    dispensed: true,          // auto-dispensed inline at point of prescription
+    dispensedBy: prescribedBy,
+    dispensedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
   });
+
+  // Immediately deduct each drug from pharmacy inventory
+  for (const drug of rxData) {
+    if (drug.name?.trim()) {
+      await deductInventory(drug.name.trim(), Number(drug.qty) || 1, emrNumber, prescribedBy);
+    }
+  }
+
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
   await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE });
   return ref.id;
@@ -451,6 +462,40 @@ export async function uploadPatientFile(emrNumber, visitId, file, category, uplo
 
   await logAudit('FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, category });
   await markSeenIfReportedSickToday(emrNumber, uploadedBy);
+  return { id: docRef.id, downloadUrl: url };
+}
+
+/** Upload a document file tied to a lab request (report, scan, etc.) */
+export async function uploadLabResultFile(emrNumber, requestId, file, uploadedBy) {
+  const path = `patients/${emrNumber}/lab_results/${Date.now()}_${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+
+  // Store as a patient upload with category 'lab_result'
+  const docRef = await addDoc(collection(db, COL.UPLOADS), {
+    emrNumber,
+    requestId: requestId || null,
+    fileName:    file.name,
+    fileType:    file.type,
+    fileSize:    file.size,
+    storagePath: path,
+    downloadUrl: url,
+    category:    'lab_result',
+    uploadedBy,
+    uploadedAt:  serverTimestamp(),
+  });
+
+  // Attach file reference on the request document too
+  if (requestId) {
+    await updateDoc(doc(db, COL.LAB_REQUESTS, requestId), {
+      attachedFile:     url,
+      attachedFileName: file.name,
+      updatedAt:        serverTimestamp(),
+    });
+  }
+
+  await logAudit('LAB_FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, requestId });
   return { id: docRef.id, downloadUrl: url };
 }
 
@@ -724,6 +769,12 @@ export async function addInventoryItem(data, addedBy) {
 export async function updateInventoryItem(id, data, updatedBy) {
   await updateDoc(doc(db, COL.INVENTORY, id), { ...data, updatedAt: serverTimestamp() });
   await logAudit('INVENTORY_UPDATE', id, updatedBy, data);
+}
+
+/** One-time fetch of all inventory items (for stock-check during prescription) */
+export async function getInventorySnapshot() {
+  const snap = await getDocs(collection(db, COL.INVENTORY));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function deductInventory(drugName, qty, emrNumber, dispensedBy) {

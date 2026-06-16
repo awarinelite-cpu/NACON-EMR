@@ -1,10 +1,11 @@
 // src/pages/LabDashboard.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import {
   listenLabRequests, enterLabResults,
   updateLabRequestStatus, formatTs, LAB_TESTS,
+  uploadLabResultFile,
 } from '../lib/emr';
 import toast from 'react-hot-toast';
 
@@ -24,12 +25,16 @@ const FLAG_STYLE = {
 export default function LabDashboard() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
-  const [requests,  setRequests]  = useState([]);
-  const [tab,       setTab]       = useState('pending');  // pending|processing|completed
-  const [selected,  setSelected]  = useState(null);       // request being processed
-  const [results,   setResults]   = useState({});         // { testName: {value, unit, flag, referenceRange} }
-  const [saving,    setSaving]    = useState(false);
-  const [search,    setSearch]    = useState('');
+  const fileInputRef = useRef(null);
+  const [requests,       setRequests]       = useState([]);
+  const [tab,            setTab]            = useState('pending');
+  const [selected,       setSelected]       = useState(null);
+  const [results,        setResults]        = useState({});
+  const [saving,         setSaving]         = useState(false);
+  const [search,         setSearch]         = useState('');
+  const [customTests,    setCustomTests]    = useState([]);   // extra "Others" rows
+  const [attachedFile,   setAttachedFile]   = useState(null); // File object
+  const [uploading,      setUploading]      = useState(false);
 
   useEffect(() => {
     const unsub = listenLabRequests(setRequests);
@@ -48,6 +53,8 @@ export default function LabDashboard() {
 
   const openRequest = async (req) => {
     setSelected(req);
+    setCustomTests([]);
+    setAttachedFile(null);
     // Pre-fill results object with empty values for each test
     const init = {};
     (req.tests || []).forEach(t => {
@@ -64,16 +71,52 @@ export default function LabDashboard() {
     setResults(prev => ({ ...prev, [test]: { ...prev[test], [field]: val } }));
   };
 
+  // Custom "Others" test row helpers
+  const addCustomTest = () =>
+    setCustomTests(prev => [...prev, { id: Date.now(), testName:'', value:'', unit:'', flag:'normal', referenceRange:'' }]);
+  const setCustomField = (id, field, val) =>
+    setCustomTests(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  const removeCustomTest = (id) =>
+    setCustomTests(prev => prev.filter(r => r.id !== id));
+
   const handleSubmit = async () => {
-    // Validate at least one result value entered
     const hasValue = Object.values(results).some(r => r.value?.trim());
-    if (!hasValue) { toast.error('Enter at least one test result'); return; }
+    const hasCustom = customTests.some(r => r.testName?.trim() && r.value?.trim());
+    if (!hasValue && !hasCustom && !attachedFile) {
+      toast.error('Enter at least one result value, custom test, or attach a file'); return;
+    }
+
     setSaving(true);
     try {
-      await enterLabResults(selected.id, results, profile.displayName || profile.email || 'Lab');
+      // Merge standard results with custom test results
+      const mergedResults = { ...results };
+      customTests.forEach(r => {
+        if (r.testName?.trim()) {
+          mergedResults[r.testName.trim()] = {
+            value: r.value, unit: r.unit, flag: r.flag, referenceRange: r.referenceRange,
+          };
+        }
+      });
+
+      await enterLabResults(selected.id, mergedResults, profile.displayName || profile.email || 'Lab');
+
+      // Upload attached file if any
+      if (attachedFile) {
+        setUploading(true);
+        await uploadLabResultFile(
+          selected.emrNumber, selected.id, attachedFile,
+          profile.displayName || profile.email || 'Lab'
+        );
+        setUploading(false);
+      }
+
       toast.success('Results saved successfully');
       setSelected(null);
-    } catch { toast.error('Failed to save results'); }
+      setCustomTests([]);
+      setAttachedFile(null);
+    } catch(e) {
+      toast.error('Failed to save results: ' + e.message);
+    }
     setSaving(false);
   };
 
@@ -187,14 +230,148 @@ export default function LabDashboard() {
             );
           })}
 
-          <button onClick={handleSubmit} disabled={saving} style={{
+          {/* ── OTHERS / CUSTOM TEST SECTION ── */}
+          <div className="card" style={{marginBottom:10}}>
+            <div className="card-header">
+              <div className="card-title">
+                <i className="ti ti-plus" style={{color:'#0891b2'}} />
+                Other Investigations / Screenings
+              </div>
+              <button className="btn btn-sm" onClick={addCustomTest}
+                style={{background:'rgba(8,145,178,.1)', color:'#0891b2', borderColor:'rgba(8,145,178,.25)'}}>
+                <i className="ti ti-plus" /> Add
+              </button>
+            </div>
+            {customTests.length === 0 ? (
+              <div style={{padding:'12px 16px', textAlign:'center'}}>
+                <p style={{fontSize:12, color:'var(--t3)', fontWeight:600, margin:0}}>
+                  Click <strong>Add</strong> to enter any additional investigation or screening not in the ordered list
+                </p>
+              </div>
+            ) : (
+              <div className="card-body">
+                {customTests.map((row) => (
+                  <div key={row.id} style={{marginBottom:14, padding:'12px', borderRadius:8,
+                    background:'var(--accent-bg)', border:'1px solid var(--border)'}}>
+                    {/* Test name input */}
+                    <div className="form-group" style={{marginBottom:8}}>
+                      <label className="form-label">
+                        Type of Investigation / Screening <span className="req">*</span>
+                      </label>
+                      <textarea className="form-textarea" rows={2}
+                        placeholder="e.g. Urinalysis (microscopy, pH 6.0, protein trace, glucose neg, blood neg), Widal titre 1:160, Blood Culture — pending…"
+                        value={row.testName}
+                        onChange={e => setCustomField(row.id, 'testName', e.target.value)}
+                        style={{resize:'vertical'}}
+                      />
+                    </div>
+                    {/* Result fields */}
+                    <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 2fr', gap:8, marginBottom:8}}>
+                      <div className="form-group">
+                        <label className="form-label">Result Value</label>
+                        <input className="form-input" placeholder="e.g. Positive / 5.4 / See above"
+                          value={row.value} onChange={e => setCustomField(row.id,'value',e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Unit</label>
+                        <input className="form-input" placeholder="g/dL"
+                          value={row.unit} onChange={e => setCustomField(row.id,'unit',e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Reference Range</label>
+                        <input className="form-input" placeholder="e.g. Negative"
+                          value={row.referenceRange} onChange={e => setCustomField(row.id,'referenceRange',e.target.value)} />
+                      </div>
+                    </div>
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                      {/* Flag */}
+                      <div style={{display:'flex', gap:4}}>
+                        {['normal','high','low'].map(f => (
+                          <button key={f} onClick={() => setCustomField(row.id,'flag',f)} style={{
+                            padding:'3px 10px', borderRadius:6, fontSize:11, fontWeight:800,
+                            border: row.flag===f ? 'none' : '1px solid var(--border)',
+                            background: row.flag===f ? FLAG_STYLE[f].color : 'var(--card-bg2)',
+                            color:      row.flag===f ? '#fff'              : 'var(--t3)',
+                            cursor:'pointer', fontFamily:'var(--font)',
+                          }}>{f.toUpperCase()}</button>
+                        ))}
+                      </div>
+                      <button className="btn btn-sm btn-danger btn-icon" onClick={() => removeCustomTest(row.id)}>
+                        <i className="ti ti-trash" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── FILE / DOCUMENT UPLOAD ── */}
+          <div className="card" style={{marginBottom:14}}>
+            <div className="card-header">
+              <div className="card-title">
+                <i className="ti ti-paperclip" style={{color:'#0891b2'}} />
+                Attach Lab Report Document
+              </div>
+            </div>
+            <div className="card-body">
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{display:'none'}}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) { setAttachedFile(f); toast.success(`"${f.name}" ready to upload`); }
+                  e.target.value = '';
+                }}
+              />
+              {attachedFile ? (
+                <div style={{display:'flex', alignItems:'center', gap:10, padding:'10px 12px',
+                  borderRadius:8, background:'rgba(8,145,178,.07)', border:'1px solid rgba(8,145,178,.2)'}}>
+                  <i className={`ti ${attachedFile.type.includes('pdf') ? 'ti-file-text' : 'ti-photo'}`}
+                    style={{fontSize:22, color:'#0891b2'}} />
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:12, fontWeight:700, color:'var(--t1)',
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                      {attachedFile.name}
+                    </div>
+                    <div style={{fontSize:10, color:'var(--t3)'}}>
+                      {(attachedFile.size / 1024).toFixed(1)} KB — will be uploaded with results
+                    </div>
+                  </div>
+                  <button className="btn btn-sm btn-danger btn-icon" onClick={() => setAttachedFile(null)}>
+                    <i className="ti ti-x" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border:'2px dashed var(--border)', borderRadius:10, padding:'18px 12px',
+                    textAlign:'center', cursor:'pointer', transition:'all .15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor='#0891b2'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
+                >
+                  <i className="ti ti-cloud-upload" style={{fontSize:26, color:'#0891b2', display:'block', marginBottom:6}} />
+                  <p style={{fontSize:12, fontWeight:700, color:'var(--t2)', margin:0}}>
+                    Tap to attach a lab report, scan, or document
+                  </p>
+                  <p style={{fontSize:10, color:'var(--t3)', marginTop:4}}>PDF · JPG · PNG · Word — max 10MB</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button onClick={handleSubmit} disabled={saving || uploading} style={{
             width:'100%', padding:'12px', background:'var(--accent)', color:'#fff',
             border:'none', borderRadius:10, fontWeight:800, fontSize:14, cursor:'pointer',
             fontFamily:'var(--font)', display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-            opacity: saving ? .6 : 1,
+            opacity: (saving || uploading) ? .6 : 1,
           }}>
             <i className="ti ti-device-floppy" style={{fontSize:18}} />
-            {saving ? 'Saving Results…' : 'Save & Complete'}
+            {uploading ? 'Uploading file…' : saving ? 'Saving Results…' : 'Save & Complete'}
           </button>
         </div>
       </div>
