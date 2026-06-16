@@ -9,7 +9,7 @@ service cloud.firestore {
     function isAdmin()   { return isAuth() && isActive() && getRole() == 'admin'; }
     function isClinical(){ return isAuth() && isActive() && getRole() in ['doctor','nurse']; }
     function isRecords() { return isAuth() && isActive() && getRole() == 'records'; }
-    function isAnyStaff(){ return isAuth() && isActive() && getRole() in ['doctor','nurse','records','admin','subadmin']; }
+    function isAnyStaff(){ return isAuth() && isActive() && getRole() in ['doctor','nurse','records','admin','subadmin','pharmacist','lab']; }
 
     // EMR counter — only backend (transactions) can write
     match /counters/{doc} {
@@ -110,6 +110,24 @@ service cloud.firestore {
     match /patients/{emrNumber}/sickReports/{doc} {
       allow read:  if isAnyStaff();
       allow write: if isClinical() || isAdmin();
+    }
+
+    // Pharmacy dispense log
+    match /dispense_log/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isAuth() && isActive() && getRole() in ['pharmacist','admin','subadmin','doctor','nurse'];
+    }
+
+    // Laboratory requests
+    match /lab_requests/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isAuth() && isActive() && getRole() in ['lab','doctor','nurse','admin','subadmin'];
+    }
+
+    // Laboratory results
+    match /lab_results/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isAuth() && isActive() && getRole() in ['lab','admin','subadmin'];
     }
 
     // NHIS / NACON official forms

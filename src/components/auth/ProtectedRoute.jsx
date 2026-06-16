@@ -46,11 +46,13 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // Profile loaded — check role access
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
     const dest = {
-      doctor:   '/doctor',
-      nurse:    '/nurse',
-      records:  '/records',
-      admin:    '/admin',
-      subadmin: '/admin',
+      doctor:      '/doctor',
+      nurse:       '/nurse',
+      records:     '/records',
+      admin:       '/admin',
+      subadmin:    '/admin',
+      pharmacist:  '/pharmacist',
+      lab:         '/lab',
     }[profile.role] || '/login';
     return <Navigate to={dest} replace />;
   }

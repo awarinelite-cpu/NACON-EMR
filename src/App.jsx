@@ -31,6 +31,8 @@ import SickReportPage          from './pages/SickReportPage';
 import SeenTodayPage           from './pages/SeenTodayPage';
 import DischargedReferredPage  from './pages/DischargedReferredPage';
 import OnAdmissionPage         from './pages/OnAdmissionPage';
+import PharmacyDashboard       from './pages/PharmacyDashboard';
+import LabDashboard            from './pages/LabDashboard';
 
 import './styles/global.css';
 
@@ -86,7 +88,7 @@ export default function App() {
 
             {/* Patient profile — all roles */}
             <Route path="/patient/:emrNumber" element={
-              <ProtectedRoute allowedRoles={['doctor','nurse','records','admin','subadmin']}>
+              <ProtectedRoute allowedRoles={['doctor','nurse','records','admin','subadmin','pharmacist','lab']}>
                 <PatientProfile />
               </ProtectedRoute>
             } />
@@ -212,7 +214,23 @@ export default function App() {
               <ProtectedRoute allowedRoles={['admin','subadmin']}><HealthStats /></ProtectedRoute>
             } />
             <Route path="/pharmacy" element={
-              <ProtectedRoute allowedRoles={['admin','subadmin','nurse','doctor']}><PharmacyInventory /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin','subadmin','nurse','doctor','pharmacist']}><PharmacyInventory /></ProtectedRoute>
+            } />
+
+            {/* ── PHARMACY DASHBOARD ── */}
+            <Route path="/pharmacist" element={
+              <ProtectedRoute allowedRoles={['pharmacist','admin','subadmin']}><PharmacyDashboard /></ProtectedRoute>
+            } />
+            <Route path="/pharmacist/queue" element={
+              <ProtectedRoute allowedRoles={['pharmacist','admin','subadmin']}><PharmacyDashboard /></ProtectedRoute>
+            } />
+
+            {/* ── LABORATORY DASHBOARD ── */}
+            <Route path="/lab" element={
+              <ProtectedRoute allowedRoles={['lab','doctor','nurse','admin','subadmin']}><LabDashboard /></ProtectedRoute>
+            } />
+            <Route path="/lab/requests" element={
+              <ProtectedRoute allowedRoles={['lab','doctor','nurse','admin','subadmin']}><LabDashboard /></ProtectedRoute>
             } />
 
           </Route>

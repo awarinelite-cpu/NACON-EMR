@@ -56,16 +56,21 @@ export const COL = {
   TRIAGE:       'triage_queue',
   MAR:          'mar_records',
   INVENTORY:    'pharmacy_inventory',
+  DISPENSE_LOG: 'dispense_log',
   SELF_REPORT:  'self_reports',
+  LAB_REQUESTS: 'lab_requests',
+  LAB_RESULTS:  'lab_results',
 };
 
 // ── ROLES ────────────────────────────────────
 export const ROLES = {
-  ADMIN:    'admin',
-  SUBADMIN: 'subadmin',
-  DOCTOR:   'doctor',
-  NURSE:    'nurse',
-  RECORDS:  'records',
+  ADMIN:       'admin',
+  SUBADMIN:    'subadmin',
+  DOCTOR:      'doctor',
+  NURSE:       'nurse',
+  RECORDS:     'records',
+  PHARMACIST:  'pharmacist',
+  LAB:         'lab',
 };
 
 // ─────────────────────────────────────────────
@@ -1039,4 +1044,204 @@ export function listenPatientForms(emrNumber, callback) {
   const u1 = onSnapshot(nhisQ,  snap => { nhisDocs  = snap.docs.map(d=>({id:d.id,...d.data()})); merge(); });
   const u2 = onSnapshot(naconQ, snap => { naconDocs = snap.docs.map(d=>({id:d.id,...d.data()})); merge(); });
   return () => { u1(); u2(); };
+}
+
+// ═════════════════════════════════════════════
+// PHARMACY — DISPENSING
+// ═════════════════════════════════════════════
+
+/** Live listener: all prescriptions that are pending dispensing (not yet dispensed) */
+export function listenPendingDispense(callback) {
+  const q = query(
+    collection(db, COL.PRESCRIPTIONS),
+    where('dispensed', '!=', true),
+    orderBy('dispensed'),
+    orderBy('createdAt', 'asc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+/** Live listener: prescriptions dispensed today */
+export function listenDispensedToday(callback) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const q = query(
+    collection(db, COL.DISPENSE_LOG),
+    where('dispensedAt', '>=', Timestamp.fromDate(today)),
+    orderBy('dispensedAt', 'desc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+/** Dispense a prescription — marks it dispensed, deducts inventory, logs */
+export async function dispensePrescription(prescriptionId, rxData, dispensedBy) {
+  // Mark prescription as dispensed
+  await updateDoc(doc(db, COL.PRESCRIPTIONS, prescriptionId), {
+    dispensed:    true,
+    dispensedBy,
+    dispensedAt:  serverTimestamp(),
+  });
+
+  // Deduct each drug from inventory and log
+  for (const drug of rxData.drugs || []) {
+    await deductInventory(drug.drug, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy);
+  }
+
+  // Add to dispense log
+  await addDoc(collection(db, COL.DISPENSE_LOG), {
+    prescriptionId,
+    emrNumber:    rxData.emrNumber,
+    patientName:  rxData.patientName || '',
+    drugs:        rxData.drugs || [],
+    prescribedBy: rxData.prescribedBy || '',
+    dispensedBy,
+    dispensedAt:  serverTimestamp(),
+  });
+
+  await logAudit('DISPENSE', prescriptionId, dispensedBy, { emrNumber: rxData.emrNumber });
+}
+
+/** Live listener: all dispense log entries */
+export function listenDispenseLog(callback) {
+  const q = query(collection(db, COL.DISPENSE_LOG), orderBy('dispensedAt', 'desc'));
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+// ═════════════════════════════════════════════
+// LABORATORY
+// ═════════════════════════════════════════════
+
+export const LAB_TESTS = [
+  // Haematology
+  { group:'Haematology',   name:'Full Blood Count (FBC)',       abbr:'FBC'   },
+  { group:'Haematology',   name:'Haemoglobin (Hb)',             abbr:'Hb'    },
+  { group:'Haematology',   name:'Blood Group & Genotype',       abbr:'BG'    },
+  { group:'Haematology',   name:'Malaria Parasite (MP)',        abbr:'MP'    },
+  { group:'Haematology',   name:'ESR',                          abbr:'ESR'   },
+  { group:'Haematology',   name:'Clotting Time / Bleeding Time',abbr:'CT/BT' },
+  // Biochemistry
+  { group:'Biochemistry',  name:'Random Blood Sugar (RBS)',     abbr:'RBS'   },
+  { group:'Biochemistry',  name:'Fasting Blood Sugar (FBS)',    abbr:'FBS'   },
+  { group:'Biochemistry',  name:'Urea & Electrolytes (U&E)',    abbr:'U&E'   },
+  { group:'Biochemistry',  name:'Liver Function Test (LFT)',    abbr:'LFT'   },
+  { group:'Biochemistry',  name:'Lipid Profile',                abbr:'LP'    },
+  { group:'Biochemistry',  name:'Serum Creatinine',             abbr:'SCr'   },
+  { group:'Biochemistry',  name:'Uric Acid',                    abbr:'UA'    },
+  // Microbiology
+  { group:'Microbiology',  name:'Urinalysis (U/A)',             abbr:'U/A'   },
+  { group:'Microbiology',  name:'Urine M/C/S',                  abbr:'UMCS'  },
+  { group:'Microbiology',  name:'Stool M/C/S',                  abbr:'SMCS'  },
+  { group:'Microbiology',  name:'Sputum M/C/S',                 abbr:'SpMCS' },
+  { group:'Microbiology',  name:'Wound Swab M/C/S',             abbr:'WSMCS' },
+  { group:'Microbiology',  name:'Blood Culture',                abbr:'BC'    },
+  // Serology
+  { group:'Serology',      name:'HIV Screening',                abbr:'HIV'   },
+  { group:'Serology',      name:'Hepatitis B Surface Ag (HBsAg)',abbr:'HBsAg'},
+  { group:'Serology',      name:'Hepatitis C Antibody',         abbr:'HCV'   },
+  { group:'Serology',      name:'VDRL / Syphilis',              abbr:'VDRL'  },
+  { group:'Serology',      name:'Widal Test',                   abbr:'Widal' },
+  { group:'Serology',      name:'Rheumatoid Factor (RF)',        abbr:'RF'    },
+  { group:'Serology',      name:'CRP',                          abbr:'CRP'   },
+  // Hormones
+  { group:'Hormones',      name:'Pregnancy Test (urine/serum)', abbr:'PT'    },
+  { group:'Hormones',      name:'Thyroid Function Test (TFT)',  abbr:'TFT'   },
+  { group:'Hormones',      name:'PSA',                          abbr:'PSA'   },
+];
+
+/** Doctor/Nurse requests a lab test */
+export async function requestLabTest(emrNumber, visitId, tests, requestedBy, urgency = 'routine', notes = '') {
+  const patient = await getPatient(emrNumber);
+  const ref = await addDoc(collection(db, COL.LAB_REQUESTS), {
+    emrNumber,
+    visitId:       visitId || null,
+    patientName:   patient ? `${patient.surname} ${patient.firstName}` : '',
+    classSet:      patient?.classSet || '',
+    sex:           patient?.sex || '',
+    tests,          // array of test names
+    urgency,        // 'routine' | 'urgent' | 'stat'
+    notes,
+    status:        'pending',  // pending → processing → completed
+    requestedBy,
+    requestedAt:   serverTimestamp(),
+    resultEnteredBy: null,
+    resultEnteredAt: null,
+  });
+  await logAudit('LAB_REQUEST', emrNumber, requestedBy, { tests, urgency });
+  return ref.id;
+}
+
+/** Lab staff enters results for a request */
+export async function enterLabResults(requestId, results, enteredBy) {
+  // results: { testName: { value, unit, flag, referenceRange }, ... }
+  await updateDoc(doc(db, COL.LAB_REQUESTS, requestId), {
+    status:           'completed',
+    results,
+    resultEnteredBy:  enteredBy,
+    resultEnteredAt:  serverTimestamp(),
+  });
+
+  // Also store in lab_results for per-patient history
+  const reqSnap = await getDoc(doc(db, COL.LAB_REQUESTS, requestId));
+  const req = reqSnap.data();
+  await addDoc(collection(db, COL.LAB_RESULTS), {
+    requestId,
+    emrNumber:       req.emrNumber,
+    visitId:         req.visitId,
+    patientName:     req.patientName,
+    tests:           req.tests,
+    results,
+    requestedBy:     req.requestedBy,
+    resultEnteredBy: enteredBy,
+    requestedAt:     req.requestedAt,
+    completedAt:     serverTimestamp(),
+  });
+
+  await logAudit('LAB_RESULT', requestId, enteredBy, { emrNumber: req.emrNumber });
+}
+
+/** Live listener: all pending lab requests */
+export function listenLabRequests(callback, statusFilter = null) {
+  const constraints = [orderBy('requestedAt', 'asc')];
+  if (statusFilter) constraints.unshift(where('status', '==', statusFilter));
+  const q = query(collection(db, COL.LAB_REQUESTS), ...constraints);
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+/** Live listener: lab results for a specific patient */
+export function listenPatientLabResults(emrNumber, callback) {
+  const q = query(
+    collection(db, COL.LAB_RESULTS),
+    where('emrNumber', '==', emrNumber),
+    orderBy('completedAt', 'desc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+/** Live listener: lab requests for a specific patient */
+export function listenPatientLabRequests(emrNumber, callback) {
+  const q = query(
+    collection(db, COL.LAB_REQUESTS),
+    where('emrNumber', '==', emrNumber),
+    orderBy('requestedAt', 'desc')
+  );
+  return onSnapshot(q, snap =>
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+/** Update a lab request status (e.g. pending → processing) */
+export async function updateLabRequestStatus(requestId, status, updatedBy) {
+  await updateDoc(doc(db, COL.LAB_REQUESTS, requestId), {
+    status,
+    ...(status === 'processing' ? { processingBy: updatedBy, processingAt: serverTimestamp() } : {}),
+  });
 }

@@ -70,6 +70,22 @@ const NAV = {
       { icon: 'ti-calendar',         label: 'Duty Schedule',  path: '/admin/schedule' },
     ]},
   ],
+  pharmacist: [
+    { grp: 'Pharmacy', items: [
+      { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/pharmacist' },
+      { icon: 'ti-clock',            label: 'Pending Rx',     path: '/pharmacist/queue', badge: 'pending' },
+      { icon: 'ti-building-store',   label: 'Inventory',      path: '/pharmacy' },
+      { icon: 'ti-users',            label: 'All Patients',   path: '/nurse/patients' },
+    ]},
+  ],
+  lab: [
+    { grp: 'Laboratory', items: [
+      { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/lab' },
+      { icon: 'ti-flask',            label: 'Lab Requests',   path: '/lab/requests', badge: 'pending' },
+      { icon: 'ti-test-pipe',        label: 'Completed',      path: '/lab' },
+      { icon: 'ti-users',            label: 'All Patients',   path: '/nurse/patients' },
+    ]},
+  ],
 };
 
 export default function Sidebar({ stats = {}, isOpen, onClose }) {
