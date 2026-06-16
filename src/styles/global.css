@@ -246,6 +246,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   background: var(--main-bg);
   overflow: hidden;
   overscroll-behavior: none;
+  height: 100vh; /* ensure it fills the viewport height */
 }
 
 /* Topbar */
@@ -260,7 +261,13 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .topbar-title { font-size: 15px; font-weight: 700; color: var(--t1); flex: 1; }
 
 /* Page content scroll */
-.page-content { flex: 1; overflow-y: auto; padding: 16px; overscroll-behavior: none; }
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  overscroll-behavior: none;
+  min-height: 0; /* critical: allows flex child to shrink and scroll */
+}
 
 /* ══════════════════════════════════
    OFFLINE BANNER
@@ -503,6 +510,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 /* Single scroll body — everything inside scrolls together */
 .profile-scroll-body {
   flex: 1;
+  min-height: 0; /* critical: allows flex child to shrink and scroll */
   overflow-y: auto;
   overscroll-behavior: none;
 }
