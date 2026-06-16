@@ -159,7 +159,8 @@ export default function PharmacyDashboard() {
                       {/* Drug list */}
                       <div style={{display:'flex', flexDirection:'column', gap:5, marginBottom:10, paddingLeft:48}}>
                         {(rx.drugs||[]).map((d,i) => {
-                          const stockItem = inventory.find(inv => inv.name?.toLowerCase() === d.drug?.toLowerCase());
+                          const drugName  = d.name || d.drug || '';
+                          const stockItem = inventory.find(inv => inv.name?.toLowerCase() === drugName?.toLowerCase());
                           const stockOk   = !stockItem || stockItem.quantity >= (Number(d.qty)||1);
                           return (
                             <div key={i} style={{
@@ -169,7 +170,7 @@ export default function PharmacyDashboard() {
                             }}>
                               <i className="ti ti-pill" style={{color: stockOk?'var(--accent)':'var(--danger)', fontSize:14}} />
                               <div style={{flex:1}}>
-                                <div style={{fontWeight:700, fontSize:13, color:'var(--t1)'}}>{d.drug}</div>
+                                <div style={{fontWeight:700, fontSize:13, color:'var(--t1)'}}>{drugName}</div>
                                 <div style={{fontSize:10, color:'var(--t3)'}}>
                                   {d.dose} · {d.freq} · {d.duration} · Qty: {d.qty}
                                 </div>
@@ -298,7 +299,7 @@ export default function PharmacyDashboard() {
                         <span key={i} style={{
                           fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:6,
                           background:'var(--accent-bg)', color:'var(--accent)',
-                        }}>{d.drug} ×{d.qty}</span>
+                        }}>{(d.name||d.drug)} ×{d.qty}</span>
                       ))}
                     </div>
                   </div>

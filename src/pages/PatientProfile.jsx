@@ -11,6 +11,7 @@ import {
   dischargePatient, createVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
   saveNHISForm, saveNACONForm, listenPatientForms,
+  requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
@@ -21,11 +22,12 @@ const TABS = [
   { id:'rx',       label:'Prescription',    icon:'💊',  roles: ['doctor','nurse'] },
   { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
   { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
-  { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },          // Nurse ONLY — doctors read via timeline
+  { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },
   { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
   { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
+  { id:'lab',      label:'Lab',             icon:'🔬',  roles: ['doctor','nurse','lab','admin','subadmin'] },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄',  roles: ['doctor','nurse'] },
-  { id:'uploads',  label:'Documents',       icon:'📁',  roles: ['doctor','nurse','records','admin','subadmin'] },
+  { id:'uploads',  label:'Documents',       icon:'📁',  roles: ['doctor','nurse','records','admin','subadmin','lab'] },
 ];
 
 const vitalFlag = (key, val) => {
@@ -53,6 +55,8 @@ export default function PatientProfile() {
   const [fluid,     setFluid]     = useState([]);
   const [glucose,   setGlucose]   = useState([]);
   const [uploads,   setUploads]   = useState([]);
+  const [labRequests, setLabRequests] = useState([]);
+  const [labResults,  setLabResults]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [visitId,   setVisitId]   = useState(null);
@@ -125,13 +129,15 @@ export default function PatientProfile() {
       return () => unsub && unsub();
     }
     const unsubs = [
-      listenNotes(emrNumber,         setNotes),
-      listenVitals(emrNumber,        setVitals),
-      listenPrescriptions(emrNumber, setRx),
-      listenFluidChart(emrNumber,    setFluid),
-      listenGlucoseChart(emrNumber,  setGlucose),
-      listenUploads(emrNumber,       setUploads),
-      listenPatientForms(emrNumber,  setSavedForms),
+      listenNotes(emrNumber,           setNotes),
+      listenVitals(emrNumber,          setVitals),
+      listenPrescriptions(emrNumber,   setRx),
+      listenFluidChart(emrNumber,      setFluid),
+      listenGlucoseChart(emrNumber,    setGlucose),
+      listenUploads(emrNumber,         setUploads),
+      listenPatientForms(emrNumber,    setSavedForms),
+      listenPatientLabRequests(emrNumber, setLabRequests),
+      listenPatientLabResults(emrNumber,  setLabResults),
     ];
     return () => unsubs.forEach(u => u && u());
   }, [emrNumber]);
@@ -734,6 +740,7 @@ export default function PatientProfile() {
             { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
             { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
             { tab:'mar',     label:'Give Medication', icon:'ti-pill',              show: isNurse || isDoctor },
+            { tab:'lab',     label:'Order Lab',      icon:'ti-microscope',         show: isNurse || isDoctor },
           ].filter(b => b.show).map((btn, i) => (
             <button key={i} onClick={() => { setActiveTab(btn.tab); setViewOnly(false); }} style={{
               display:'flex', alignItems:'center', gap:5,
@@ -1856,6 +1863,26 @@ export default function PatientProfile() {
           />
         )}
 
+        {/* ── LAB TAB ── */}
+        {activeTab==='lab' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {/* Request form — doctors and nurses only */}
+            {(isDoctor || isNurse) && (
+              <LabRequestForm
+                emr={emrNumber}
+                visitId={visitId}
+                profile={profile}
+                onSaved={() => {}}
+              />
+            )}
+            {/* Results history — all roles with lab tab access */}
+            <LabResultsHistory
+              labResults={labResults}
+              labRequests={labRequests}
+            />
+          </div>
+        )}
+
         {/* ── REFERRAL / DISCHARGE TAB ── */}
         {activeTab==='referral' && (isDoctor || isNurse) && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -2136,3 +2163,249 @@ export default function PatientProfile() {
   );
 }
 
+// ── LAB REQUEST FORM ──────────────────────────
+function LabRequestForm({ emr, visitId, profile, onSaved }) {
+  const groups = [...new Set(LAB_TESTS.map(t => t.group))];
+  const [selected, setSelected] = useState([]);
+  const [urgency,  setUrgency]  = useState('routine');
+  const [notes,    setNotes]    = useState('');
+  const [saving,   setSaving]   = useState(false);
+
+  const toggle = (name) =>
+    setSelected(s => s.includes(name) ? s.filter(x => x !== name) : [...s, name]);
+
+  const save = async () => {
+    if (!selected.length) { toast.error('Select at least one test'); return; }
+    setSaving(true);
+    try {
+      await requestLabTest(emr, visitId, selected, profile?.displayName, urgency, notes);
+      toast.success('Lab request sent');
+      setSelected([]); setNotes(''); setUrgency('routine');
+      onSaved?.();
+    } catch { toast.error('Failed to send lab request'); }
+    setSaving(false);
+  };
+
+  const URGENCY_OPTS = [
+    { val:'routine', label:'Routine', color:'var(--accent)' },
+    { val:'urgent',  label:'Urgent',  color:'#c2410c' },
+    { val:'stat',    label:'STAT',    color:'#b91c1c' },
+  ];
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title"><i className="ti ti-microscope" />Order Lab Investigations</div>
+        {selected.length > 0 && (
+          <span style={{ fontSize:11, fontWeight:700, color:'#0E7490',
+            background:'rgba(14,116,144,.1)', padding:'2px 8px', borderRadius:6 }}>
+            {selected.length} selected
+          </span>
+        )}
+      </div>
+      <div className="card-body">
+        {/* Urgency */}
+        <div style={{ display:'flex', gap:8, marginBottom:16, alignItems:'center' }}>
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--t3)' }}>Priority:</span>
+          {URGENCY_OPTS.map(u => (
+            <button key={u.val} onClick={() => setUrgency(u.val)} style={{
+              padding:'4px 12px', borderRadius:6, fontSize:11, fontWeight:700, cursor:'pointer',
+              border:`1.5px solid ${u.color}`, fontFamily:'var(--font)',
+              background: urgency === u.val ? u.color : 'transparent',
+              color:      urgency === u.val ? '#fff'  : u.color,
+            }}>{u.label}</button>
+          ))}
+        </div>
+
+        {/* Test picker grouped */}
+        {groups.map(grp => (
+          <div key={grp} style={{ marginBottom:14 }}>
+            <div style={{ fontSize:10, fontWeight:800, color:'var(--t3)', textTransform:'uppercase',
+              letterSpacing:'.06em', marginBottom:6 }}>{grp}</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {LAB_TESTS.filter(t => t.group === grp).map(t => {
+                const on = selected.includes(t.name);
+                return (
+                  <button key={t.name} onClick={() => toggle(t.name)} style={{
+                    padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:700, cursor:'pointer',
+                    border:`1.5px solid ${on ? '#0E7490' : 'var(--border)'}`,
+                    background: on ? 'rgba(14,116,144,.12)' : 'var(--card-bg)',
+                    color: on ? '#0E7490' : 'var(--t2)', fontFamily:'var(--font)', transition:'all .15s',
+                  }}>
+                    {on && <i className="ti ti-check" style={{ marginRight:3, fontSize:10 }} />}
+                    {t.abbr}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Selected list */}
+        {selected.length > 0 && (
+          <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8,
+            background:'rgba(14,116,144,.06)', border:'1px solid rgba(14,116,144,.15)' }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'#0E7490', marginBottom:4 }}>ORDERED TESTS</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+              {selected.map(s => (
+                <span key={s} onClick={() => toggle(s)} title="Click to remove"
+                  style={{ fontSize:11, padding:'2px 8px', borderRadius:4, cursor:'pointer',
+                    background:'rgba(14,116,144,.15)', color:'#0E7490', fontWeight:600 }}>
+                  {s} ×
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="form-group" style={{ marginBottom:12 }}>
+          <label className="form-label">Clinical indication / notes to lab</label>
+          <textarea className="form-textarea" rows={2}
+            placeholder="e.g. ? Malaria, Fever × 3/7"
+            value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+
+        <button className="btn btn-primary" onClick={save} disabled={saving || !selected.length}>
+          {saving
+            ? <><i className="ti ti-loader-2" style={{animation:'spin 1s linear infinite'}} /> Sending…</>
+            : <><i className="ti ti-send" /> Send to Lab ({selected.length} test{selected.length!==1?'s':''})</>
+          }
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── LAB RESULTS HISTORY ───────────────────────
+const URGENCY_BADGE_L = { stat:'badge-danger', urgent:'badge-warn', routine:'badge-info' };
+const STATUS_BADGE_L  = { pending:'badge-warn', processing:'badge-info', completed:'badge-ok' };
+const FLAG_COLOR_L    = { high:'#dc2626', low:'#d97706', normal:'var(--success)', '':'var(--t3)' };
+
+function LabResultsHistory({ labResults, labRequests }) {
+  const [openId, setOpenId] = useState(null);
+  const allRequests = [...labRequests].sort((a,b) =>
+    (b.requestedAt?.seconds||0) - (a.requestedAt?.seconds||0));
+
+  if (!allRequests.length) return (
+    <div className="card">
+      <div className="card-body" style={{ textAlign:'center', fontSize:12, fontWeight:700,
+        color:'var(--t3)', padding:24 }}>
+        <i className="ti ti-microscope" style={{ fontSize:28, display:'block', marginBottom:8, opacity:.4 }} />
+        No lab requests yet for this patient
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title"><i className="ti ti-test-pipe" />Lab Requests & Results</div>
+        <span style={{ fontSize:11, fontWeight:600, color:'var(--t3)' }}>
+          {allRequests.length} request{allRequests.length!==1?'s':''}
+        </span>
+      </div>
+      {allRequests.map(req => {
+        const isOpen = openId === req.id;
+        const result = labResults.find(r => r.requestId === req.id);
+        return (
+          <div key={req.id} style={{ borderBottom:'1px solid var(--border)' }}>
+            <div onClick={() => setOpenId(isOpen ? null : req.id)}
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+                cursor:'pointer', background: isOpen ? 'var(--accent-bg)' : 'transparent', transition:'background .15s' }}>
+              <div style={{ width:34, height:34, borderRadius:8, flexShrink:0,
+                background: req.status==='completed' ? 'rgba(22,163,74,.15)' : 'rgba(14,116,144,.12)',
+                display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <i className={`ti ${req.status==='completed' ? 'ti-circle-check' : 'ti-microscope'}`}
+                  style={{ fontSize:16, color: req.status==='completed' ? 'var(--success)' : '#0E7490' }} />
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)', display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+                  {(req.tests||[]).slice(0,3).join(' · ')}
+                  {req.tests?.length > 3 && <span style={{color:'var(--t3)'}}>+{req.tests.length-3} more</span>}
+                  <span className={`badge ${URGENCY_BADGE_L[req.urgency]||'badge-info'}`} style={{fontSize:9}}>
+                    {req.urgency?.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>
+                  {formatTs(req.requestedAt)} · {req.requestedBy}
+                </div>
+              </div>
+              <span className={`badge ${STATUS_BADGE_L[req.status]||'badge-neutral'}`} style={{fontSize:10}}>
+                {req.status}
+              </span>
+              <i className={`ti ${isOpen?'ti-chevron-up':'ti-chevron-down'}`}
+                style={{ fontSize:16, color:'var(--t3)', flexShrink:0 }} />
+            </div>
+
+            {isOpen && (
+              <div style={{ padding:'0 14px 14px', background:'var(--accent-bg)' }}>
+                <div style={{ fontSize:11, color:'var(--t3)', marginBottom:10, display:'flex', gap:16, flexWrap:'wrap' }}>
+                  <span><strong style={{color:'var(--t2)'}}>Ordered by:</strong> {req.requestedBy}</span>
+                  <span><strong style={{color:'var(--t2)'}}>On:</strong> {formatTs(req.requestedAt)}</span>
+                  {req.notes && <span><strong style={{color:'var(--t2)'}}>Note:</strong> {req.notes}</span>}
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+                  {(req.tests||[]).map(t => (
+                    <span key={t} style={{ padding:'3px 10px', borderRadius:6, fontSize:11, fontWeight:600,
+                      background:'rgba(14,116,144,.1)', color:'#0E7490', border:'1px solid rgba(14,116,144,.2)' }}>{t}</span>
+                  ))}
+                </div>
+                {result ? (
+                  <div style={{ borderRadius:8, overflow:'hidden', border:'1px solid var(--border)' }}>
+                    <div style={{ padding:'6px 12px', background:'rgba(22,163,74,.1)',
+                      borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:'var(--success)' }}>
+                        <i className="ti ti-circle-check" style={{ marginRight:4 }} />
+                        Results by {result.resultEnteredBy}
+                      </span>
+                      <span style={{ fontSize:10, color:'var(--t3)' }}>{formatTs(result.completedAt)}</span>
+                    </div>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                      <thead>
+                        <tr style={{ background:'rgba(0,0,0,.03)' }}>
+                          {['Test','Result','Unit','Ref Range','Flag'].map(h => (
+                            <th key={h} style={{ padding:'6px 10px', textAlign:'left', fontSize:9,
+                              fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(result.results||{}).map(([test, r], i) => (
+                          <tr key={test} style={{ borderTop:'1px solid var(--border)',
+                            background: i%2===0 ? 'transparent' : 'rgba(0,0,0,.015)' }}>
+                            <td style={{ padding:'7px 10px', fontWeight:700 }}>{test}</td>
+                            <td style={{ padding:'7px 10px', fontWeight:800,
+                              color: r.flag==='high'?'#dc2626':r.flag==='low'?'#d97706':'var(--t1)' }}>
+                              {r.value||'—'}
+                            </td>
+                            <td style={{ padding:'7px 10px', color:'var(--t3)' }}>{r.unit||'—'}</td>
+                            <td style={{ padding:'7px 10px', color:'var(--t3)' }}>{r.referenceRange||'—'}</td>
+                            <td style={{ padding:'7px 10px' }}>
+                              {r.flag ? (
+                                <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:4,
+                                  background: r.flag==='high'?'#fee2e2':r.flag==='low'?'#ffedd5':'rgba(22,163,74,.1)',
+                                  color: FLAG_COLOR_L[r.flag]||'var(--t3)' }}>
+                                  {r.flag.toUpperCase()}
+                                </span>
+                              ) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ fontSize:11, color:'var(--t3)', fontWeight:700,
+                    padding:'10px', textAlign:'center', background:'rgba(0,0,0,.02)', borderRadius:8 }}>
+                    <i className="ti ti-clock" style={{ marginRight:4 }} />
+                    {req.status==='processing' ? 'Lab is processing…' : 'Awaiting lab processing'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

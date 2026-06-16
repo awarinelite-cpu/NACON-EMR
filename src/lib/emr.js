@@ -361,18 +361,9 @@ export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, 
     prescribedByRole: role,
     requiresCountersign: role === ROLES.NURSE,
     countersigned: false,
-    dispensed: true,          // auto-dispensed inline at point of prescription
-    dispensedBy: prescribedBy,
-    dispensedAt: serverTimestamp(),
+    dispensed: false,          // awaits pharmacist dispensing
     createdAt: serverTimestamp(),
   });
-
-  // Immediately deduct each drug from pharmacy inventory
-  for (const drug of rxData) {
-    if (drug.name?.trim()) {
-      await deductInventory(drug.name.trim(), Number(drug.qty) || 1, emrNumber, prescribedBy);
-    }
-  }
 
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
   await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE });
@@ -1138,7 +1129,9 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy) 
 
   // Deduct each drug from inventory and log
   for (const drug of rxData.drugs || []) {
-    await deductInventory(drug.drug, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy);
+    // Support both drug.name (from Rx form) and drug.drug (legacy)
+    const drugName = drug.name || drug.drug;
+    if (drugName) await deductInventory(drugName, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy);
   }
 
   // Add to dispense log
