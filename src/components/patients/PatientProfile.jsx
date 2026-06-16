@@ -9,6 +9,8 @@ import {
   addGlucoseReading, uploadPatientFile, createReferral,
   dischargePatient, emrToFolderNumber, formatDateTime,
   ROLES,
+  requestLabTest, listenPatientLabRequests, listenPatientLabResults,
+  LAB_TESTS,
 } from '../../lib/emr';
 import toast from 'react-hot-toast';
 
@@ -48,9 +50,11 @@ export default function PatientProfile({ backPath }) {
   const [rxList,    setRxList]    = useState([]);
   const [fluids,    setFluids]    = useState([]);
   const [glucoses,  setGlucoses]  = useState([]);
-  const [uploads,   setUploads]   = useState([]);
-  const [activeTab, setActiveTab] = useState('visit');
-  const [loading,   setLoading]   = useState(true);
+  const [uploads,     setUploads]     = useState([]);
+  const [labRequests, setLabRequests] = useState([]);
+  const [labResults,  setLabResults]  = useState([]);
+  const [activeTab,   setActiveTab]   = useState('visit');
+  const [loading,     setLoading]     = useState(true);
   const fileInputRef = useRef(null);
 
   // Load patient once
@@ -63,12 +67,14 @@ export default function PatientProfile({ backPath }) {
   useEffect(() => {
     if (!emr) return;
     const unsubs = [
-      listenNotes(emr,         setNotes),
-      listenVitals(emr,        setVitals),
-      listenPrescriptions(emr, setRxList),
-      listenFluidChart(emr,    setFluids),
-      listenGlucoseChart(emr,  setGlucoses),
-      listenUploads(emr,       setUploads),
+      listenNotes(emr,                 setNotes),
+      listenVitals(emr,                setVitals),
+      listenPrescriptions(emr,         setRxList),
+      listenFluidChart(emr,            setFluids),
+      listenGlucoseChart(emr,          setGlucoses),
+      listenUploads(emr,               setUploads),
+      listenPatientLabRequests(emr,    setLabRequests),
+      listenPatientLabResults(emr,     setLabResults),
     ];
     return () => unsubs.forEach(u => u());
   }, [emr]);
@@ -104,6 +110,11 @@ export default function PatientProfile({ backPath }) {
       text: `File uploaded: ${u.fileName} (${u.category})`,
       by: u.uploadedBy, at: u.uploadedAt,
     })),
+    ...labRequests.map(lr => ({
+      type: 'lab_request', color: '#0E7490',
+      text: `Lab ordered: ${(lr.tests||[]).join(', ')} [${lr.urgency?.toUpperCase()}]${lr.status === 'completed' ? ' ✓ Results available' : ' — ' + lr.status}`,
+      by: lr.requestedBy, at: lr.requestedAt,
+    })),
   ].sort((a, b) => {
     const ta = a.at?.seconds || 0;
     const tb = b.at?.seconds || 0;
@@ -132,6 +143,7 @@ export default function PatientProfile({ backPath }) {
   const init = initials(patient.surname, patient.firstName);
   const canPrescribe = role === ROLES.DOCTOR || role === ROLES.NURSE;
   const canAddNote   = role === ROLES.DOCTOR || role === ROLES.NURSE;
+  const canOrderLab  = role === ROLES.DOCTOR || role === ROLES.NURSE;
 
   return (
     <div className="profile-wrapper">
@@ -192,6 +204,12 @@ export default function PatientProfile({ backPath }) {
         <button className="action-btn" onClick={() => setActiveTab('uploads')}>
           <i className="ti ti-upload" /> Upload Result
         </button>
+        {canOrderLab && (
+          <button className="action-btn" onClick={() => setActiveTab('labs')}
+            style={{ background:'rgba(14,116,144,.15)', borderColor:'rgba(14,116,144,.35)', color:'#0E7490' }}>
+            <i className="ti ti-microscope" /> Order Lab
+          </button>
+        )}
         <button className="action-btn" onClick={() => setActiveTab('referral')}>
           <i className="ti ti-file-export" /> Refer / Discharge
         </button>
@@ -283,8 +301,19 @@ export default function PatientProfile({ backPath }) {
           </>
         )}
 
-        {/* LABS (all notes + uploads filtered) */}
-        {activeTab === 'labs' && <UploadsCard uploads={uploads} category="lab_result" />}
+        {/* LABS — order + results */}
+        {activeTab === 'labs' && (
+          <>
+            {canOrderLab && (
+              <LabRequestForm
+                emr={emr}
+                profile={profile}
+                onSaved={() => toast.success('Lab request sent to lab')}
+              />
+            )}
+            <LabResultsHistory labResults={labResults} labRequests={labRequests} />
+          </>
+        )}
 
         {/* UPLOADS */}
         {activeTab === 'uploads' && (
@@ -406,6 +435,7 @@ function TimelineCard({ timeline }) {
     fluid:       { icon:'ti-droplet',             color:'#085041' },
     glucose:     { icon:'ti-activity',            color:'#B82020' },
     upload:      { icon:'ti-upload',              color:'#534AB7' },
+    lab_request: { icon:'ti-microscope',           color:'#0E7490' },
   };
   return (
     <div className="card">
@@ -1121,6 +1151,288 @@ function ReferDischargeForm({ emr, profile, onSaved }) {
               : <><i className="ti ti-door-exit" /> Discharge Patient</>
           }
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── LAB REQUEST FORM ────────────────────────── */
+function LabRequestForm({ emr, profile, onSaved }) {
+  const groups = [...new Set(LAB_TESTS.map(t => t.group))];
+  const [selected, setSelected] = useState([]);
+  const [urgency,  setUrgency]  = useState('routine');
+  const [notes,    setNotes]    = useState('');
+  const [saving,   setSaving]   = useState(false);
+
+  const toggle = (name) =>
+    setSelected(s => s.includes(name) ? s.filter(x => x !== name) : [...s, name]);
+
+  const save = async () => {
+    if (!selected.length) { toast.error('Select at least one test'); return; }
+    setSaving(true);
+    try {
+      await requestLabTest(emr, null, selected, profile?.displayName, urgency, notes);
+      setSelected([]); setNotes(''); setUrgency('routine');
+      onSaved?.();
+    } catch(e) { toast.error('Failed to send lab request'); }
+    setSaving(false);
+  };
+
+  const URGENCY_OPTS = [
+    { val:'routine', label:'Routine', color:'var(--accent)' },
+    { val:'urgent',  label:'Urgent',  color:'#c2410c' },
+    { val:'stat',    label:'STAT',    color:'#b91c1c' },
+  ];
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title"><i className="ti ti-microscope" />Order Lab Investigations</div>
+        {selected.length > 0 && (
+          <span style={{ fontSize:11, fontWeight:700, color:'#0E7490', background:'rgba(14,116,144,.1)',
+            padding:'2px 8px', borderRadius:6 }}>
+            {selected.length} selected
+          </span>
+        )}
+      </div>
+      <div className="card-body">
+        {/* Urgency selector */}
+        <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--t3)', alignSelf:'center' }}>Priority:</span>
+          {URGENCY_OPTS.map(u => (
+            <button key={u.val}
+              onClick={() => setUrgency(u.val)}
+              className="btn btn-sm"
+              style={{
+                background: urgency === u.val ? u.color : 'transparent',
+                color: urgency === u.val ? '#fff' : u.color,
+                borderColor: u.color,
+                fontWeight: 700,
+              }}>
+              {u.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Test picker grouped */}
+        {groups.map(grp => (
+          <div key={grp} style={{ marginBottom:14 }}>
+            <div style={{ fontSize:10, fontWeight:800, color:'var(--t3)', textTransform:'uppercase',
+              letterSpacing:'.06em', marginBottom:6 }}>{grp}</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {LAB_TESTS.filter(t => t.group === grp).map(t => {
+                const on = selected.includes(t.name);
+                return (
+                  <button key={t.name}
+                    onClick={() => toggle(t.name)}
+                    style={{
+                      padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:700,
+                      cursor:'pointer', border:`1.5px solid ${on ? '#0E7490' : 'var(--border)'}`,
+                      background: on ? 'rgba(14,116,144,.12)' : 'var(--bg)',
+                      color: on ? '#0E7490' : 'var(--t2)',
+                      transition:'all .15s',
+                    }}>
+                    {on && <i className="ti ti-check" style={{ marginRight:4, fontSize:10 }} />}
+                    {t.abbr}
+                    <span style={{ fontSize:9, color:'var(--t3)', marginLeft:4 }}>
+                      {t.name !== t.abbr ? t.name.replace(t.abbr,'').trim() : ''}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Selected list */}
+        {selected.length > 0 && (
+          <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8,
+            background:'rgba(14,116,144,.06)', border:'1px solid rgba(14,116,144,.15)' }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'#0E7490', marginBottom:4 }}>
+              ORDERED TESTS
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+              {selected.map(s => (
+                <span key={s} style={{ fontSize:11, padding:'2px 8px', borderRadius:4,
+                  background:'rgba(14,116,144,.15)', color:'#0E7490', fontWeight:600 }}
+                  onClick={() => toggle(s)} title="Click to remove">
+                  {s} ×
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="form-group" style={{ marginBottom:12 }}>
+          <label className="form-label">Clinical indication / notes to lab</label>
+          <textarea className="form-textarea" rows={2}
+            placeholder="e.g. ? Malaria, Fever × 3/7, check FBC and MP"
+            value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+
+        <button className="btn btn-primary" onClick={save} disabled={saving || !selected.length}>
+          {saving
+            ? <><i className="ti ti-loader-2" style={{animation:'spin 1s linear infinite'}} /> Sending…</>
+            : <><i className="ti ti-send" /> Send to Lab ({selected.length} test{selected.length !== 1 ? 's' : ''})</>
+          }
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── LAB RESULTS HISTORY ─────────────────────── */
+const URGENCY_BADGE = {
+  stat:    'badge-danger',
+  urgent:  'badge-warn',
+  routine: 'badge-info',
+};
+const STATUS_BADGE = {
+  pending:    'badge-warn',
+  processing: 'badge-info',
+  completed:  'badge-ok',
+};
+const FLAG_COLOR = { high:'#dc2626', low:'#d97706', normal:'var(--success)', '':'var(--t3)' };
+
+function LabResultsHistory({ labResults, labRequests }) {
+  const [openId, setOpenId] = useState(null);
+
+  // Merge requests with their results
+  const allRequests = [...labRequests].sort((a,b) =>
+    (b.requestedAt?.seconds||0) - (a.requestedAt?.seconds||0));
+
+  if (!allRequests.length) return (
+    <div className="card">
+      <div className="card-body" style={{ textAlign:'center', fontSize:12, fontWeight:700, color:'var(--t3)', padding:24 }}>
+        <i className="ti ti-microscope" style={{ fontSize:28, display:'block', marginBottom:8, opacity:.4 }} />
+        No lab requests yet for this patient
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title"><i className="ti ti-test-pipe" />Lab Requests & Results</div>
+        <span style={{ fontSize:11, fontWeight:600, color:'var(--t3)' }}>
+          {allRequests.length} request{allRequests.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column' }}>
+        {allRequests.map(req => {
+          const isOpen = openId === req.id;
+          const result = labResults.find(r => r.requestId === req.id);
+
+          return (
+            <div key={req.id} style={{ borderBottom:'1px solid var(--border)' }}>
+              {/* Collapsed row */}
+              <div onClick={() => setOpenId(isOpen ? null : req.id)}
+                style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+                  cursor:'pointer', background: isOpen ? 'var(--accent-bg)' : 'transparent',
+                  transition:'background .15s' }}>
+                <div style={{ width:34, height:34, borderRadius:8, flexShrink:0,
+                  background: req.status === 'completed' ? 'rgba(22,163,74,.15)' : 'rgba(14,116,144,.12)',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <i className={`ti ${req.status === 'completed' ? 'ti-circle-check' : 'ti-microscope'}`}
+                    style={{ fontSize:16, color: req.status === 'completed' ? 'var(--success)' : '#0E7490' }} />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)', display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+                    {(req.tests||[]).slice(0,3).join(' · ')}
+                    {req.tests?.length > 3 && <span style={{ color:'var(--t3)' }}>+{req.tests.length - 3} more</span>}
+                    <span className={`badge ${URGENCY_BADGE[req.urgency] || 'badge-info'}`} style={{ fontSize:9 }}>
+                      {req.urgency?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>
+                    {formatDateTime(req.requestedAt)} · {req.requestedBy}
+                  </div>
+                </div>
+                <span className={`badge ${STATUS_BADGE[req.status] || 'badge-neutral'}`} style={{ fontSize:10 }}>
+                  {req.status}
+                </span>
+                <i className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`}
+                  style={{ fontSize:16, color:'var(--t3)', flexShrink:0 }} />
+              </div>
+
+              {/* Expanded */}
+              {isOpen && (
+                <div style={{ padding:'0 14px 14px', background:'var(--accent-bg)' }}>
+                  {/* Request info */}
+                  <div style={{ fontSize:11, color:'var(--t3)', marginBottom:10, display:'flex', gap:16, flexWrap:'wrap' }}>
+                    <span><strong style={{color:'var(--t2)'}}>Ordered by:</strong> {req.requestedBy}</span>
+                    <span><strong style={{color:'var(--t2)'}}>On:</strong> {formatDateTime(req.requestedAt)}</span>
+                    {req.notes && <span><strong style={{color:'var(--t2)'}}>Note:</strong> {req.notes}</span>}
+                  </div>
+
+                  {/* Ordered tests list */}
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+                    {(req.tests||[]).map(t => (
+                      <span key={t} style={{ padding:'3px 10px', borderRadius:6, fontSize:11,
+                        fontWeight:600, background:'rgba(14,116,144,.1)', color:'#0E7490',
+                        border:'1px solid rgba(14,116,144,.2)' }}>{t}</span>
+                    ))}
+                  </div>
+
+                  {/* Results table */}
+                  {result ? (
+                    <div style={{ borderRadius:8, overflow:'hidden', border:'1px solid var(--border)' }}>
+                      <div style={{ padding:'6px 12px', background:'rgba(22,163,74,.1)',
+                        borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <span style={{ fontSize:11, fontWeight:700, color:'var(--success)' }}>
+                          <i className="ti ti-circle-check" style={{ marginRight:4 }} />Results entered by {result.resultEnteredBy}
+                        </span>
+                        <span style={{ fontSize:10, color:'var(--t3)' }}>{formatDateTime(result.completedAt)}</span>
+                      </div>
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                        <thead>
+                          <tr style={{ background:'rgba(0,0,0,.03)' }}>
+                            {['Test','Result','Unit','Ref Range','Flag'].map(h => (
+                              <th key={h} style={{ padding:'6px 10px', textAlign:'left', fontSize:9,
+                                fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(result.results || {}).map(([test, r], i) => (
+                            <tr key={test} style={{ borderTop:'1px solid var(--border)',
+                              background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,.015)' }}>
+                              <td style={{ padding:'7px 10px', fontWeight:700, color:'var(--t1)' }}>{test}</td>
+                              <td style={{ padding:'7px 10px', fontWeight:800,
+                                color: r.flag === 'high' ? '#dc2626' : r.flag === 'low' ? '#d97706' : 'var(--t1)' }}>
+                                {r.value || '—'}
+                              </td>
+                              <td style={{ padding:'7px 10px', color:'var(--t3)' }}>{r.unit || '—'}</td>
+                              <td style={{ padding:'7px 10px', color:'var(--t3)' }}>{r.referenceRange || '—'}</td>
+                              <td style={{ padding:'7px 10px' }}>
+                                {r.flag ? (
+                                  <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:4,
+                                    background: r.flag === 'high' ? '#fee2e2' : r.flag === 'low' ? '#ffedd5' : 'rgba(22,163,74,.1)',
+                                    color: FLAG_COLOR[r.flag] || 'var(--t3)' }}>
+                                    {r.flag.toUpperCase()}
+                                  </span>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div style={{ padding:'12px 16px', borderRadius:8, textAlign:'center',
+                      background:'rgba(0,0,0,.03)', border:'1px dashed var(--border)',
+                      fontSize:12, fontWeight:700, color:'var(--t3)' }}>
+                      <i className="ti ti-clock" style={{ fontSize:18, display:'block', marginBottom:4, opacity:.5 }} />
+                      {req.status === 'pending' ? 'Awaiting processing by lab' :
+                       req.status === 'processing' ? 'Lab is processing this request' :
+                       'No results data found'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

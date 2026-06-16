@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
-const ROLES = ['doctor', 'nurse', 'records', 'subadmin', 'admin'];
+const ROLES = ['doctor', 'nurse', 'records', 'pharmacist', 'lab', 'subadmin', 'admin'];
 const EMPTY_USER = { displayName:'', email:'', password:'', role:'nurse', phone:'' };
 
 export default function UserManagement() {
@@ -150,6 +150,7 @@ export default function UserManagement() {
   const roleBadge = r => ({
     doctor:'badge-ok', nurse:'badge-info', records:'badge-warn',
     admin:'badge-danger', subadmin:'badge-neutral',
+    pharmacist:'badge-purple', lab:'badge-teal',
   }[r] || 'badge-neutral');
 
   return (
