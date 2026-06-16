@@ -79,5 +79,47 @@ service cloud.firestore {
       allow create: if isAnyStaff();
       allow update, delete: if false;
     }
+
+    // Triage queue — clinical staff write, all staff read
+    match /triage_queue/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+
+    // Medication Administration Records — clinical write, all staff read
+    match /mar_records/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+
+    // Pharmacy inventory — admin/subadmin manage, all staff read
+    match /pharmacy_inventory/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isAdmin() || (isAuth() && isActive() && getRole() == 'subadmin') || isClinical();
+    }
+
+    // Self-reports (QR sick reports from students) — public create, staff read
+    match /self_reports/{doc} {
+      allow read:  if isAnyStaff();
+      allow create: if true; // students submit without auth
+      allow update: if isClinical() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // sickReports subcollection under each patient
+    match /patients/{emrNumber}/sickReports/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+
+    // NHIS / NACON official forms
+    match /nhis_prescriptions/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /nacon_prescriptions/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
   }
 }
