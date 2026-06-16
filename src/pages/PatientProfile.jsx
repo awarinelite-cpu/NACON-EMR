@@ -567,7 +567,7 @@ export default function PatientProfile() {
   })();
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', background:'var(--main-bg)' }}>
+    <div style={{ display:'flex', flexDirection:'column', background:'var(--main-bg)', height:'100%', overflow:'hidden' }}>
 
       {/* ══ HEADER BAR — always visible ══ */}
       <div style={{
@@ -782,7 +782,7 @@ export default function PatientProfile() {
       </div>
 
       {/* ══ TAB CONTENT ══ */}
-      <div style={{ padding:'14px' }}>
+      <div style={{ padding:'14px', flex:1, minHeight:0, overflowY:'auto', overscrollBehavior:'none' }}>
 
         {/* ── VISIT TAB ── */}
         {activeTab==='visit' && (
