@@ -1250,36 +1250,36 @@ export async function enterLabResults(requestId, results, enteredBy) {
 
 /** Live listener: all pending lab requests */
 export function listenLabRequests(callback, statusFilter = null) {
-  const constraints = [orderBy('requestedAt', 'asc')];
-  if (statusFilter) constraints.unshift(where('status', '==', statusFilter));
+  // Single-field where only to avoid composite index. Sort client-side.
+  const constraints = statusFilter ? [where('status', '==', statusFilter)] : [];
   const q = query(collection(db, COL.LAB_REQUESTS), ...constraints);
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (a.requestedAt?.seconds || 0) - (b.requestedAt?.seconds || 0));
+    callback(docs);
+  });
 }
 
 /** Live listener: lab results for a specific patient */
 export function listenPatientLabResults(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.LAB_RESULTS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('completedAt', 'desc')
-  );
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  // Single-field where only — avoids composite index. Sort client-side.
+  const q = query(collection(db, COL.LAB_RESULTS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.completedAt?.seconds || b.requestedAt?.seconds || 0) - (a.completedAt?.seconds || a.requestedAt?.seconds || 0));
+    callback(docs);
+  });
 }
 
 /** Live listener: lab requests for a specific patient */
 export function listenPatientLabRequests(emrNumber, callback) {
-  const q = query(
-    collection(db, COL.LAB_REQUESTS),
-    where('emrNumber', '==', emrNumber),
-    orderBy('requestedAt', 'desc')
-  );
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  // Single-field where only — avoids composite index. Sort client-side.
+  const q = query(collection(db, COL.LAB_REQUESTS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.requestedAt?.seconds || 0) - (a.requestedAt?.seconds || 0));
+    callback(docs);
+  });
 }
 
 /** Update a lab request status (e.g. pending → processing) */
@@ -1289,3 +1289,4 @@ export async function updateLabRequestStatus(requestId, status, updatedBy) {
     ...(status === 'processing' ? { processingBy: updatedBy, processingAt: serverTimestamp() } : {}),
   });
 }
+
