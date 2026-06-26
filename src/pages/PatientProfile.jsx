@@ -1903,6 +1903,7 @@ export default function PatientProfile() {
               <LabRequestForm
                 emr={emrNumber}
                 visitId={visitId}
+                ensureVisitId={ensureVisitId}
                 profile={profile}
                 onSaved={() => {}}
               />
@@ -2208,7 +2209,7 @@ export default function PatientProfile() {
 }
 
 // ── LAB REQUEST FORM ──────────────────────────
-function LabRequestForm({ emr, visitId, profile, onSaved }) {
+function LabRequestForm({ emr, visitId, ensureVisitId, profile, onSaved }) {
   const groups = [...new Set(LAB_TESTS.map(t => t.group))];
   const [selected, setSelected] = useState([]);
   const [urgency,  setUrgency]  = useState('routine');
@@ -2222,11 +2223,16 @@ function LabRequestForm({ emr, visitId, profile, onSaved }) {
     if (!selected.length) { toast.error('Select at least one test'); return; }
     setSaving(true);
     try {
-      await requestLabTest(emr, visitId, selected, profile?.displayName, urgency, notes);
+      // Ensure a visit exists before writing the lab request
+      const vid = visitId || (ensureVisitId ? await ensureVisitId() : null);
+      await requestLabTest(emr, vid, selected, profile?.displayName || profile?.email || 'Unknown', urgency, notes);
       toast.success('Lab request sent');
       setSelected([]); setNotes(''); setUrgency('routine');
       onSaved?.();
-    } catch { toast.error('Failed to send lab request'); }
+    } catch(e) {
+      console.error('Lab request failed:', e);
+      toast.error('Failed: ' + (e?.message || String(e)));
+    }
     setSaving(false);
   };
 
@@ -2453,4 +2459,5 @@ function LabResultsHistory({ labResults, labRequests }) {
     </div>
   );
 }
+
 
