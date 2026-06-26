@@ -15,6 +15,9 @@ import {
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
+import VitalsTrendChart from '../components/patients/VitalsTrendChart';
+import NewsScore from '../components/patients/NewsScore';
+import AllergyAlert, { checkAllergyConflicts } from '../components/patients/AllergyAlert';
 
 const TABS = [
   { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','admin','subadmin'] },
@@ -83,6 +86,7 @@ export default function PatientProfile() {
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const [selectedEvent, setSelectedEvent] = useState(null); // timeline detail drawer
   const [viewOnly,       setViewOnly]       = useState(false);  // action buttons open view-only
+  const [allergyAlert, setAllergyAlert] = useState(null); // { conflicts, pendingRx }
   const fileInput = useRef();
 
   // Scroll listener: collapse vitals+actions using DOM classList (no re-render = no shake)
@@ -455,10 +459,22 @@ export default function PatientProfile() {
     const valid = rxForm.filter(r => r.drug.trim());
     if (!valid.length) { toast.error('Add at least one medication'); return; }
     if (!profile) { toast.error('Not logged in'); return; }
+
+    // ── Allergy check ──
+    const allergyStr = patient?.allergies?.trim();
+    const conflicts = checkAllergyConflicts(allergyStr, valid);
+    if (conflicts.length > 0) {
+      setAllergyAlert({ conflicts, pendingRx: valid, allergyStr });
+      return; // block until user decides
+    }
+    await doSaveRx(valid);
+  };
+
+  const doSaveRx = async (drugs) => {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addPrescription(emrNumber, vid, valid, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
+      await addPrescription(emrNumber, vid, drugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
       setRxForm([{ drug:'', dose:'', frequency:'', duration:'' }]);
       toast.success(isNurse ? 'Rx saved — countersign required' : 'Prescription saved');
     } catch(e) { console.error('saveRx',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -726,6 +742,16 @@ export default function PatientProfile() {
         </div>
         )}
 
+        {/* NEWS2 compact badge row — shown if vitals exist */}
+        {!isRecords && latestV && (
+          <div style={{ padding:'6px 14px 0', display:'flex', alignItems:'center', gap:8 }}>
+            <NewsScore vitals={latestV} compact />
+            <span style={{ fontSize:10, color:'var(--t3)', fontWeight:600 }}>
+              Based on latest vitals — click for breakdown
+            </span>
+          </div>
+        )}
+
         {/* Action Buttons — hidden entirely for records staff */}
         {!isRecords && (
         <div style={{
@@ -957,6 +983,12 @@ export default function PatientProfile() {
         {/* ── VITALS TAB ── */}
         {activeTab==='vitals' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {/* NEWS2 Early Warning Score — computed from latest vitals */}
+            {vitals.length > 0 && <NewsScore vitals={vitals[0]} />}
+
+            {/* Trend Chart */}
+            {vitals.length > 1 && <VitalsTrendChart vitals={vitals} />}
+
             {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-heart-rate-monitor" />Record Vitals</div></div>
               <div className="card-body">
@@ -2158,6 +2190,18 @@ export default function PatientProfile() {
           </div>
         </div>
       )}
+      {/* ── ALLERGY ALERT MODAL ── */}
+      {allergyAlert && (
+        <AllergyAlert
+          conflicts={allergyAlert.conflicts}
+          allergyString={allergyAlert.allergyStr}
+          onCancel={() => setAllergyAlert(null)}
+          onOverride={async () => {
+            setAllergyAlert(null);
+            await doSaveRx(allergyAlert.pendingRx);
+          }}
+        />
+      )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
@@ -2409,3 +2453,4 @@ function LabResultsHistory({ labResults, labRequests }) {
     </div>
   );
 }
+
