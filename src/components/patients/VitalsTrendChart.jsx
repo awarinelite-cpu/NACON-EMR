@@ -176,7 +176,7 @@ export default function VitalsTrendChart({ vitals }) {
         {chartData.length > 0 && (() => {
           const latest = chartData[chartData.length - 1];
           const checks = [
-            { label:'BP',   val: latest.sbp ? `${latest.sbp}/${latest.dbp}`, unit:'mmHg', abnormal: latest.sbp > 140 || latest.sbp < 90 },
+            { label:'BP',   val: latest.sbp ? `${latest.sbp}/${latest.dbp}` : null, unit:'mmHg', abnormal: latest.sbp > 140 || latest.sbp < 90 },
             { label:'HR',   val: latest.hr,   unit:'bpm',  abnormal: latest.hr > 100 || latest.hr < 60  },
             { label:'Temp', val: latest.temp, unit:'°C',   abnormal: latest.temp > 37.5 || latest.temp < 36 },
             { label:'SpO₂', val: latest.spo2, unit:'%',    abnormal: latest.spo2 < 94   },
