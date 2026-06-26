@@ -41,7 +41,7 @@ export default function PatientSearch({ placeholder = 'Search by EMR, name, or c
   };
 
   return (
-    <div style={{ position:'relative', flex:1, maxWidth:480 }}>
+    <div className="patient-search" style={{ position:'relative', flex:1, maxWidth:480 }}>
       <div style={{
         display:'flex', alignItems:'center', gap:8,
         background:'var(--main-bg)', border:'1px solid var(--border2)',
@@ -97,7 +97,7 @@ export default function PatientSearch({ placeholder = 'Search by EMR, name, or c
       {/* Results dropdown */}
       {open && results.length > 0 && (
         <div style={{
-          position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:200,
+          position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:300,
           background:'var(--card-bg)', border:'1px solid var(--border)',
           borderRadius:'var(--radius-lg)', boxShadow:'var(--shadow-md)', overflow:'hidden',
         }} role="listbox">
@@ -149,7 +149,7 @@ export default function PatientSearch({ placeholder = 'Search by EMR, name, or c
 
       {open && query && results.length === 0 && !searching && (
         <div style={{
-          position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:200,
+          position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:300,
           background:'var(--card-bg)', border:'1px solid var(--border)',
           borderRadius:'var(--radius)', padding:'14px 12px',
           textAlign:'center', fontSize:12, color:'var(--t3)', fontWeight:700,
