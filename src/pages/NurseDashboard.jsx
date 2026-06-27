@@ -50,9 +50,6 @@ export default function NurseDashboard() {
       <div className="topbar">
         <div className="topbar-title">Dashboard — Nurse {profile?.displayName}</div>
         <PatientSearch />
-        <button className="btn btn-primary" onClick={() => navigate('/nurse/patients')}>
-          <i className="ti ti-notes-medical" /> Add nursing note
-        </button>
       </div>
       <div className="page-content" style={{ flex:1 }}>
 

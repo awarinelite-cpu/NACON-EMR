@@ -69,7 +69,7 @@ export default function PatientSearch({ placeholder = 'Search by EMR, name, or c
   };
 
   return (
-    <div ref={wrapRef} className="patient-search" style={{ position:'relative', flex:1, maxWidth:480 }}>
+    <div ref={wrapRef} className="patient-search" style={{ position:'relative', flex:1 }}>
       <div style={{
         display:'flex', alignItems:'center', gap:8,
         background:'var(--main-bg)', border:'1px solid var(--border2)',
