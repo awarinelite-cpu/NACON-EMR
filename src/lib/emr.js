@@ -688,10 +688,10 @@ export async function updateTriageStatus(triageId, newStatus, updatedBy) {
 }
 
 export function listenTriageQueue(callback) {
+  // Single-field where only — avoids composite index. Sort client-side.
   const q = query(
     collection(db, COL.TRIAGE),
-    where('status', '==', 'waiting'),
-    orderBy('arrivedAt', 'asc')
+    where('status', '==', 'waiting')
   );
   return onSnapshot(q, snap => {
     const today = new Date();
@@ -974,14 +974,16 @@ export async function submitSelfReport(data) {
 }
 
 export function listenSelfReports(callback) {
+  // Single-field where only — avoids composite index. Sort client-side.
   const q = query(
     collection(db, COL.SELF_REPORT),
-    where('status', '==', 'pending'),
-    orderBy('submittedAt', 'desc')
+    where('status', '==', 'pending')
   );
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+    callback(docs);
+  });
 }
 
 export async function processSelfReport(reportId, action, nurseId) {
@@ -1094,15 +1096,19 @@ export function listenPatientForms(emrNumber, callback) {
 
 /** Live listener: all prescriptions that are pending dispensing (not yet dispensed) */
 export function listenPendingDispense(callback) {
+  // Use == false instead of != true to avoid composite index on inequality.
+  // Also catches docs where dispensed field is absent (undefined/null treated as not dispensed).
   const q = query(
     collection(db, COL.PRESCRIPTIONS),
-    where('dispensed', '!=', true),
-    orderBy('dispensed'),
-    orderBy('createdAt', 'asc')
+    where('dispensed', '==', false)
   );
-  return onSnapshot(q, snap =>
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
+  return onSnapshot(q, snap => {
+    // Also include docs where dispensed field doesn't exist yet
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Sort by createdAt ascending client-side
+    all.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    callback(all);
+  });
 }
 
 /** Live listener: prescriptions dispensed today */
