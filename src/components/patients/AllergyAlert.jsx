@@ -48,6 +48,34 @@ export function checkAllergyConflicts(allergyString, drugs) {
   return conflicts;
 }
 
+// Same checks as checkAllergyConflicts() above, but for the official NHIS/NACON
+// Rx form, whose medication field (`rx`) is one free-text blob rather than a
+// structured drug list (it's auto-filled from prescription history for printing).
+export function checkAllergyConflictsInText(allergyString, text) {
+  if (!allergyString?.trim() || !text?.trim()) return [];
+  const allergyTerms = allergyString.toLowerCase().split(/[,;\/\s]+/).filter(Boolean);
+  const textLow = text.toLowerCase();
+  const conflicts = [];
+
+  allergyTerms.forEach(allergyTerm => {
+    if (textLow.includes(allergyTerm)) {
+      if (!conflicts.find(c => c.allergy === allergyTerm)) {
+        conflicts.push({ allergy: allergyTerm, drug: allergyTerm, crossReact: false });
+      }
+      return;
+    }
+    const group = CROSS_REACT.find(g => g.some(t => allergyTerm.includes(t) || t.includes(allergyTerm)));
+    if (group) {
+      const hit = group.find(t => textLow.includes(t));
+      if (hit && !conflicts.find(c => c.allergy === allergyTerm)) {
+        conflicts.push({ allergy: allergyTerm, drug: hit, crossReact: true });
+      }
+    }
+  });
+
+  return conflicts;
+}
+
 export default function AllergyAlert({ conflicts, allergyString, onOverride, onCancel }) {
   if (!conflicts?.length) return null;
 

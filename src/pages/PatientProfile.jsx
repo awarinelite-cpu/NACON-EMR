@@ -17,7 +17,7 @@ import {
 import MARTab from '../components/patients/MARTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import NewsScore from '../components/patients/NewsScore';
-import AllergyAlert, { checkAllergyConflicts } from '../components/patients/AllergyAlert';
+import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
 
 const TABS = [
   { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','admin','subadmin'] },
@@ -464,7 +464,7 @@ export default function PatientProfile() {
     const allergyStr = patient?.allergies?.trim();
     const conflicts = checkAllergyConflicts(allergyStr, valid);
     if (conflicts.length > 0) {
-      setAllergyAlert({ conflicts, pendingRx: valid, allergyStr });
+      setAllergyAlert({ conflicts, pendingRx: valid, allergyStr, onConfirm: () => doSaveRx(valid) });
       return; // block until user decides
     }
     await doSaveRx(valid);
@@ -869,9 +869,15 @@ export default function PatientProfile() {
 
                   <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
                     <div style={{ fontSize:9, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>Known Allergies</div>
-                    <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color: patient.knownAllergies ? 'var(--danger)' : 'var(--success)' }}>
-                      {patient.knownAllergies ? `⚠ ${patient.knownAllergies}` : '✓ No known allergies'}
-                    </div>
+                    {(() => {
+                      const a = patient.allergies?.trim();
+                      const has = a && a.toLowerCase() !== 'none' && a.toLowerCase() !== 'nil';
+                      return (
+                        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color: has ? 'var(--danger)' : 'var(--success)' }}>
+                          {has ? `⚠ ${a}` : '✓ No known allergies'}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Emergency contact */}
@@ -1249,8 +1255,7 @@ export default function PatientProfile() {
               };
 
               // Save handler
-              const handleSaveOfficial = async () => {
-                if (!officialRx?.patientName?.trim()) { toast.error('Patient name is required'); return; }
+              const doSaveOfficial = async () => {
                 setOfficialRxSaving(true);
                 const savedBy = profile?.displayName || profile?.email || 'Unknown';
                 try {
@@ -1270,6 +1275,21 @@ export default function PatientProfile() {
                   toast.error('Failed to save: ' + (e?.message || e));
                 }
                 setOfficialRxSaving(false);
+              };
+
+              const handleSaveOfficial = async () => {
+                if (!officialRx?.patientName?.trim()) { toast.error('Patient name is required'); return; }
+
+                // ── Allergy check — `rx` is free text (auto-filled from prescription
+                // history), so scan it for allergy terms/cross-reactive drug names
+                // rather than checking a structured drug list like saveRx does. ──
+                const allergyStr = patient?.allergies?.trim();
+                const conflicts = checkAllergyConflictsInText(allergyStr, officialRx?.rx);
+                if (conflicts.length > 0) {
+                  setAllergyAlert({ conflicts, allergyStr, onConfirm: doSaveOfficial });
+                  return; // block until user decides
+                }
+                await doSaveOfficial();
               };
 
               // Shared field renderer
@@ -2199,7 +2219,8 @@ export default function PatientProfile() {
           onCancel={() => setAllergyAlert(null)}
           onOverride={async () => {
             setAllergyAlert(null);
-            await doSaveRx(allergyAlert.pendingRx);
+            if (allergyAlert.onConfirm) await allergyAlert.onConfirm();
+            else await doSaveRx(allergyAlert.pendingRx);
           }}
         />
       )}

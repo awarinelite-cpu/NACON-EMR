@@ -7,6 +7,7 @@ import {
   listenInventory, dispensePrescription,
   getPatient, formatTs,
 } from '../lib/emr';
+import AllergyAlert, { checkAllergyConflicts } from '../components/patients/AllergyAlert';
 import toast from 'react-hot-toast';
 
 const URGENCY_COLOR = { stat:'#ef4444', urgent:'#f97316', routine:'var(--accent)' };
@@ -20,6 +21,7 @@ export default function PharmacyDashboard() {
   const [patients,   setPatients]   = useState({});     // emrNumber → patient
   const [dispensing, setDispensing] = useState(null);   // rx being confirmed
   const [saving,     setSaving]     = useState(false);
+  const [allergyAlert, setAllergyAlert] = useState(null); // { conflicts, allergyStr, onConfirm }
   const [tab,        setTab]        = useState('queue'); // 'queue'|'inventory'|'log'
   const [search,     setSearch]     = useState('');
 
@@ -41,7 +43,7 @@ export default function PharmacyDashboard() {
 
   const lowStock = inventory.filter(i => i.quantity <= i.reorderAt);
 
-  const handleDispense = async (rx) => {
+  const doDispense = async (rx) => {
     if (saving) return;
     setSaving(true);
     try {
@@ -54,6 +56,22 @@ export default function PharmacyDashboard() {
       setDispensing(null);
     } catch (e) { toast.error('Failed to dispense'); }
     setSaving(false);
+  };
+
+  const handleDispense = async (rx) => {
+    if (saving) return;
+    // ── Allergy check — same cross-reactivity logic used when the Rx was
+    // written, run again here in case the patient's allergy record was
+    // added/updated after the prescription was written. ──
+    const p = patients[rx.emrNumber];
+    const allergyStr = p?.allergies?.trim();
+    const drugsForCheck = (rx.drugs || []).map(d => ({ drug: d.name || d.drug || '' }));
+    const conflicts = checkAllergyConflicts(allergyStr, drugsForCheck);
+    if (conflicts.length > 0) {
+      setAllergyAlert({ conflicts, allergyStr, onConfirm: () => doDispense(rx) });
+      return; // block until pharmacist decides
+    }
+    await doDispense(rx);
   };
 
   const tabStyle = (id) => ({
@@ -308,6 +326,19 @@ export default function PharmacyDashboard() {
           </div>
         )}
       </div>
+
+      {/* ── ALLERGY ALERT MODAL ── */}
+      {allergyAlert && (
+        <AllergyAlert
+          conflicts={allergyAlert.conflicts}
+          allergyString={allergyAlert.allergyStr}
+          onCancel={() => setAllergyAlert(null)}
+          onOverride={async () => {
+            setAllergyAlert(null);
+            await allergyAlert.onConfirm();
+          }}
+        />
+      )}
     </div>
   );
 }
