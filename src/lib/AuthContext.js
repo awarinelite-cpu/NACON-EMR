@@ -23,17 +23,23 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        const prof = await getUser(firebaseUser.uid);
-        // Attach the Firebase Auth UID onto the profile so components can use profile.uid
-        if (prof) prof.uid = firebaseUser.uid;
-        setProfile(prof);
-      } else {
-        setUser(null);
+      try {
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          const prof = await getUser(firebaseUser.uid);
+          // Attach the Firebase Auth UID onto the profile so components can use profile.uid
+          if (prof) prof.uid = firebaseUser.uid;
+          setProfile(prof);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('[AuthContext] Failed to load user profile:', err);
         setProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return unsub;
   }, []);
