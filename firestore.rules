@@ -129,15 +129,5 @@ service cloud.firestore {
       allow read:  if isAnyStaff();
       allow write: if isAuth() && isActive() && getRole() in ['lab','admin','subadmin'];
     }
-
-    // NHIS / NACON official forms
-    match /nhis_prescriptions/{doc} {
-      allow read:  if isAnyStaff();
-      allow write: if isClinical() || isAdmin();
-    }
-    match /nacon_prescriptions/{doc} {
-      allow read:  if isAnyStaff();
-      allow write: if isClinical() || isAdmin();
-    }
   }
 }
