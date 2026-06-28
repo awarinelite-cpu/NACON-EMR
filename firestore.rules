@@ -60,7 +60,7 @@ service cloud.firestore {
     }
     match /uploads/{doc} {
       allow read:  if isAnyStaff();
-      allow write: if isClinical() || isAdmin();
+      allow write: if isClinical() || isAdmin() || (isAuth() && isActive() && getRole() == 'lab');
     }
     match /referrals/{doc} {
       allow read:  if isAnyStaff();
