@@ -80,7 +80,16 @@ export function calculateNEWS2(vitals, onO2 = false, avpu = 'A') {
   const total = components.reduce((s, c) => s + c.score, 0);
 
   let risk, color, bg, border, action;
-  if (total === 0) {
+  if (components.some(c => c.score === 3)) {
+    // Any single parameter = 3 triggers at least Medium risk, regardless of total —
+    // this must be checked before the total-based bands below, since a single
+    // critical parameter (e.g. SpO2 <=91) can occur alongside a low total score.
+    risk = total <= 6 ? 'Medium' : 'High';
+    color = total <= 6 ? '#d97706' : '#dc2626';
+    bg = total <= 6 ? '#fffbeb' : '#fef2f2';
+    border = total <= 6 ? '#fde68a' : '#fca5a5';
+    action = total <= 6 ? 'Urgent clinical review — single parameter critical' : 'Emergency response — call doctor STAT';
+  } else if (total === 0) {
     risk = 'Low'; color = '#16a34a'; bg = '#f0fdf4'; border = '#86efac';
     action = 'Minimum 12-hourly monitoring';
   } else if (total <= 4) {
@@ -89,13 +98,6 @@ export function calculateNEWS2(vitals, onO2 = false, avpu = 'A') {
   } else if (total <= 6) {
     risk = 'Medium'; color = '#d97706'; bg = '#fffbeb'; border = '#fde68a';
     action = 'Urgent nurse review + doctor notification';
-  } else if (components.some(c => c.score === 3)) {
-    // Any single parameter = 3 triggers medium-high
-    risk = total <= 6 ? 'Medium' : 'High';
-    color = total <= 6 ? '#d97706' : '#dc2626';
-    bg = total <= 6 ? '#fffbeb' : '#fef2f2';
-    border = total <= 6 ? '#fde68a' : '#fca5a5';
-    action = total <= 6 ? 'Urgent clinical review' : 'Emergency response — call doctor STAT';
   } else {
     risk = 'High'; color = '#dc2626'; bg = '#fef2f2'; border = '#fca5a5';
     action = 'Emergency response — call doctor STAT';
