@@ -30,26 +30,52 @@ function renderFormattedText(text) {
   });
 }
 
-// Pulls drug names out of the AI response — specifically the bold text at
-// the start of each bulleted "suggested drug" line, e.g.
-// "* **Omeprazole** 20 mg orally..." -> "Omeprazole". Heading lines like
-// "2. **Suggested drug options:**" don't match (they use a number, not a
-// bullet), so only actual drug entries are picked up.
-function extractDrugNames(text) {
-  const names = [];
+// Pulls full dosing rows out of the AI response — name, dose, frequency,
+// and duration — from each bulleted "suggested drug" line, e.g.
+// "* **Omeprazole** 20 mg orally once daily for 4-8 weeks. (PPI...)"
+// -> { name:'Omeprazole', dose:'20 mg', frequency:'once daily', duration:'4-8 weeks' }
+// Heading lines like "2. **Suggested drug options:**" don't match (they use
+// a number, not a bullet), so only actual drug entries are picked up.
+// This is a best-effort parse of free-text AI output — always shown to the
+// user for review/edit before saving, never auto-saved.
+const FREQUENCY_PHRASES = [
+  'four times daily', 'three times daily', 'twice daily', 'once daily',
+  'four times a day', 'three times a day', 'twice a day', 'once a day',
+  'four times weekly', 'three times weekly', 'twice weekly', 'once weekly',
+  'every 4 hours', 'every 6 hours', 'every 8 hours', 'every 12 hours',
+  'every other day', 'at bedtime', 'as needed',
+];
+
+function extractDrugRows(text) {
+  const rows = [];
   const seen = new Set();
   text.split('\n').forEach(line => {
-    const m = line.trim().match(/^[*-]\s+\*\*([^*]+)\*\*/);
-    if (m) {
-      const name = m[1].trim().replace(/:$/, '');
-      const key = name.toLowerCase();
-      if (name && !seen.has(key)) {
-        seen.add(key);
-        names.push(name);
-      }
-    }
+    const m = line.trim().match(/^[*-]\s+\*\*([^*]+)\*\*\s*(.*)$/);
+    if (!m) return;
+    const name = m[1].trim().replace(/:$/, '');
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    // Dosing info is everything before the first explanatory parenthesis.
+    const dosingText = m[2].split('(')[0].replace(/\.\s*$/, '').trim();
+
+    const doseMatch = dosingText.match(/\d+(?:\.\d+)?\s?(mg|g|mcg|µg|ml|units?|iu)\b/i);
+    const dose = doseMatch ? doseMatch[0].replace(/\s+/, ' ').trim() : '';
+
+    const durationMatch = dosingText.match(
+      /\bfor\s+(\d+(?:\s*[-–]\s*\d+)?\s*(days|day|weeks|week|months|month))/i
+    );
+    const duration = durationMatch ? durationMatch[1].trim() : '';
+
+    const lowerDosing = dosingText.toLowerCase();
+    const freqPhrase = FREQUENCY_PHRASES.find(p => lowerDosing.includes(p));
+    const frequency = freqPhrase || '';
+
+    rows.push({ name, dose, frequency, duration });
   });
-  return names;
+  return rows;
 }
 
 export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }) {
@@ -87,14 +113,14 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
   };
 
   const handleConfirm = () => {
-    const names = extractDrugNames(result);
-    if (!names.length) {
+    const rows = extractDrugRows(result);
+    if (!rows.length) {
       toast.error('No drug names could be found in the suggestion');
       return;
     }
-    onConfirmDrugs?.(names);
+    onConfirmDrugs?.(rows);
     setConfirmed(true);
-    toast.success(`${names.length} drug${names.length > 1 ? 's' : ''} added to prescription — review and save`);
+    toast.success(`${rows.length} drug${rows.length > 1 ? 's' : ''} added to prescription — review and save`);
   };
 
   return (

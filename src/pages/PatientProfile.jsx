@@ -448,10 +448,15 @@ export default function PatientProfile() {
   // AI Drug Insight panel. Drops the drug names (no explanation text) into
   // the prescription form, ready for dose/frequency/duration to be filled
   // in and saved — nothing is auto-saved.
-  const handleConfirmDrugs = (drugNames) => {
+  const handleConfirmDrugs = (rows) => {
     setRxForm(r => {
       const filled = r.filter(x => x.drug.trim());
-      const newRows = drugNames.map(name => ({ drug: name, dose: '', frequency: '', duration: '' }));
+      const newRows = rows.map(row => ({
+        drug: row.name,
+        dose: row.dose || '',
+        frequency: row.frequency || '',
+        duration: row.duration || '',
+      }));
       return [...filled, ...newRows];
     });
     setActiveTab('rx');
