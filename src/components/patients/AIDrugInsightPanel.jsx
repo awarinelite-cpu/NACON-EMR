@@ -8,6 +8,28 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { suggestDrugsForNote } from '../../lib/geminiInsights';
 
+// Renders **bold** markdown segments (used for AI headings/subheadings/drug
+// names) as <strong>, stripping the asterisks. Everything else stays as
+// plain text, line breaks preserved via the pre-line container.
+function renderFormattedText(text) {
+  const lines = text.split('\n');
+  return lines.map((line, li) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+    return (
+      <React.Fragment key={li}>
+        {parts.map((part, pi) =>
+          part.startsWith('**') && part.endsWith('**') ? (
+            <strong key={pi}>{part.slice(2, -2)}</strong>
+          ) : (
+            <React.Fragment key={pi}>{part}</React.Fragment>
+          )
+        )}
+        {li < lines.length - 1 && '\n'}
+      </React.Fragment>
+    );
+  });
+}
+
 export default function AIDrugInsightPanel({ noteText, patient }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
@@ -74,9 +96,10 @@ export default function AIDrugInsightPanel({ noteText, patient }) {
                   fontSize: 13.5,
                   lineHeight: 1.5,
                   color: 'var(--t2)',
+                  textAlign: 'justify',
                 }}
               >
-                {result}
+                {renderFormattedText(result)}
               </div>
               <div
                 style={{
