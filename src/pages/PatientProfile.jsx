@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
+import AIDrugInsightPanel from '../components/patients/AIDrugInsightPanel';
 import {
   getPatient, listenNotes, listenVitals, listenPrescriptions,
   listenFluidChart, listenGlucoseChart, listenUploads,
@@ -1800,6 +1801,7 @@ export default function PatientProfile() {
                       : 'Patient assessment, interventions, response to treatment…'}
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
+                <AIDrugInsightPanel noteText={noteText} patient={patient} />
                 <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
                   <i className="ti ti-device-floppy" /> Save note
                 </button>
@@ -1844,6 +1846,7 @@ export default function PatientProfile() {
                     placeholder={'C/O: headache × 2 days\nO/E: Temp 38.5°C, BP 110/70\nDx: ? Malaria\nPlan: IM Artemether 160mg OD × 3/7…'}
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
+                <AIDrugInsightPanel noteText={noteText} patient={patient} />
                 <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
                   <i className="ti ti-device-floppy" /> Save note
                 </button>
