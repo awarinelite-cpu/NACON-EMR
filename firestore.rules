@@ -34,6 +34,10 @@ service cloud.firestore {
       allow read:  if isAnyStaff();
       allow write: if isClinical() || isAdmin();
     }
+    match /nursing_care_plans/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
     match /vitals/{doc} {
       allow read:  if isAnyStaff();
       allow write: if isClinical() || isAdmin();

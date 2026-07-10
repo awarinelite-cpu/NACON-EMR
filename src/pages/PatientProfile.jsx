@@ -13,6 +13,7 @@ import {
   formatDateTime, ROLES, reportSick,
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
+  addCarePlan, listenCarePlans, updateCarePlanEvaluation,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
@@ -27,6 +28,7 @@ const TABS = [
   { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
   { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
   { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },
+  { id:'careplan', label:'Care Plan',       icon:'📝',  roles: ['nurse'] },
   { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
   { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
   { id:'lab',      label:'Lab',             icon:'🔬',  roles: ['doctor','nurse','lab','admin','subadmin'] },
@@ -61,6 +63,7 @@ export default function PatientProfile() {
   const [uploads,   setUploads]   = useState([]);
   const [labRequests, setLabRequests] = useState([]);
   const [labResults,  setLabResults]  = useState([]);
+  const [carePlans,   setCarePlans]   = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [visitId,   setVisitId]   = useState(null);
@@ -85,6 +88,11 @@ export default function PatientProfile() {
   const [fluidForm, setFluidForm] = useState({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
+  const [carePlanForm, setCarePlanForm] = useState({
+    assessment: '', nursingDiagnosis: '', goal: '', interventions: '', rationale: '',
+  });
+  const [evalDraft, setEvalDraft] = useState({});   // { [planId]: draft text } for inline evaluation updates
+  const [evalOpenId, setEvalOpenId] = useState(null); // which plan's evaluation box is expanded
   const [selectedEvent, setSelectedEvent] = useState(null); // timeline detail drawer
   const [viewOnly,       setViewOnly]       = useState(false);  // action buttons open view-only
   const [allergyAlert, setAllergyAlert] = useState(null); // { conflicts, pendingRx }
@@ -143,6 +151,7 @@ export default function PatientProfile() {
       listenPatientForms(emrNumber,    setSavedForms),
       listenPatientLabRequests(emrNumber, setLabRequests),
       listenPatientLabResults(emrNumber,  setLabResults),
+      listenCarePlans(emrNumber,          setCarePlans),
     ];
     return () => unsubs.forEach(u => u && u());
   }, [emrNumber]);
@@ -461,6 +470,32 @@ export default function PatientProfile() {
     });
     setActiveTab('rx');
     setViewOnly(false);
+  };
+
+  const saveCarePlan = async () => {
+    if (!carePlanForm.nursingDiagnosis.trim()) {
+      toast.error('Enter a nursing diagnosis first');
+      return;
+    }
+    setSaving(true);
+    try {
+      const vid = await ensureVisitId();
+      await addCarePlan(emrNumber, vid, carePlanForm, profile.displayName || profile.email || 'Unknown', profile.role);
+      setCarePlanForm({ assessment:'', nursingDiagnosis:'', goal:'', interventions:'', rationale:'' });
+      toast.success('Care plan saved');
+    } catch(e) { console.error('saveCarePlan', e); toast.error('Failed: ' + (e?.message||e)); }
+    setSaving(false);
+  };
+
+  const submitEvaluation = async (planId, markResolved = false) => {
+    const note = (evalDraft[planId] || '').trim();
+    if (!note) { toast.error('Write an evaluation note first'); return; }
+    try {
+      await updateCarePlanEvaluation(planId, note, profile.displayName || profile.email || 'Unknown', markResolved);
+      setEvalDraft(d => ({ ...d, [planId]: '' }));
+      setEvalOpenId(null);
+      toast.success(markResolved ? 'Evaluation added — plan marked resolved' : 'Evaluation added');
+    } catch(e) { console.error('submitEvaluation', e); toast.error('Failed: ' + (e?.message||e)); }
   };
 
   const saveVitals = async () => {
@@ -1847,6 +1882,139 @@ export default function PatientProfile() {
                 </div>
               ))}
               {notes.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No notes yet</div>}
+            </div>
+          </div>
+        )}
+
+        {/* ── NURSING CARE PLAN TAB (nurse only) ── */}
+        {activeTab==='careplan' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {!viewOnly && <div className="card">
+              <div className="card-header">
+                <div className="card-title"><i className="ti ti-clipboard-heart" />New Nursing Care Plan</div>
+              </div>
+              <div className="card-body">
+                <div className="form-group">
+                  <label className="form-label">Assessment (subjective / objective data)</label>
+                  <textarea className="form-textarea full-width" rows={3}
+                    placeholder="S: patient reports... O: observed..."
+                    value={carePlanForm.assessment}
+                    onChange={e=>setCarePlanForm(f=>({...f, assessment:e.target.value}))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nursing Diagnosis <span className="req">*</span></label>
+                  <input className="form-input" placeholder="e.g. Acute pain related to surgical incision"
+                    value={carePlanForm.nursingDiagnosis}
+                    onChange={e=>setCarePlanForm(f=>({...f, nursingDiagnosis:e.target.value}))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Goal / Expected Outcome</label>
+                  <textarea className="form-textarea full-width" rows={2}
+                    placeholder="Patient will report pain reduced to ≤3/10 within 24 hours"
+                    value={carePlanForm.goal}
+                    onChange={e=>setCarePlanForm(f=>({...f, goal:e.target.value}))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nursing Interventions</label>
+                  <textarea className="form-textarea full-width" rows={4}
+                    placeholder={'One per line, e.g.\nAssess pain level 4-hourly using pain scale\nAdminister prescribed analgesia\nReposition patient 2-hourly'}
+                    value={carePlanForm.interventions}
+                    onChange={e=>setCarePlanForm(f=>({...f, interventions:e.target.value}))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Rationale</label>
+                  <textarea className="form-textarea full-width" rows={3}
+                    placeholder="Why these interventions help…"
+                    value={carePlanForm.rationale}
+                    onChange={e=>setCarePlanForm(f=>({...f, rationale:e.target.value}))} />
+                </div>
+                <button className="btn btn-primary mt-2" onClick={saveCarePlan} disabled={saving}>
+                  <i className="ti ti-device-floppy" /> Save Care Plan
+                </button>
+              </div>
+            </div>}
+
+            <div className="card">
+              <div className="card-header"><div className="card-title"><i className="ti ti-history" />Care Plans</div></div>
+              {carePlans.map(p => (
+                <div key={p.id} className="note-block">
+                  <div className="note-header">
+                    <div className="note-avatar" style={{ background:'var(--info-bg)', color:'var(--info)' }}>
+                      {(p.authorName||'').slice(0,2).toUpperCase()}
+                    </div>
+                    <div className="note-author">{p.authorName}</div>
+                    <span className={`badge ${p.status==='resolved' ? 'badge-ok' : 'badge-warn'}`} style={{ fontSize:9 }}>
+                      {p.status==='resolved' ? 'Resolved' : 'Active'}
+                    </span>
+                    <div className="note-time">{formatDateTime(p.createdAt)}</div>
+                  </div>
+
+                  <div style={{ padding:'0 14px 12px', fontSize:13, lineHeight:1.5 }}>
+                    {p.assessment && (
+                      <div style={{ marginBottom:6 }}>
+                        <strong>Assessment:</strong> <span style={{ whiteSpace:'pre-line' }}>{p.assessment}</span>
+                      </div>
+                    )}
+                    <div style={{ marginBottom:6 }}>
+                      <strong>Nursing Diagnosis:</strong> {p.nursingDiagnosis}
+                    </div>
+                    {p.goal && (
+                      <div style={{ marginBottom:6 }}>
+                        <strong>Goal:</strong> <span style={{ whiteSpace:'pre-line' }}>{p.goal}</span>
+                      </div>
+                    )}
+                    {p.interventions && (
+                      <div style={{ marginBottom:6 }}>
+                        <strong>Interventions:</strong>
+                        <div style={{ whiteSpace:'pre-line' }}>{p.interventions}</div>
+                      </div>
+                    )}
+                    {p.rationale && (
+                      <div style={{ marginBottom:6 }}>
+                        <strong>Rationale:</strong> <span style={{ whiteSpace:'pre-line' }}>{p.rationale}</span>
+                      </div>
+                    )}
+
+                    {(p.evaluationLog||[]).length > 0 && (
+                      <div style={{ marginTop:8, paddingTop:8, borderTop:'1px dashed var(--border)' }}>
+                        <strong>Evaluation history:</strong>
+                        {p.evaluationLog.map((ev, i) => (
+                          <div key={i} style={{ marginTop:4, fontSize:12, color:'var(--t2)' }}>
+                            <span style={{ color:'var(--t3)' }}>{formatDateTime(ev.at)} — {ev.by}:</span> {ev.note}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {!viewOnly && p.status !== 'resolved' && (
+                      <div style={{ marginTop:10 }}>
+                        {evalOpenId === p.id ? (
+                          <>
+                            <textarea className="form-textarea full-width" rows={2}
+                              placeholder="Add evaluation note…"
+                              value={evalDraft[p.id] || ''}
+                              onChange={e=>setEvalDraft(d=>({...d, [p.id]: e.target.value}))} />
+                            <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                              <button className="btn btn-sm btn-primary" onClick={()=>submitEvaluation(p.id, false)}>
+                                <i className="ti ti-plus" /> Add evaluation
+                              </button>
+                              <button className="btn btn-sm btn-outline" onClick={()=>submitEvaluation(p.id, true)}>
+                                <i className="ti ti-circle-check" /> Add & mark resolved
+                              </button>
+                              <button className="btn btn-sm" onClick={()=>setEvalOpenId(null)}>Cancel</button>
+                            </div>
+                          </>
+                        ) : (
+                          <button className="btn btn-sm btn-outline" onClick={()=>setEvalOpenId(p.id)}>
+                            <i className="ti ti-note" /> Update evaluation
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {carePlans.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No care plans yet</div>}
             </div>
           </div>
         )}

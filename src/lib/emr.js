@@ -60,6 +60,7 @@ export const COL = {
   SELF_REPORT:  'self_reports',
   LAB_REQUESTS: 'lab_requests',
   LAB_RESULTS:  'lab_results',
+  CARE_PLANS:   'nursing_care_plans',
 };
 
 // ── ROLES ────────────────────────────────────
@@ -324,8 +325,55 @@ export function listenNotes(emrNumber, callback) {
 }
 
 // ─────────────────────────────────────────────
-// VITALS
+// NURSING CARE PLAN (ADPIE — Assessment, Diagnosis, Planning,
+// Implementation, Evaluation). One document per nursing diagnosis; the
+// evaluation field is updated over time as care continues rather than
+// creating a new document each shift.
 // ─────────────────────────────────────────────
+export async function addCarePlan(emrNumber, visitId, planData, author, role) {
+  const ref = await addDoc(collection(db, COL.CARE_PLANS), {
+    emrNumber,
+    visitId: visitId || null,
+    ...planData,          // { assessment, nursingDiagnosis, goal, interventions, rationale, evaluation }
+    status: 'active',
+    authorName: author,
+    authorRole: role,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  await markSeenIfReportedSickToday(emrNumber, author);
+  await logAudit('ADD_CARE_PLAN', emrNumber, author, { planId: ref.id, role });
+  return ref.id;
+}
+
+export function listenCarePlans(emrNumber, callback) {
+  const q = query(collection(db, COL.CARE_PLANS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+    callback(docs);
+  });
+}
+
+// Appends a dated evaluation entry to an existing care plan and can flip
+// its status to 'resolved'. Keeps a running evaluation history rather than
+// overwriting the previous note.
+export async function updateCarePlanEvaluation(planId, evaluationNote, updatedBy, markResolved = false) {
+  const planRef = doc(db, COL.CARE_PLANS, planId);
+  const snap = await getDoc(planRef);
+  const prior = snap.exists() ? (snap.data().evaluationLog || []) : [];
+  await updateDoc(planRef, {
+    evaluationLog: [
+      ...prior,
+      { note: evaluationNote, by: updatedBy, at: Timestamp.now() },
+    ],
+    status: markResolved ? 'resolved' : (snap.exists() ? snap.data().status : 'active'),
+    updatedAt: serverTimestamp(),
+  });
+  await logAudit('UPDATE_CARE_PLAN', snap.exists() ? snap.data().emrNumber : null, updatedBy, { planId, markResolved });
+}
+
+
 export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
   const ref = await addDoc(collection(db, COL.VITALS), {
     emrNumber,
