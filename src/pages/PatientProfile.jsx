@@ -444,6 +444,20 @@ export default function PatientProfile() {
     setSaving(false);
   };
 
+  // Called when the nurse/doctor taps "Confirm — use these drugs" in the
+  // AI Drug Insight panel. Drops the drug names (no explanation text) into
+  // the prescription form, ready for dose/frequency/duration to be filled
+  // in and saved — nothing is auto-saved.
+  const handleConfirmDrugs = (drugNames) => {
+    setRxForm(r => {
+      const filled = r.filter(x => x.drug.trim());
+      const newRows = drugNames.map(name => ({ drug: name, dose: '', frequency: '', duration: '' }));
+      return [...filled, ...newRows];
+    });
+    setActiveTab('rx');
+    setViewOnly(false);
+  };
+
   const saveVitals = async () => {
     if (!vitalForm.sbp && !vitalForm.temp) { toast.error('Enter at least BP or temperature'); return; }
     setSaving(true);
@@ -1801,7 +1815,7 @@ export default function PatientProfile() {
                       : 'Patient assessment, interventions, response to treatment…'}
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
-                <AIDrugInsightPanel noteText={noteText} patient={patient} />
+                <AIDrugInsightPanel noteText={noteText} patient={patient} onConfirmDrugs={handleConfirmDrugs} />
                 <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
                   <i className="ti ti-device-floppy" /> Save note
                 </button>
@@ -1846,7 +1860,7 @@ export default function PatientProfile() {
                     placeholder={'C/O: headache × 2 days\nO/E: Temp 38.5°C, BP 110/70\nDx: ? Malaria\nPlan: IM Artemether 160mg OD × 3/7…'}
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
-                <AIDrugInsightPanel noteText={noteText} patient={patient} />
+                <AIDrugInsightPanel noteText={noteText} patient={patient} onConfirmDrugs={handleConfirmDrugs} />
                 <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
                   <i className="ti ti-device-floppy" /> Save note
                 </button>

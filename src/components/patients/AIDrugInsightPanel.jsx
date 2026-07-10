@@ -30,10 +30,33 @@ function renderFormattedText(text) {
   });
 }
 
-export default function AIDrugInsightPanel({ noteText, patient }) {
+// Pulls drug names out of the AI response — specifically the bold text at
+// the start of each bulleted "suggested drug" line, e.g.
+// "* **Omeprazole** 20 mg orally..." -> "Omeprazole". Heading lines like
+// "2. **Suggested drug options:**" don't match (they use a number, not a
+// bullet), so only actual drug entries are picked up.
+function extractDrugNames(text) {
+  const names = [];
+  const seen = new Set();
+  text.split('\n').forEach(line => {
+    const m = line.trim().match(/^[*-]\s+\*\*([^*]+)\*\*/);
+    if (m) {
+      const name = m[1].trim().replace(/:$/, '');
+      const key = name.toLowerCase();
+      if (name && !seen.has(key)) {
+        seen.add(key);
+        names.push(name);
+      }
+    }
+  });
+  return names;
+}
+
+export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const [open, setOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const handleSuggest = async () => {
     if (!noteText || !noteText.trim()) {
@@ -42,6 +65,7 @@ export default function AIDrugInsightPanel({ noteText, patient }) {
     }
     setLoading(true);
     setOpen(true);
+    setConfirmed(false);
     try {
       const { text } = await suggestDrugsForNote({
         noteText,
@@ -60,6 +84,17 @@ export default function AIDrugInsightPanel({ noteText, patient }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirm = () => {
+    const names = extractDrugNames(result);
+    if (!names.length) {
+      toast.error('No drug names could be found in the suggestion');
+      return;
+    }
+    onConfirmDrugs?.(names);
+    setConfirmed(true);
+    toast.success(`${names.length} drug${names.length > 1 ? 's' : ''} added to prescription — review and save`);
   };
 
   return (
@@ -113,6 +148,17 @@ export default function AIDrugInsightPanel({ noteText, patient }) {
                 prescription. Confirm against allergy history, dosage, and local
                 protocol before prescribing.
               </div>
+              <button
+                className="btn btn-primary btn-sm mt-2"
+                onClick={handleConfirm}
+                disabled={confirmed}
+              >
+                {confirmed ? (
+                  <><i className="ti ti-circle-check" /> Added to prescription</>
+                ) : (
+                  <><i className="ti ti-check" /> Confirm — use these drugs</>
+                )}
+              </button>
             </>
           )}
         </div>
