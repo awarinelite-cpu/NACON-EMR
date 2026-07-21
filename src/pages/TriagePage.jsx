@@ -118,7 +118,7 @@ export default function TriagePage() {
   // ── Update queue status ──
   const handleStatusChange = async (triageId, newStatus) => {
     try {
-      await updateTriageStatus(triageId, newStatus, profile.displayName);
+      await updateTriageStatus(triageId, newStatus, profile.displayName, profile.role);
       if (newStatus === 'done') toast.success('Marked as done');
       if (newStatus === 'with-doctor') toast.success('Moved to "With Doctor"');
     } catch {

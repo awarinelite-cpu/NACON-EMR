@@ -66,11 +66,11 @@ export default function RegisterPatient() {
     setSaving(true);
     try {
       if (isEdit) {
-        await updatePatient(editEmr, form, profile?.displayName);
+        await updatePatient(editEmr, form, profile?.displayName, profile?.role);
         toast.success('Patient record updated');
         navigate(-1);
       } else {
-        const result = await registerPatient(form, profile?.displayName);
+        const result = await registerPatient(form, profile?.displayName, profile?.role);
         setPreview(result);
         toast.success(`Patient registered! EMR: ${result.emrNumber}`);
       }

@@ -44,10 +44,10 @@ export default function PharmacyInventory() {
       if (editing) {
         await updateInventoryItem(editing.id,
           { ...form, quantity: Number(form.quantity), reorderAt: Number(form.reorderAt) },
-          profile.displayName);
+          profile.displayName, profile.role);
         toast.success('Item updated');
       } else {
-        await addInventoryItem(form, profile.displayName);
+        await addInventoryItem(form, profile.displayName, profile.role);
         toast.success('Item added');
       }
       setShowForm(false);

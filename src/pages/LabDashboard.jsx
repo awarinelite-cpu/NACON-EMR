@@ -63,7 +63,7 @@ export default function LabDashboard() {
     setResults(init);
     // Mark as processing if still pending
     if (req.status === 'pending') {
-      await updateLabRequestStatus(req.id, 'processing', profile.displayName || 'Lab');
+      await updateLabRequestStatus(req.id, 'processing', profile.displayName || 'Lab', profile.role);
     }
   };
 
@@ -98,14 +98,15 @@ export default function LabDashboard() {
         }
       });
 
-      await enterLabResults(selected.id, mergedResults, profile.displayName || profile.email || 'Lab');
+      await enterLabResults(selected.id, mergedResults, profile.displayName || profile.email || 'Lab', profile.role);
 
       // Upload attached file if any
       if (attachedFile) {
         setUploading(true);
         await uploadLabResultFile(
           selected.emrNumber, selected.id, attachedFile,
-          profile.displayName || profile.email || 'Lab'
+          profile.displayName || profile.email || 'Lab',
+          profile.role
         );
         setUploading(false);
       }

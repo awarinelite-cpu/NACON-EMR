@@ -129,7 +129,7 @@ export default function PatientProfile() {
       if (!p) { toast.error('Patient not found'); navigate(-1); return; }
       setPatient(p);
       setLoading(false);
-      const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName);
+      const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName, profile?.role);
       setVisitId(vid);
     })();
   }, [emrNumber]);
@@ -491,7 +491,7 @@ export default function PatientProfile() {
     const note = (evalDraft[planId] || '').trim();
     if (!note) { toast.error('Write an evaluation note first'); return; }
     try {
-      await updateCarePlanEvaluation(planId, note, profile.displayName || profile.email || 'Unknown', markResolved);
+      await updateCarePlanEvaluation(planId, note, profile.displayName || profile.email || 'Unknown', markResolved, profile.role);
       setEvalDraft(d => ({ ...d, [planId]: '' }));
       setEvalOpenId(null);
       toast.success(markResolved ? 'Evaluation added — plan marked resolved' : 'Evaluation added');
@@ -503,7 +503,7 @@ export default function PatientProfile() {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addVitals(emrNumber, vid, vitalForm, profile.displayName || profile.email || 'Unknown');
+      await addVitals(emrNumber, vid, vitalForm, profile.displayName || profile.email || 'Unknown', profile.role);
       setVitalForm({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
       toast.success('Vitals recorded');
     } catch(e) { console.error('saveVitals',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -542,7 +542,7 @@ export default function PatientProfile() {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addFluidEntry(emrNumber, vid, fluidForm, profile.displayName || profile.email || 'Unknown');
+      await addFluidEntry(emrNumber, vid, fluidForm, profile.displayName || profile.email || 'Unknown', profile.role);
       setFluidForm({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
       toast.success('Fluid entry added');
     } catch(e) { console.error('saveFluid',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -555,7 +555,7 @@ export default function PatientProfile() {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown');
+      await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown', profile.role);
       setGlucForm({ time:'', reading:'', context:'' });
       toast.success('Glucose reading added');
     } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
@@ -567,7 +567,7 @@ export default function PatientProfile() {
     if (!file) return;
     setSaving(true);
     try {
-      await uploadPatientFile(emrNumber, visitId, file, 'lab_result', profile.displayName || profile.email || 'Unknown');
+      await uploadPatientFile(emrNumber, visitId, file, 'lab_result', profile.displayName || profile.email || 'Unknown', profile.role);
       toast.success(`${file.name} uploaded`);
     } catch { toast.error('Upload failed'); }
     setSaving(false);
@@ -578,7 +578,7 @@ export default function PatientProfile() {
     if (!refForm.to) { toast.error('Enter referral destination'); return; }
     setSaving(true);
     try {
-      await createReferral(emrNumber, visitId, refForm, profile.displayName || profile.email || 'Unknown');
+      await createReferral(emrNumber, visitId, refForm, profile.displayName || profile.email || 'Unknown', profile.role);
       toast.success('Referral created'); navigate(-1);
     } catch { toast.error('Failed'); }
     setSaving(false);
@@ -588,7 +588,7 @@ export default function PatientProfile() {
     if (!window.confirm('Discharge this patient?')) return;
     setSaving(true);
     try {
-      await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName || profile.email || 'Unknown');
+      await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName || profile.email || 'Unknown', profile.role);
       toast.success('Patient discharged'); navigate(-1);
     } catch { toast.error('Failed'); }
     setSaving(false);
@@ -1315,9 +1315,9 @@ export default function PatientProfile() {
                 const savedBy = profile?.displayName || profile?.email || 'Unknown';
                 try {
                   if (isSoldier) {
-                    await saveNHISForm({ ...officialRx, emrNumber }, savedBy);
+                    await saveNHISForm({ ...officialRx, emrNumber }, savedBy, profile?.role);
                   } else {
-                    await saveNACONForm({ ...officialRx, emrNumber }, savedBy);
+                    await saveNACONForm({ ...officialRx, emrNumber }, savedBy, profile?.role);
                   }
                   toast.success(`${formLabel} saved to records`);
                   setOfficialRx(null);
@@ -2436,7 +2436,7 @@ function LabRequestForm({ emr, visitId, ensureVisitId, profile, onSaved }) {
     try {
       // Ensure a visit exists before writing the lab request
       const vid = visitId || (ensureVisitId ? await ensureVisitId() : null);
-      await requestLabTest(emr, vid, selected, profile?.displayName || profile?.email || 'Unknown', urgency, notes);
+      await requestLabTest(emr, vid, selected, profile?.displayName || profile?.email || 'Unknown', urgency, notes, profile?.role);
       toast.success('Lab request sent');
       setSelected([]); setNotes(''); setUrgency('routine');
       onSaved?.();

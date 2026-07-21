@@ -202,7 +202,7 @@ export default function App() {
               <ProtectedRoute allowedRoles={['admin']}><RolesAccess /></ProtectedRoute>
             } />
             <Route path="/admin/audit" element={
-              <ProtectedRoute allowedRoles={['admin']}><AuditLog /></ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin', 'subadmin']}><AuditLog /></ProtectedRoute>
             } />
             <Route path="/admin/settings" element={
               <ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>

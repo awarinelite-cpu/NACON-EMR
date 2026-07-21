@@ -51,7 +51,7 @@ export default function PharmacyDashboard() {
       await dispensePrescription(rx.id, {
         ...rx,
         patientName: p ? `${p.surname} ${p.firstName}` : rx.emrNumber,
-      }, profile.displayName || profile.email || 'Pharmacist');
+      }, profile.displayName || profile.email || 'Pharmacist', profile.role);
       toast.success('Prescription dispensed');
       setDispensing(null);
     } catch (e) { toast.error('Failed to dispense'); }

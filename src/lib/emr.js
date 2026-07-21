@@ -117,7 +117,7 @@ export function emrToFolderNumber(emr) {
 // ─────────────────────────────────────────────
 // PATIENTS
 // ─────────────────────────────────────────────
-export async function registerPatient(data, registeredBy) {
+export async function registerPatient(data, registeredBy, registeredByRole = null) {
   const emrNumber    = await generateEMRNumber();
   const folderNumber = emrToFolderNumber(emrNumber);
 
@@ -134,7 +134,7 @@ export async function registerPatient(data, registeredBy) {
 
   const ref = doc(db, COL.PATIENTS, emrNumber);
   await setDoc(ref, patientData);
-  await logAudit('REGISTER_PATIENT', emrNumber, registeredBy, { emrNumber, name: `${data.surname} ${data.firstName}` });
+  await logAudit('REGISTER_PATIENT', emrNumber, registeredBy, { emrNumber, name: `${data.surname} ${data.firstName}` }, registeredByRole);
 
   return { emrNumber, folderNumber };
 }
@@ -163,13 +163,13 @@ export async function getPatient(emrNumber) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function updatePatient(emrNumber, data, updatedBy) {
+export async function updatePatient(emrNumber, data, updatedBy, updatedByRole = null) {
   await updateDoc(doc(db, COL.PATIENTS, emrNumber), {
     ...data,
     updatedAt: serverTimestamp(),
     updatedBy,
   });
-  await logAudit('UPDATE_PATIENT', emrNumber, updatedBy, data);
+  await logAudit('UPDATE_PATIENT', emrNumber, updatedBy, data, updatedByRole);
 }
 
 export async function searchPatients(searchTerm) {
@@ -204,7 +204,7 @@ export function listenPatients(callback) {
 // ─────────────────────────────────────────────
 // VISITS
 // ─────────────────────────────────────────────
-export async function createVisit(emrNumber, data, createdBy) {
+export async function createVisit(emrNumber, data, createdBy, createdByRole = null) {
   const visitRef = await addDoc(collection(db, COL.VISITS), {
     emrNumber,
     ...data,
@@ -232,8 +232,8 @@ export async function createVisit(emrNumber, data, createdBy) {
     patientUpdate.reportedSickBy  = createdBy;
     patientUpdate.reportedSickHow = 'visit';
   }
-  await updatePatient(emrNumber, patientUpdate, createdBy);
-  await logAudit('CREATE_VISIT', emrNumber, createdBy, { visitId: visitRef.id });
+  await updatePatient(emrNumber, patientUpdate, createdBy, createdByRole);
+  await logAudit('CREATE_VISIT', emrNumber, createdBy, { visitId: visitRef.id }, createdByRole);
   return visitRef.id;
 }
 
@@ -246,7 +246,7 @@ export async function getVisits(emrNumber) {
 }
 
 // FIX: dischargePatient — only update visit doc if a real visitId is provided
-export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy) {
+export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy, doneByRole = null) {
   if (visitId && visitId !== 'current') {
     await updateDoc(doc(db, COL.VISITS, visitId), {
       status: 'discharged',
@@ -255,8 +255,8 @@ export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy
       dischargedAt: serverTimestamp(),
     });
   }
-  await updatePatient(emrNumber, { status: 'discharged', dischargeNote }, doneBy);
-  await logAudit('DISCHARGE', emrNumber, doneBy, { visitId: visitId || 'none' });
+  await updatePatient(emrNumber, { status: 'discharged', dischargeNote }, doneBy, doneByRole);
+  await logAudit('DISCHARGE', emrNumber, doneBy, { visitId: visitId || 'none' }, doneByRole);
 }
 
 // ─────────────────────────────────────────────
@@ -311,7 +311,7 @@ export async function addNote(emrNumber, visitId, noteData, author, role) {
     createdAt:  serverTimestamp(),
   });
   await markSeenIfReportedSickToday(emrNumber, author);
-  await logAudit('ADD_NOTE', emrNumber, author, { noteId: ref.id, role });
+  await logAudit('ADD_NOTE', emrNumber, author, { noteId: ref.id, role }, role);
   return ref.id;
 }
 
@@ -342,7 +342,7 @@ export async function addCarePlan(emrNumber, visitId, planData, author, role) {
     updatedAt: serverTimestamp(),
   });
   await markSeenIfReportedSickToday(emrNumber, author);
-  await logAudit('ADD_CARE_PLAN', emrNumber, author, { planId: ref.id, role });
+  await logAudit('ADD_CARE_PLAN', emrNumber, author, { planId: ref.id, role }, role);
   return ref.id;
 }
 
@@ -358,7 +358,7 @@ export function listenCarePlans(emrNumber, callback) {
 // Appends a dated evaluation entry to an existing care plan and can flip
 // its status to 'resolved'. Keeps a running evaluation history rather than
 // overwriting the previous note.
-export async function updateCarePlanEvaluation(planId, evaluationNote, updatedBy, markResolved = false) {
+export async function updateCarePlanEvaluation(planId, evaluationNote, updatedBy, markResolved = false, updatedByRole = null) {
   const planRef = doc(db, COL.CARE_PLANS, planId);
   const snap = await getDoc(planRef);
   const prior = snap.exists() ? (snap.data().evaluationLog || []) : [];
@@ -370,11 +370,11 @@ export async function updateCarePlanEvaluation(planId, evaluationNote, updatedBy
     status: markResolved ? 'resolved' : (snap.exists() ? snap.data().status : 'active'),
     updatedAt: serverTimestamp(),
   });
-  await logAudit('UPDATE_CARE_PLAN', snap.exists() ? snap.data().emrNumber : null, updatedBy, { planId, markResolved });
+  await logAudit('UPDATE_CARE_PLAN', snap.exists() ? snap.data().emrNumber : null, updatedBy, { planId, markResolved }, updatedByRole);
 }
 
 
-export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
+export async function addVitals(emrNumber, visitId, vitalsData, recordedBy, recordedByRole = null) {
   const ref = await addDoc(collection(db, COL.VITALS), {
     emrNumber,
     visitId: visitId || null,
@@ -382,9 +382,9 @@ export async function addVitals(emrNumber, visitId, vitalsData, recordedBy) {
     recordedBy,
     recordedAt: serverTimestamp(),
   });
-  await updatePatient(emrNumber, { latestVitals: vitalsData }, recordedBy);
+  await updatePatient(emrNumber, { latestVitals: vitalsData }, recordedBy, recordedByRole);
   await markSeenIfReportedSickToday(emrNumber, recordedBy);
-  await logAudit('ADD_VITALS', emrNumber, recordedBy, vitalsData);
+  await logAudit('ADD_VITALS', emrNumber, recordedBy, vitalsData, recordedByRole);
   return ref.id;
 }
 
@@ -414,7 +414,7 @@ export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, 
   });
 
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
-  await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE });
+  await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE }, role);
   return ref.id;
 }
 
@@ -430,7 +430,7 @@ export function listenPrescriptions(emrNumber, callback) {
 // ─────────────────────────────────────────────
 // FLUID CHART
 // ─────────────────────────────────────────────
-export async function addFluidEntry(emrNumber, visitId, entry, recordedBy) {
+export async function addFluidEntry(emrNumber, visitId, entry, recordedBy, recordedByRole = null) {
   const ref = await addDoc(collection(db, COL.FLUIDS), {
     emrNumber,
     visitId: visitId || null,
@@ -439,7 +439,7 @@ export async function addFluidEntry(emrNumber, visitId, entry, recordedBy) {
     recordedAt: serverTimestamp(),
   });
   await markSeenIfReportedSickToday(emrNumber, recordedBy);
-  await logAudit('FLUID_ENTRY', emrNumber, recordedBy, entry);
+  await logAudit('FLUID_ENTRY', emrNumber, recordedBy, entry, recordedByRole);
   return ref.id;
 }
 
@@ -455,7 +455,7 @@ export function listenFluidChart(emrNumber, callback) {
 // ─────────────────────────────────────────────
 // GLUCOSE CHART
 // ─────────────────────────────────────────────
-export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy) {
+export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy, recordedByRole = null) {
   const ref = await addDoc(collection(db, COL.GLUCOSE), {
     emrNumber,
     visitId: visitId || null,
@@ -464,7 +464,7 @@ export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy) {
     recordedAt: serverTimestamp(),
   });
   await markSeenIfReportedSickToday(emrNumber, recordedBy);
-  await logAudit('GLUCOSE_ENTRY', emrNumber, recordedBy, entry);
+  await logAudit('GLUCOSE_ENTRY', emrNumber, recordedBy, entry, recordedByRole);
   return ref.id;
 }
 
@@ -480,7 +480,7 @@ export function listenGlucoseChart(emrNumber, callback) {
 // ─────────────────────────────────────────────
 // FILE UPLOADS
 // ─────────────────────────────────────────────
-export async function uploadPatientFile(emrNumber, visitId, file, category, uploadedBy) {
+export async function uploadPatientFile(emrNumber, visitId, file, category, uploadedBy, uploadedByRole = null) {
   const path = `patients/${emrNumber}/uploads/${Date.now()}_${file.name}`;
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file);
@@ -499,13 +499,13 @@ export async function uploadPatientFile(emrNumber, visitId, file, category, uplo
     uploadedAt:  serverTimestamp(),
   });
 
-  await logAudit('FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, category });
+  await logAudit('FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, category }, uploadedByRole);
   await markSeenIfReportedSickToday(emrNumber, uploadedBy);
   return { id: docRef.id, downloadUrl: url };
 }
 
 /** Upload a document file tied to a lab request (report, scan, etc.) */
-export async function uploadLabResultFile(emrNumber, requestId, file, uploadedBy) {
+export async function uploadLabResultFile(emrNumber, requestId, file, uploadedBy, uploadedByRole = null) {
   const path = `patients/${emrNumber}/lab_results/${Date.now()}_${file.name}`;
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file);
@@ -534,7 +534,7 @@ export async function uploadLabResultFile(emrNumber, requestId, file, uploadedBy
     });
   }
 
-  await logAudit('LAB_FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, requestId });
+  await logAudit('LAB_FILE_UPLOAD', emrNumber, uploadedBy, { fileName: file.name, requestId }, uploadedByRole);
   return { id: docRef.id, downloadUrl: url };
 }
 
@@ -550,7 +550,7 @@ export function listenUploads(emrNumber, callback) {
 // ─────────────────────────────────────────────
 // REFERRALS
 // ─────────────────────────────────────────────
-export async function createReferral(emrNumber, visitId, referralData, referredBy) {
+export async function createReferral(emrNumber, visitId, referralData, referredBy, referredByRole = null) {
   const ref = await addDoc(collection(db, COL.REFERRALS), {
     emrNumber,
     visitId: visitId || null,
@@ -558,8 +558,8 @@ export async function createReferral(emrNumber, visitId, referralData, referredB
     referredBy,
     createdAt: serverTimestamp(),
   });
-  await updatePatient(emrNumber, { status: 'referred' }, referredBy);
-  await logAudit('REFERRAL', emrNumber, referredBy, referralData);
+  await updatePatient(emrNumber, { status: 'referred' }, referredBy, referredByRole);
+  await logAudit('REFERRAL', emrNumber, referredBy, referralData, referredByRole);
   return ref.id;
 }
 
@@ -584,36 +584,37 @@ export async function getAllUsers() {
   return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
 }
 
-export async function updateUserRole(uid, role, updatedBy) {
+export async function updateUserRole(uid, role, updatedBy, updatedByRole = null) {
   await updateDoc(doc(db, COL.USERS, uid), { role, updatedBy, updatedAt: serverTimestamp() });
-  await logAudit('UPDATE_ROLE', uid, updatedBy, { newRole: role });
+  await logAudit('UPDATE_ROLE', uid, updatedBy, { newRole: role }, updatedByRole);
 }
 
-export async function deactivateUser(uid, doneBy) {
+export async function deactivateUser(uid, doneBy, doneByRole = null) {
   await updateDoc(doc(db, COL.USERS, uid), {
     active: false,
     deactivatedBy: doneBy,
     deactivatedAt: serverTimestamp(),
   });
-  await logAudit('DEACTIVATE_USER', uid, doneBy, {});
+  await logAudit('DEACTIVATE_USER', uid, doneBy, {}, doneByRole);
 }
 
-export async function reactivateUser(uid, doneBy) {
+export async function reactivateUser(uid, doneBy, doneByRole = null) {
   await updateDoc(doc(db, COL.USERS, uid), {
     active: true,
     reactivatedBy: doneBy,
     reactivatedAt: serverTimestamp(),
   });
-  await logAudit('REACTIVATE_USER', uid, doneBy, {});
+  await logAudit('REACTIVATE_USER', uid, doneBy, {}, doneByRole);
 }
 
 // ─────────────────────────────────────────────
 // AUDIT LOG
 // ─────────────────────────────────────────────
-export async function logAudit(action, targetId, performedBy, details = {}) {
+export async function logAudit(action, targetId, performedBy, details = {}, performedByRole = null) {
   try {
     await addDoc(collection(db, COL.AUDIT), {
       action, targetId, performedBy, details,
+      performedByRole: performedByRole || details?.role || null,
       timestamp: serverTimestamp(),
     });
   } catch (_) {
@@ -664,7 +665,7 @@ export async function recordAdministration(data) {
     status: data.status,
     route:  data.route,
     time:   data.administeredAt,
-  });
+  }, data.administeredByRole);
   return ref.id;
 }
 
@@ -715,24 +716,24 @@ export async function assignTriage(emrNumber, triageData, triagedBy, triagedByRo
   await updatePatient(emrNumber, {
     triagePriority: triageData.priority,
     status: 'active',
-  }, triagedBy);
+  }, triagedBy, triagedByRole);
 
   await logAudit('TRIAGE_ASSIGN', emrNumber, triagedBy, {
     priority: triageData.priority,
     triageId: ref.id,
-  });
+  }, triagedByRole);
 
   return ref.id;
 }
 
-export async function updateTriageStatus(triageId, newStatus, updatedBy) {
+export async function updateTriageStatus(triageId, newStatus, updatedBy, updatedByRole = null) {
   await updateDoc(doc(db, COL.TRIAGE, triageId), {
     status:    newStatus,
     updatedAt: serverTimestamp(),
     updatedBy,
     ...(newStatus === 'done' ? { completedAt: serverTimestamp() } : {}),
   });
-  await logAudit('TRIAGE_STATUS', triageId, updatedBy, { newStatus });
+  await logAudit('TRIAGE_STATUS', triageId, updatedBy, { newStatus }, updatedByRole);
 }
 
 export function listenTriageQueue(callback) {
@@ -793,7 +794,7 @@ export function listenInventory(callback) {
   );
 }
 
-export async function addInventoryItem(data, addedBy) {
+export async function addInventoryItem(data, addedBy, addedByRole = ROLES.PHARMACIST) {
   const ref = await addDoc(collection(db, COL.INVENTORY), {
     ...data,
     quantity:   Number(data.quantity) || 0,
@@ -801,13 +802,13 @@ export async function addInventoryItem(data, addedBy) {
     createdAt:  serverTimestamp(),
     updatedAt:  serverTimestamp(),
   });
-  await logAudit('INVENTORY_ADD', ref.id, addedBy, { name: data.name });
+  await logAudit('INVENTORY_ADD', ref.id, addedBy, { name: data.name }, addedByRole);
   return ref.id;
 }
 
-export async function updateInventoryItem(id, data, updatedBy) {
+export async function updateInventoryItem(id, data, updatedBy, updatedByRole = ROLES.PHARMACIST) {
   await updateDoc(doc(db, COL.INVENTORY, id), { ...data, updatedAt: serverTimestamp() });
-  await logAudit('INVENTORY_UPDATE', id, updatedBy, data);
+  await logAudit('INVENTORY_UPDATE', id, updatedBy, data, updatedByRole);
 }
 
 /** One-time fetch of all inventory items (for stock-check during prescription) */
@@ -816,7 +817,7 @@ export async function getInventorySnapshot() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function deductInventory(drugName, qty, emrNumber, dispensedBy) {
+export async function deductInventory(drugName, qty, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   // Find matching inventory item by name (case-insensitive match)
   const snap = await getDocs(collection(db, COL.INVENTORY));
   const match = snap.docs.find(d =>
@@ -830,7 +831,7 @@ export async function deductInventory(drugName, qty, emrNumber, dispensedBy) {
   });
   await logAudit('INVENTORY_DISPENSE', match.id, dispensedBy, {
     drug: drugName, qty, emrNumber, remaining: newQty,
-  });
+  }, dispensedByRole);
   return { found: true, remaining: newQty, low: newQty <= (match.data().reorderAt || 10) };
 }
 
@@ -1085,25 +1086,25 @@ export function listenSickReportsMonthly(callback) {
 // ═════════════════════════════════════════════
 // NHIS & NACON PRESCRIPTION FORM PERSISTENCE
 // ═════════════════════════════════════════════
-export async function saveNHISForm(formData, savedBy) {
+export async function saveNHISForm(formData, savedBy, savedByRole = null) {
   const docRef = await addDoc(collection(db, 'nhis_prescriptions'), {
     ...formData,
     formType: 'NHIS',
     savedBy,
     savedAt:  serverTimestamp(),
   });
-  await logAudit('NHIS_FORM_SAVE', docRef.id, savedBy, { patientName: formData.patientName });
+  await logAudit('NHIS_FORM_SAVE', docRef.id, savedBy, { patientName: formData.patientName }, savedByRole);
   return docRef.id;
 }
 
-export async function saveNACONForm(formData, savedBy) {
+export async function saveNACONForm(formData, savedBy, savedByRole = null) {
   const docRef = await addDoc(collection(db, 'nacon_prescriptions'), {
     ...formData,
     formType: 'NACON_CIVILIAN',
     savedBy,
     savedAt:  serverTimestamp(),
   });
-  await logAudit('NACON_FORM_SAVE', docRef.id, savedBy, { patientName: formData.patientName });
+  await logAudit('NACON_FORM_SAVE', docRef.id, savedBy, { patientName: formData.patientName }, savedByRole);
   return docRef.id;
 }
 
@@ -1173,7 +1174,7 @@ export function listenDispensedToday(callback) {
 }
 
 /** Dispense a prescription — marks it dispensed, deducts inventory, logs */
-export async function dispensePrescription(prescriptionId, rxData, dispensedBy) {
+export async function dispensePrescription(prescriptionId, rxData, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   // Mark prescription as dispensed
   await updateDoc(doc(db, COL.PRESCRIPTIONS, prescriptionId), {
     dispensed:    true,
@@ -1185,7 +1186,7 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy) 
   for (const drug of rxData.drugs || []) {
     // Support both drug.name (from Rx form) and drug.drug (legacy)
     const drugName = drug.name || drug.drug;
-    if (drugName) await deductInventory(drugName, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy);
+    if (drugName) await deductInventory(drugName, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy, dispensedByRole);
   }
 
   // Add to dispense log
@@ -1199,7 +1200,7 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy) 
     dispensedAt:  serverTimestamp(),
   });
 
-  await logAudit('DISPENSE', prescriptionId, dispensedBy, { emrNumber: rxData.emrNumber });
+  await logAudit('DISPENSE', prescriptionId, dispensedBy, { emrNumber: rxData.emrNumber }, dispensedByRole);
 }
 
 /** Live listener: all dispense log entries */
@@ -1252,7 +1253,7 @@ export const LAB_TESTS = [
 ];
 
 /** Doctor/Nurse requests a lab test */
-export async function requestLabTest(emrNumber, visitId, tests, requestedBy, urgency = 'routine', notes = '') {
+export async function requestLabTest(emrNumber, visitId, tests, requestedBy, urgency = 'routine', notes = '', requestedByRole = null) {
   const patient = await getPatient(emrNumber);
   const ref = await addDoc(collection(db, COL.LAB_REQUESTS), {
     emrNumber,
@@ -1269,12 +1270,12 @@ export async function requestLabTest(emrNumber, visitId, tests, requestedBy, urg
     resultEnteredBy: null,
     resultEnteredAt: null,
   });
-  await logAudit('LAB_REQUEST', emrNumber, requestedBy, { tests, urgency });
+  await logAudit('LAB_REQUEST', emrNumber, requestedBy, { tests, urgency }, requestedByRole);
   return ref.id;
 }
 
 /** Lab staff enters results for a request */
-export async function enterLabResults(requestId, results, enteredBy) {
+export async function enterLabResults(requestId, results, enteredBy, enteredByRole = ROLES.LAB) {
   // results: { testName: { value, unit, flag, referenceRange }, ... }
   await updateDoc(doc(db, COL.LAB_REQUESTS, requestId), {
     status:           'completed',
@@ -1299,7 +1300,7 @@ export async function enterLabResults(requestId, results, enteredBy) {
     completedAt:     serverTimestamp(),
   });
 
-  await logAudit('LAB_RESULT', requestId, enteredBy, { emrNumber: req.emrNumber });
+  await logAudit('LAB_RESULT', requestId, enteredBy, { emrNumber: req.emrNumber }, enteredByRole);
 }
 
 /** Live listener: all pending lab requests */
@@ -1337,10 +1338,11 @@ export function listenPatientLabRequests(emrNumber, callback) {
 }
 
 /** Update a lab request status (e.g. pending → processing) */
-export async function updateLabRequestStatus(requestId, status, updatedBy) {
+export async function updateLabRequestStatus(requestId, status, updatedBy, updatedByRole = ROLES.LAB) {
   await updateDoc(doc(db, COL.LAB_REQUESTS, requestId), {
     status,
     ...(status === 'processing' ? { processingBy: updatedBy, processingAt: serverTimestamp() } : {}),
   });
+  await logAudit('LAB_STATUS_UPDATE', requestId, updatedBy, { status }, updatedByRole);
 }
 

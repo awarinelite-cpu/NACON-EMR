@@ -75,7 +75,7 @@ export default function UserManagement() {
   // ── ROLE CHANGE ──────────────────────────────
   const handleRoleChange = async (uid, newRole) => {
     try {
-      await updateUserRole(uid, newRole, profile?.displayName);
+      await updateUserRole(uid, newRole, profile?.displayName, profile?.role);
       setUsers(u => u.map(x => x.uid === uid ? { ...x, role: newRole } : x));
       toast.success('Role updated');
     } catch { toast.error('Failed to update role'); }
@@ -85,7 +85,7 @@ export default function UserManagement() {
   const handleDeactivate = async (uid, name) => {
     if (!window.confirm(`Deactivate ${name}? They will no longer be able to log in.`)) return;
     try {
-      await deactivateUser(uid, profile?.displayName);
+      await deactivateUser(uid, profile?.displayName, profile?.role);
       setUsers(u => u.map(x => x.uid === uid ? { ...x, active: false } : x));
       toast.success(`${name} deactivated`);
     } catch { toast.error('Failed to deactivate'); }
@@ -95,7 +95,7 @@ export default function UserManagement() {
   const handleReactivate = async (uid, name) => {
     if (!window.confirm(`Reactivate ${name}? They will be able to log in again.`)) return;
     try {
-      await reactivateUser(uid, profile?.displayName);
+      await reactivateUser(uid, profile?.displayName, profile?.role);
       setUsers(u => u.map(x => x.uid === uid ? { ...x, active: true } : x));
       toast.success(`${name} reactivated`);
     } catch { toast.error('Failed to reactivate'); }

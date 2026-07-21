@@ -77,7 +77,7 @@ export default function VitalSignsPage() {
       const data = {};
       VITALS_FIELDS.forEach(f => { if (form[f.key].trim()) data[f.key] = form[f.key].trim(); });
       if (form.notes.trim()) data.notes = form.notes.trim();
-      await addVitals(selected.emrNumber, null, data, profile.displayName);
+      await addVitals(selected.emrNumber, null, data, profile.displayName, profile.role);
       toast.success('Vitals recorded');
       setShowForm(false);
       setForm({ temp: '', pulse: '', resp: '', bp: '', spo2: '', weight: '', height: '', gcs: '', pain: '', bsl: '', notes: '' });

@@ -56,7 +56,7 @@ const NAV = {
     { grp: 'System', items: [
       { icon: 'ti-user-cog',         label: 'User Management', path: '/admin/users' },
       { icon: 'ti-shield-lock',      label: 'Roles & Access', path: '/admin/roles' },
-      { icon: 'ti-database',         label: 'Audit Log',      path: '/admin/audit' },
+      { icon: 'ti-database',         label: 'Activity Log',   path: '/admin/audit' },
       { icon: 'ti-settings',         label: 'Settings',       path: '/admin/settings' },
     ]},
   ],
@@ -68,6 +68,9 @@ const NAV = {
       { icon: 'ti-chart-bar',        label: 'Reports',        path: '/admin/reports' },
       { icon: 'ti-user-cog',         label: 'Staff List',     path: '/admin/users' },
       { icon: 'ti-calendar',         label: 'Duty Schedule',  path: '/admin/schedule' },
+    ]},
+    { grp: 'System', items: [
+      { icon: 'ti-database',         label: 'Activity Log',   path: '/admin/audit' },
     ]},
   ],
   pharmacist: [
