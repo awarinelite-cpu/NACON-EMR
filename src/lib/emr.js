@@ -85,17 +85,14 @@ export async function generateEMRNumber() {
     const snap = await txn.get(counterRef);
 
     let last = 0;
-    let storedYear = year;
-
     if (snap.exists()) {
-      last       = snap.data().lastNumber || 0;
-      storedYear = snap.data().year       || year;
+      last = snap.data().lastNumber || 0;
     }
 
-    if (storedYear !== year) last = 0;
-
+    // Sequence runs continuously from 01 upward and never resets — not
+    // even at year-end — so every patient gets a permanently unique number.
     const next   = last + 1;
-    const padded = String(next).padStart(4, '0');
+    const padded = String(next).padStart(2, '0');
     const emr    = `EMR-${year}-${padded}`;
 
     txn.set(counterRef, { lastNumber: next, year, updatedAt: serverTimestamp() });

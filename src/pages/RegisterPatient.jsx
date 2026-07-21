@@ -203,7 +203,7 @@ export default function RegisterPatient() {
             <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>
               EMR number — auto-generated on save
             </div>
-            <div className="emr-number" style={{ fontSize:20 }}>EMR-{new Date().getFullYear()}-XXXX</div>
+            <div className="emr-number" style={{ fontSize:20 }}>EMR-{new Date().getFullYear()}-XX</div>
             <div style={{ fontSize:10, color:'var(--t3)', fontWeight:500, marginTop:2 }}>
               Unique number assigned when you click "Save & register". Cannot be edited manually.
             </div>
