@@ -470,6 +470,18 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--card-bg2); }
 
+/* MAR "Active Medications" table — dedicated horizontal-scroll wrapper.
+   The wrapper (not the table itself) owns overflow-x, so vertical page
+   scroll is never captured by the table on mobile, and on desktop the
+   table gets its own scrollbar instead of overflowing off-screen. */
+.mar-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.mar-drugs-table { min-width: 760px; }
+
 /* ══════════════════════════════════
    PATIENT ROW
 ══════════════════════════════════ */
@@ -1030,6 +1042,12 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overflow-x: auto;
     overscroll-behavior: none;
     font-size: 11px;
+  }
+  /* MAR drugs table: scrolling is handled by .mar-table-scroll wrapper
+     instead, so it doesn't fight the page's vertical scroll on mobile */
+  .mar-drugs-table {
+    display: table;
+    overflow-x: visible;
   }
 
   /* Buttons full width in forms */

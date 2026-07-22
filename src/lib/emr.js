@@ -440,6 +440,27 @@ export function listenPrescriptions(emrNumber, callback) {
   });
 }
 
+/**
+ * Update a single drug's clinical status within a prescription's drugs array.
+ * status: 'active' | 'discontinued' | 'completed' | 'withheld'
+ */
+export async function updateDrugStatus(prescriptionId, drugIndex, status, updatedBy, updatedByRole = null) {
+  const ref  = doc(db, COL.PRESCRIPTIONS, prescriptionId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const drugs = [...(snap.data().drugs || [])];
+  if (!drugs[drugIndex]) return;
+  const drugName = drugs[drugIndex].drug;
+  drugs[drugIndex] = {
+    ...drugs[drugIndex],
+    status,
+    statusUpdatedBy: updatedBy,
+    statusUpdatedAt: new Date().toISOString(),
+  };
+  await updateDoc(ref, { drugs });
+  await logAudit('DRUG_STATUS_UPDATE', prescriptionId, updatedBy, { drug: drugName, status }, updatedByRole);
+}
+
 // ─────────────────────────────────────────────
 // FLUID CHART
 // ─────────────────────────────────────────────
