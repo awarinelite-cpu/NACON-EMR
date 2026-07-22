@@ -86,8 +86,13 @@ export default function MARPage() {
       setShowForm(false);
       setActiveDrug(null);
       setForm({ route:'Oral', dose:'', time:'', notes:'', status:'given' });
-    } catch {
-      toast.error('Failed to record administration — check your connection and try again');
+    } catch (err) {
+      console.error('[MARPage] recordAdministration failed:', err);
+      if (err?.code === 'permission-denied') {
+        toast.error('Failed to record — your account may not be active. Ask an admin to check your staff profile.');
+      } else {
+        toast.error(`Failed to record administration${err?.code ? ` (${err.code})` : ''} — check your connection and try again`);
+      }
     }
     setSaving(false);
   };

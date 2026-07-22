@@ -85,8 +85,13 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
       }
       setShowForm(false);
       setActiveDrug(null);
-    } catch {
-      toast.error('Failed to record — check your connection and try again');
+    } catch (err) {
+      console.error('[MARTab] recordAdministration failed:', err);
+      if (err?.code === 'permission-denied') {
+        toast.error('Failed to record — your account may not be active. Ask an admin to check your staff profile.');
+      } else {
+        toast.error(`Failed to record${err?.code ? ` (${err.code})` : ''} — check your connection and try again`);
+      }
     }
     setSaving(false);
   };
