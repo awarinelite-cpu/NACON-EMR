@@ -65,7 +65,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
     }
     setSaving(true);
     try {
-      await recordAdministration({
+      const { offline } = await recordAdministration({
         emrNumber,
         rxId:               activeDrug.rxId,
         drug:               activeDrug.drug,
@@ -78,11 +78,15 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
         administeredBy:     profile.displayName,
         administeredByRole: profile.role,
       });
-      toast.success(`${activeDrug.drug} — ${STATUS_CFG[form.status].label}`);
+      if (offline) {
+        toast.success(`${activeDrug.drug} saved offline — will sync when back online`);
+      } else {
+        toast.success(`${activeDrug.drug} — ${STATUS_CFG[form.status].label}`);
+      }
       setShowForm(false);
       setActiveDrug(null);
     } catch {
-      toast.error('Failed to record');
+      toast.error('Failed to record — check your connection and try again');
     }
     setSaving(false);
   };
