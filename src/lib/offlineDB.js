@@ -178,7 +178,7 @@ export async function getCachedNotes(patientId) {
  */
 export async function enqueuePendingWrite(collection, operation, docId, data) {
   const store = await tx(STORES.PENDING, 'readwrite');
-  return promisify(store.add({
+  const result = await promisify(store.add({
     collection,
     operation,
     docId:     docId || null,
@@ -186,6 +186,10 @@ export async function enqueuePendingWrite(collection, operation, docId, data) {
     createdAt: new Date().toISOString(),
     retries:   0,
   }));
+  // Let the UI know right away — don't wait for an online/offline event,
+  // since a write can get queued mid-session on a flaky (but "online") connection.
+  window.dispatchEvent(new Event('pendingWritesChanged'));
+  return result;
 }
 
 export async function getPendingWrites() {

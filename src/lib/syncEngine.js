@@ -106,5 +106,15 @@ export function startSyncListener() {
     flushPendingWrites();
   }
 
-  return () => window.removeEventListener('online', handleOnline);
+  // Weak/flaky signal can queue writes without ever triggering a browser
+  // 'offline' -> 'online' transition (navigator.onLine may stay true the
+  // whole time), so also retry periodically as a safety net.
+  const intervalId = setInterval(() => {
+    if (navigator.onLine) flushPendingWrites();
+  }, 45000);
+
+  return () => {
+    window.removeEventListener('online', handleOnline);
+    clearInterval(intervalId);
+  };
 }

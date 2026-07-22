@@ -20,9 +20,11 @@ export function useNetworkStatus() {
   useEffect(() => {
     const onOnline  = () => { setIsOnline(true);  refreshPending(); };
     const onOffline = () => { setIsOnline(false); refreshPending(); };
+    const onQueued  = () => { refreshPending(); };
 
     window.addEventListener('online',  onOnline);
     window.addEventListener('offline', onOffline);
+    window.addEventListener('pendingWritesChanged', onQueued);
 
     // Subscribe to sync engine state changes
     const unsub = onSyncStateChange(state => {
@@ -35,6 +37,7 @@ export function useNetworkStatus() {
     return () => {
       window.removeEventListener('online',  onOnline);
       window.removeEventListener('offline', onOffline);
+      window.removeEventListener('pendingWritesChanged', onQueued);
       unsub();
     };
   }, []);
