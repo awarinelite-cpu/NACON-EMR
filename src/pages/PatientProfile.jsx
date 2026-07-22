@@ -652,6 +652,7 @@ export default function PatientProfile() {
         borderBottom:'1px solid var(--border)',
         padding:'10px 14px 10px 58px',
         display:'flex', alignItems:'center', gap:10,
+        flexWrap:'wrap', rowGap:8,
         flexShrink:0,
         minHeight: 0,
       }}>
@@ -664,7 +665,7 @@ export default function PatientProfile() {
           <i className="ti ti-arrow-left" style={{fontSize:14}} /> Back
         </button>
 
-        <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ flex:'1 1 180px', minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
             <h2 style={{ fontSize:15, fontWeight:700, margin:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
               {patient.surname} {patient.firstName} {patient.otherNames}
@@ -689,7 +690,7 @@ export default function PatientProfile() {
           </div>
         </div>
 
-        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', flexShrink:0, flexBasis:'100%', justifyContent:'flex-end' }}>
           {isNurse && (
             <button onClick={handleReportSick} disabled={saving || reportedSickToday} style={{
               background: reportedSickToday ? 'var(--success-bg, #d1fae5)' : '#f97316',
