@@ -96,10 +96,11 @@ service cloud.firestore {
       allow write: if isClinical() || isAdmin();
     }
 
-    // Pharmacy inventory — admin/subadmin manage, all staff read
+    // Pharmacy inventory — admin/subadmin/pharmacist manage, all staff read
     match /pharmacy_inventory/{doc} {
       allow read:  if isAnyStaff();
-      allow write: if isAdmin() || (isAuth() && isActive() && getRole() == 'subadmin') || isClinical();
+      allow write: if isAdmin()
+        || (isAuth() && isActive() && getRole() in ['subadmin', 'pharmacist']);
     }
 
     // Self-reports (QR sick reports from students) — public create, staff read

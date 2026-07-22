@@ -14,6 +14,7 @@ const UNITS = ['tablets','capsules','sachets','bottles','vials','tubes','strips'
 // ─────────────────────────────────────────────────────────────────────────
 export default function PharmacyInventory() {
   const { profile } = useAuth();
+  const canManage = ['admin', 'subadmin', 'pharmacist'].includes(profile?.role);
 
   // inventory
   const [items,     setItems]    = useState([]);
@@ -75,9 +76,11 @@ export default function PharmacyInventory() {
           <i className="ti ti-alert-triangle" />
           Low stock {lowCount > 0 && <span className="badge badge-danger" style={{ marginLeft:4 }}>{lowCount}</span>}
         </button>
-        <button className="btn btn-primary" onClick={openAdd}>
-          <i className="ti ti-plus" /> Add item
-        </button>
+        {canManage && (
+          <button className="btn btn-primary" onClick={openAdd}>
+            <i className="ti ti-plus" /> Add item
+          </button>
+        )}
       </div>
 
       {/* ── PAGE CONTENT ── */}
@@ -110,7 +113,7 @@ export default function PharmacyInventory() {
               <thead><tr>
                 <th>Drug / Item</th><th>Category</th>
                 <th style={{ textAlign:'center' }}>Qty</th><th>Unit</th>
-                <th>Location</th><th style={{ textAlign:'center' }}>Status</th><th></th>
+                <th>Location</th><th style={{ textAlign:'center' }}>Status</th>{canManage && <th></th>}
               </tr></thead>
               <tbody>
                 {displayed.map(item => (
@@ -127,11 +130,13 @@ export default function PharmacyInventory() {
                           ? <span className="badge badge-warn">Low stock</span>
                           : <span className="badge badge-ok">In stock</span>}
                     </td>
-                    <td>
-                      <button className="btn" style={{ padding:'4px 8px', fontSize:11 }} onClick={() => openEdit(item)}>
-                        <i className="ti ti-edit" /> Edit
-                      </button>
-                    </td>
+                    {canManage && (
+                      <td>
+                        <button className="btn" style={{ padding:'4px 8px', fontSize:11 }} onClick={() => openEdit(item)}>
+                          <i className="ti ti-edit" /> Edit
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
