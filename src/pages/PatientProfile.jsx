@@ -9,7 +9,7 @@ import {
   listenFluidChart, listenGlucoseChart, listenUploads,
   addNote, addVitals, addPrescription, addFluidEntry,
   addGlucoseReading, uploadPatientFile, createReferral,
-  dischargePatient, createVisit, formatTs, formatTime,
+  dischargePatient, admitPatient, createVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
@@ -598,12 +598,29 @@ export default function PatientProfile() {
   };
 
   const handleDischarge = async () => {
+    if (patient.status !== 'sickbay') {
+      toast.error('Only patients admitted to the sick bay can be discharged');
+      return;
+    }
     if (!window.confirm('Discharge this patient?')) return;
     setSaving(true);
     try {
       await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName || profile.email || 'Unknown', profile.role);
       toast.success('Patient discharged'); navigate(-1);
-    } catch { toast.error('Failed'); }
+    } catch (e) { toast.error(e?.message || 'Failed'); }
+    setSaving(false);
+  };
+
+  const handleAdmit = async () => {
+    if (!window.confirm(`Admit ${patient.surname} ${patient.firstName} to the sick bay?`)) return;
+    setSaving(true);
+    try {
+      const vid = await ensureVisitId();
+      await admitPatient(emrNumber, vid, profile.displayName || profile.email || 'Unknown', profile.role);
+      toast.success('Patient admitted to sick bay');
+      const p = await getPatient(emrNumber);
+      if (p) setPatient(p);
+    } catch { toast.error('Failed to admit patient'); }
     setSaving(false);
   };
 
@@ -715,6 +732,19 @@ export default function PatientProfile() {
             }}>
               <i className={`ti ${reportedSickToday ? 'ti-check' : 'ti-stethoscope'}`} style={{fontSize:13}} />
               {reportedSickToday ? 'Reported Sick ✓' : 'Report Sick'}
+            </button>
+          )}
+          {(isDoctor || isNurse) && (
+            <button onClick={handleAdmit} disabled={saving || patient.status === 'sickbay'} style={{
+              background: patient.status === 'sickbay' ? 'var(--success-bg, #d1fae5)' : '#a855f7',
+              border: 'none', borderRadius:8,
+              padding:'5px 10px', cursor: patient.status === 'sickbay' ? 'default' : 'pointer',
+              color: patient.status === 'sickbay' ? '#065f46' : '#fff',
+              fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5,
+              fontFamily:'var(--font)', opacity: saving ? 0.6 : 1,
+            }}>
+              <i className={`ti ${patient.status === 'sickbay' ? 'ti-check' : 'ti-bed'}`} style={{fontSize:13}} />
+              {patient.status === 'sickbay' ? 'Admitted ✓' : 'Admit'}
             </button>
           )}
           {(isDoctor || isNurse) && (
@@ -2202,13 +2232,19 @@ export default function PatientProfile() {
                     placeholder="Patient presents with… Dx: … Treatment given: … Please see and manage accordingly."
                     value={refForm.clinicalNotes} onChange={e=>setRefForm(r=>({...r,clinicalNotes:e.target.value}))} />
                 </div>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                   <button className="btn btn-primary" onClick={handleReferral} disabled={saving}>
                     <i className="ti ti-file-export" /> Generate referral letter
                   </button>
-                  <button className="btn btn-success" onClick={handleDischarge} disabled={saving}>
+                  <button className="btn btn-success" onClick={handleDischarge} disabled={saving || patient.status !== 'sickbay'}
+                    title={patient.status !== 'sickbay' ? 'Patient must be admitted to the sick bay before they can be discharged' : undefined}>
                     <i className="ti ti-door-exit" /> Discharge patient
                   </button>
+                  {patient.status !== 'sickbay' && (
+                    <span style={{ fontSize:11, color:'var(--t3)' }}>
+                      Not admitted to the sick bay — nothing to discharge from.
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

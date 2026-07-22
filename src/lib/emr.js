@@ -258,8 +258,29 @@ export async function getVisits(emrNumber) {
   return docs;
 }
 
+// Admit a patient to the sick bay. Sets patient.status = 'sickbay' so they
+// show up on the On Admission dashboard card and can later be discharged.
+export async function admitPatient(emrNumber, visitId, doneBy, doneByRole = null) {
+  if (visitId && visitId !== 'current') {
+    await updateDoc(doc(db, COL.VISITS, visitId), {
+      status: 'sickbay',
+      admittedBy: doneBy,
+      admittedAt: serverTimestamp(),
+    });
+  }
+  await updatePatient(emrNumber, { status: 'sickbay', admittedBy: doneBy, admittedAt: serverTimestamp() }, doneBy, doneByRole);
+  await logAudit('ADMIT', emrNumber, doneBy, { visitId: visitId || 'none' }, doneByRole);
+}
+
 // FIX: dischargePatient — only update visit doc if a real visitId is provided
+// Discharge only makes sense for patients currently admitted to the sick bay
+// (status === 'sickbay') — someone who was never admitted was never in the
+// sick bay, so there is nothing to discharge them from.
 export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy, doneByRole = null) {
+  const current = await getPatient(emrNumber);
+  if (!current || current.status !== 'sickbay') {
+    throw new Error('Only patients admitted to the sick bay can be discharged');
+  }
   if (visitId && visitId !== 'current') {
     await updateDoc(doc(db, COL.VISITS, visitId), {
       status: 'discharged',

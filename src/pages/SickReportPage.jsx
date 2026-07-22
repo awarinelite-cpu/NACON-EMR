@@ -73,7 +73,8 @@ export default function SickReportPage() {
   const seenIds       = new Set(seenToday.map(p => p.id));
   const seen          = classFiltered.filter(p =>  seenIds.has(p.id));
   const notSeen       = classFiltered.filter(p => !seenIds.has(p.id));
-  const displayed     = tab === 'seen' ? seen : tab === 'pending' ? notSeen : classFiltered;
+  const admitted      = classFiltered.filter(p => seenIds.has(p.id) && p.status === 'sickbay');
+  const displayed     = tab === 'seen' ? seen : tab === 'admitted' ? admitted : tab === 'pending' ? notSeen : classFiltered;
 
   const getInitials  = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
   const methodBadge  = (how) => how === 'qr'
@@ -85,6 +86,8 @@ export default function SickReportPage() {
       return <span className="badge badge-info" style={{fontSize:9,padding:'3px 8px'}}><i className="ti ti-door-exit" style={{marginRight:3}}/>Discharged</span>;
     if (p.status === 'referred' && isToday(p.updatedAt))
       return <span className="badge badge-warn" style={{fontSize:9,padding:'3px 8px'}}><i className="ti ti-transfer" style={{marginRight:3}}/>Referred</span>;
+    if (p.status === 'sickbay')
+      return <span className="badge badge-danger" style={{fontSize:9,padding:'3px 8px'}}><i className="ti ti-bed" style={{marginRight:3}}/>Admitted</span>;
     return <span className="badge badge-ok" style={{fontSize:9,padding:'3px 8px'}}><i className="ti ti-check" style={{marginRight:3}}/>Seen</span>;
   };
 
@@ -115,7 +118,7 @@ export default function SickReportPage() {
       </div>
 
       <div className="page-content" style={{flex:1}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div className="stat-card" style={{textAlign:'center',cursor:'pointer'}} onClick={() => setTab('all')}>
             <div style={{fontSize:30,fontWeight:900,color:'#f97316',lineHeight:1,opacity:tab!=='all'?0.4:1,transition:'opacity 0.2s'}}>{classFiltered.length}</div>
             <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}><i className="ti ti-stethoscope" style={{marginRight:3}}/>Reported</div>
@@ -124,6 +127,10 @@ export default function SickReportPage() {
             <div style={{fontSize:30,fontWeight:900,color:'#10b981',lineHeight:1,opacity:tab!=='seen'?0.4:1,transition:'opacity 0.2s'}}>{seen.length}</div>
             <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}><i className="ti ti-check" style={{marginRight:3}}/>Seen at MRS</div>
           </div>
+          <div className="stat-card" style={{textAlign:'center',cursor:'pointer'}} onClick={() => setTab('admitted')}>
+            <div style={{fontSize:30,fontWeight:900,color:'#a855f7',lineHeight:1,opacity:tab!=='admitted'?0.4:1,transition:'opacity 0.2s'}}>{admitted.length}</div>
+            <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}><i className="ti ti-bed" style={{marginRight:3}}/>Admitted</div>
+          </div>
           <div className="stat-card" style={{textAlign:'center',cursor:'pointer'}} onClick={() => setTab('pending')}>
             <div style={{fontSize:30,fontWeight:900,color:'#94a3b8',lineHeight:1,opacity:tab!=='pending'?0.4:1,transition:'opacity 0.2s'}}>{notSeen.length}</div>
             <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,marginTop:6}}><i className="ti ti-clock" style={{marginRight:3}}/>Not Yet Seen</div>
@@ -131,16 +138,18 @@ export default function SickReportPage() {
         </div>
 
         <div style={{display:'flex',gap:4,background:'var(--card-bg)',border:'1px solid var(--border)',borderRadius:10,padding:4,marginBottom:12}}>
-          <button style={tabStyle('all')}     onClick={() => setTab('all')}>All ({classFiltered.length})</button>
-          <button style={tabStyle('seen')}    onClick={() => setTab('seen')}>Seen ({seen.length})</button>
-          <button style={tabStyle('pending')} onClick={() => setTab('pending')}>Not Seen ({notSeen.length})</button>
+          <button style={tabStyle('all')}      onClick={() => setTab('all')}>All ({classFiltered.length})</button>
+          <button style={tabStyle('seen')}     onClick={() => setTab('seen')}>Seen ({seen.length})</button>
+          <button style={tabStyle('admitted')} onClick={() => setTab('admitted')}>Admitted ({admitted.length})</button>
+          <button style={tabStyle('pending')}  onClick={() => setTab('pending')}>Not Seen ({notSeen.length})</button>
         </div>
 
         <div className="card">
           {displayed.length === 0
             ? <div style={{padding:40,textAlign:'center',color:'var(--t3)',fontWeight:700,fontSize:13}}>
-                <i className={`ti ${tab==='seen'?'ti-check':'ti-stethoscope'}`} style={{fontSize:32,display:'block',marginBottom:8,opacity:0.3}}/>
+                <i className={`ti ${tab==='seen'?'ti-check':tab==='admitted'?'ti-bed':'ti-stethoscope'}`} style={{fontSize:32,display:'block',marginBottom:8,opacity:0.3}}/>
                 {tab==='seen' ? 'No patients have been seen yet today'
+                : tab==='admitted' ? 'No patients currently admitted to the sick bay'
                 : tab==='pending' ? 'All reported patients have been attended to'
                 : classFilter !== 'all' ? `No sick reports for ${classFilter} today`
                 : 'No students have reported sick today'}
