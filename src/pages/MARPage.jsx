@@ -65,7 +65,7 @@ export default function MARPage() {
     if (!form.time)  { toast.error('Enter administration time'); return; }
     setSaving(true);
     try {
-      await recordAdministration({
+      const { offline } = await recordAdministration({
         emrNumber:    selected.emrNumber,
         rxId:         activeDrug.rxId,
         drug:         activeDrug.drug,
@@ -78,12 +78,16 @@ export default function MARPage() {
         administeredBy:   profile.displayName,
         administeredByRole: profile.role,
       });
-      toast.success(`${activeDrug.drug} recorded as ${form.status}`);
+      if (offline) {
+        toast.success(`${activeDrug.drug} saved offline — will sync when back online`);
+      } else {
+        toast.success(`${activeDrug.drug} recorded as ${form.status}`);
+      }
       setShowForm(false);
       setActiveDrug(null);
       setForm({ route:'Oral', dose:'', time:'', notes:'', status:'given' });
     } catch {
-      toast.error('Failed to record administration');
+      toast.error('Failed to record administration — check your connection and try again');
     }
     setSaving(false);
   };

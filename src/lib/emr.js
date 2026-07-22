@@ -30,8 +30,10 @@ export async function offlineWrite(colName, operation, docId, data, onlineFn) {
     const result = await onlineFn();
     return { offline: false, result };
   } catch (err) {
-    // Network error mid-write — queue it
-    if (err.code === 'unavailable' || !navigator.onLine) {
+    // Network-ish failures — queue for later sync rather than losing the record.
+    // Permission/auth errors are real problems and should surface to the user.
+    const networkish = ['unavailable', 'deadline-exceeded', 'internal', 'cancelled'];
+    if (networkish.includes(err.code) || !navigator.onLine) {
       await enqueuePendingWrite(colName, operation, docId, data);
       return { offline: true };
     }
@@ -652,18 +654,23 @@ export async function recordAdministration(data) {
   // data: { emrNumber, rxId, drug, dose, route, scheduledFreq,
   //         status, administeredAt, notes,
   //         administeredBy, administeredByRole }
-  const ref = await addDoc(collection(db, COL.MAR), {
-    ...data,
-    createdAt: serverTimestamp(),
-  });
-  await markSeenIfReportedSickToday(data.emrNumber, data.administeredBy);
-  await logAudit('MAR_RECORD', data.emrNumber, data.administeredBy, {
+  const { offline, result } = await offlineWrite(
+    COL.MAR, 'add', null,
+    { ...data, createdAt: '__serverTimestamp__' },
+    async () => addDoc(collection(db, COL.MAR), { ...data, createdAt: serverTimestamp() })
+  );
+
+  // Best-effort side effects — safe to attempt even when offline,
+  // since both are already wrapped in their own try/catch internally.
+  markSeenIfReportedSickToday(data.emrNumber, data.administeredBy);
+  logAudit('MAR_RECORD', data.emrNumber, data.administeredBy, {
     drug:   data.drug,
     status: data.status,
     route:  data.route,
     time:   data.administeredAt,
   }, data.administeredByRole);
-  return ref.id;
+
+  return { offline, id: offline ? null : result.id };
 }
 
 export function listenMAR(emrNumber, callback) {
