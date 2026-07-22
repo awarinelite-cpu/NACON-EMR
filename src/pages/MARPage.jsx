@@ -110,7 +110,7 @@ export default function MARPage() {
     const key = `${drug.rxId}-${drug.drugIndex}`;
     setStatusSaving(key);
     try {
-      await updateDrugStatus(drug.rxId, drug.drugIndex, newStatus, profile.displayName, profile.role);
+      await updateDrugStatus(drug.rxId, drug.drugIndex, newStatus, profile.displayName || profile.email || 'Unknown', profile.role);
       toast.success(`${drug.drug} marked ${DRUG_STATUS_CFG[newStatus]?.label || newStatus}`);
     } catch (err) {
       console.error('[MARPage] updateDrugStatus failed:', err);

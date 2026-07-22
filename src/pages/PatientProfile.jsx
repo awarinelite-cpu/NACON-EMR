@@ -130,8 +130,12 @@ export default function PatientProfile() {
       if (!p) { toast.error('Patient not found'); navigate(-1); return; }
       setPatient(p);
       setLoading(false);
-      const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName, profile?.role);
-      setVisitId(vid);
+      try {
+        const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName, profile?.role);
+        setVisitId(vid);
+      } catch (e) {
+        console.error('createVisit on mount failed', e);
+      }
     })();
   }, [emrNumber]);
 
@@ -607,7 +611,7 @@ export default function PatientProfile() {
     try {
       await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName || profile.email || 'Unknown', profile.role);
       toast.success('Patient discharged'); navigate(-1);
-    } catch (e) { toast.error(e?.message || 'Failed'); }
+    } catch (e) { console.error('handleDischarge', e); toast.error(e?.message || 'Failed'); }
     setSaving(false);
   };
 
@@ -620,7 +624,7 @@ export default function PatientProfile() {
       toast.success('Patient admitted to sick bay');
       const p = await getPatient(emrNumber);
       if (p) setPatient(p);
-    } catch { toast.error('Failed to admit patient'); }
+    } catch (e) { console.error('handleAdmit', e); toast.error('Failed to admit patient: ' + (e?.message || e)); }
     setSaving(false);
   };
 

@@ -262,11 +262,17 @@ export async function getVisits(emrNumber) {
 // show up on the On Admission dashboard card and can later be discharged.
 export async function admitPatient(emrNumber, visitId, doneBy, doneByRole = null) {
   if (visitId && visitId !== 'current') {
-    await updateDoc(doc(db, COL.VISITS, visitId), {
-      status: 'sickbay',
-      admittedBy: doneBy,
-      admittedAt: serverTimestamp(),
-    });
+    try {
+      await updateDoc(doc(db, COL.VISITS, visitId), {
+        status: 'sickbay',
+        admittedBy: doneBy,
+        admittedAt: serverTimestamp(),
+      });
+    } catch (_) {
+      // visitId may be a local fallback ID (not yet a real Firestore doc) —
+      // the patient-status update below is what actually matters, so don't
+      // let a missing visit doc block the admission.
+    }
   }
   await updatePatient(emrNumber, { status: 'sickbay', admittedBy: doneBy, admittedAt: serverTimestamp() }, doneBy, doneByRole);
   await logAudit('ADMIT', emrNumber, doneBy, { visitId: visitId || 'none' }, doneByRole);
@@ -282,12 +288,17 @@ export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy
     throw new Error('Only patients admitted to the sick bay can be discharged');
   }
   if (visitId && visitId !== 'current') {
-    await updateDoc(doc(db, COL.VISITS, visitId), {
-      status: 'discharged',
-      dischargeNote,
-      dischargedBy: doneBy,
-      dischargedAt: serverTimestamp(),
-    });
+    try {
+      await updateDoc(doc(db, COL.VISITS, visitId), {
+        status: 'discharged',
+        dischargeNote,
+        dischargedBy: doneBy,
+        dischargedAt: serverTimestamp(),
+      });
+    } catch (_) {
+      // same rationale as admitPatient above — a missing/fallback visit doc
+      // should never block the actual discharge.
+    }
   }
   await updatePatient(emrNumber, { status: 'discharged', dischargeNote }, doneBy, doneByRole);
   await logAudit('DISCHARGE', emrNumber, doneBy, { visitId: visitId || 'none' }, doneByRole);
@@ -472,12 +483,12 @@ export async function updateDrugStatus(prescriptionId, drugIndex, status, update
   const drugs = [...(snap.data().drugs || [])];
   if (!drugs[drugIndex]) return;
   const drugName = drugs[drugIndex].drug;
-  drugs[drugIndex] = {
+  drugs[drugIndex] = stripUndefined({
     ...drugs[drugIndex],
     status,
     statusUpdatedBy: updatedBy,
     statusUpdatedAt: new Date().toISOString(),
-  };
+  });
   await updateDoc(ref, { drugs });
   await logAudit('DRUG_STATUS_UPDATE', prescriptionId, updatedBy, { drug: drugName, status }, updatedByRole);
 }
