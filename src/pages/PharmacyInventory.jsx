@@ -43,8 +43,15 @@ export default function PharmacyInventory() {
     setSaving(true);
     try {
       if (editing) {
+        const newQty = Number(form.quantity);
+        const isRestock = newQty > (editing.quantity ?? 0); // treat any increase as a fresh batch
         await updateInventoryItem(editing.id,
-          { ...form, quantity: Number(form.quantity), reorderAt: Number(form.reorderAt) },
+          {
+            ...form,
+            quantity: newQty,
+            reorderAt: Number(form.reorderAt),
+            ...(isRestock ? { initialQuantity: newQty } : {}),
+          },
           profile.displayName, profile.role);
         toast.success('Item updated');
       } else {
@@ -56,13 +63,27 @@ export default function PharmacyInventory() {
     setSaving(false);
   };
 
+  const isLow = item =>
+    item.initialQuantity > 0
+      ? (1 - item.quantity / item.initialQuantity) >= 0.6   // ≥60% used
+      : item.quantity <= item.reorderAt;                     // fallback for older items
+
   const displayed  = items
-    .filter(i => !filterLow || i.quantity <= i.reorderAt)
+    .filter(i => !filterLow || (i.quantity > 0 && isLow(i)))
     .filter(i => !search || i.name?.toLowerCase().includes(search.toLowerCase())
       || i.category?.toLowerCase().includes(search.toLowerCase()));
-  const lowCount   = items.filter(i => i.quantity <= i.reorderAt).length;
-  const stockColor = item =>
-    item.quantity === 0 ? '#ef4444' : item.quantity <= item.reorderAt ? '#f59e0b' : '#22c55e';
+  const lowCount   = items.filter(i => i.quantity > 0 && isLow(i)).length;
+  const stockColor = item => {
+    if (item.quantity === 0) return '#ef4444'; // red — out of stock
+    if (item.initialQuantity > 0) {
+      const percentUsed = 1 - (item.quantity / item.initialQuantity);
+      if (percentUsed >= 0.9) return '#ef4444'; // red   — ≥90% used (≤10% left)
+      if (percentUsed >= 0.6) return '#f59e0b'; // orange — 60–89% used
+      return '#22c55e';                          // green — <60% used
+    }
+    // Fallback for older items with no baseline batch size recorded
+    return item.quantity <= item.reorderAt ? '#f59e0b' : '#22c55e';
+  };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
@@ -88,7 +109,7 @@ export default function PharmacyInventory() {
         <div className="stats-grid" style={{ marginBottom:16 }}>
           {[
             { label:'Total items',  value:items.length,                                    color:'var(--accent)', icon:'ti-pill' },
-            { label:'In stock',     value:items.filter(i=>i.quantity>i.reorderAt).length,  color:'var(--success)',icon:'ti-circle-check' },
+            { label:'In stock',     value:items.filter(i=>i.quantity>0 && !isLow(i)).length, color:'var(--success)',icon:'ti-circle-check' },
             { label:'Low stock',    value:lowCount,                                        color:'var(--warn)',   icon:'ti-alert-triangle' },
             { label:'Out of stock', value:items.filter(i=>i.quantity===0).length,          color:'var(--danger)', icon:'ti-circle-x' },
           ].map(s => (
@@ -126,7 +147,7 @@ export default function PharmacyInventory() {
                     <td style={{ textAlign:'center' }}>
                       {item.quantity === 0
                         ? <span className="badge badge-danger">Out of stock</span>
-                        : item.quantity <= item.reorderAt
+                        : isLow(item)
                           ? <span className="badge badge-warn">Low stock</span>
                           : <span className="badge badge-ok">In stock</span>}
                     </td>

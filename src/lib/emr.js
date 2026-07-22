@@ -827,12 +827,14 @@ export function listenInventory(callback) {
 }
 
 export async function addInventoryItem(data, addedBy, addedByRole = ROLES.PHARMACIST) {
+  const qty = Number(data.quantity) || 0;
   const ref = await addDoc(collection(db, COL.INVENTORY), {
     ...data,
-    quantity:   Number(data.quantity) || 0,
-    reorderAt:  Number(data.reorderAt) || 10,
-    createdAt:  serverTimestamp(),
-    updatedAt:  serverTimestamp(),
+    quantity:       qty,
+    initialQuantity: qty,   // baseline batch size — used to compute % used for stock color
+    reorderAt:      Number(data.reorderAt) || 10,
+    createdAt:      serverTimestamp(),
+    updatedAt:      serverTimestamp(),
   });
   await logAudit('INVENTORY_ADD', ref.id, addedBy, { name: data.name }, addedByRole);
   return ref.id;
