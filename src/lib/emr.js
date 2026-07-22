@@ -21,6 +21,20 @@ import { enqueuePendingWrite } from './offlineDB';
  * @param {object}      data      - payload (use '__serverTimestamp__' as placeholder)
  * @param {function}    onlineFn  - async fn that does the real Firestore write
  */
+// Firestore hard-rejects any field set to `undefined` (as opposed to null),
+// and it does so identically every time — not a transient/network failure.
+// This most commonly bites when a value comes from a user profile field
+// that was never set (e.g. an account with no displayName saved). Rather
+// than let a single missing field silently kill an entire clinical write
+// forever, replace undefined with null so the write still goes through.
+function stripUndefined(obj) {
+  const clean = {};
+  for (const [k, v] of Object.entries(obj)) {
+    clean[k] = v === undefined ? null : v;
+  }
+  return clean;
+}
+
 export async function offlineWrite(colName, operation, docId, data, onlineFn) {
   if (!navigator.onLine) {
     await enqueuePendingWrite(colName, operation, docId, data);
@@ -588,6 +602,16 @@ export async function updateUserRole(uid, role, updatedBy, updatedByRole = null)
   await logAudit('UPDATE_ROLE', uid, updatedBy, { newRole: role }, updatedByRole);
 }
 
+export async function updateUserProfile(uid, updates, updatedBy, updatedByRole = null) {
+  // updates: { displayName?, phone? } — for fixing missing/incorrect staff details
+  await updateDoc(doc(db, COL.USERS, uid), {
+    ...stripUndefined(updates),
+    updatedBy,
+    updatedAt: serverTimestamp(),
+  });
+  await logAudit('UPDATE_USER_PROFILE', uid, updatedBy, updates, updatedByRole);
+}
+
 export async function deactivateUser(uid, doneBy, doneByRole = null) {
   await updateDoc(doc(db, COL.USERS, uid), {
     active: false,
@@ -654,21 +678,25 @@ export async function recordAdministration(data) {
   // data: { emrNumber, rxId, drug, dose, route, scheduledFreq,
   //         status, administeredAt, notes,
   //         administeredBy, administeredByRole }
+  const safeData = stripUndefined({
+    ...data,
+    administeredBy: data.administeredBy || 'Unknown staff',
+  });
   const { offline, result } = await offlineWrite(
     COL.MAR, 'add', null,
-    { ...data, createdAt: '__serverTimestamp__' },
-    async () => addDoc(collection(db, COL.MAR), { ...data, createdAt: serverTimestamp() })
+    { ...safeData, createdAt: '__serverTimestamp__' },
+    async () => addDoc(collection(db, COL.MAR), { ...safeData, createdAt: serverTimestamp() })
   );
 
   // Best-effort side effects — safe to attempt even when offline,
   // since both are already wrapped in their own try/catch internally.
-  markSeenIfReportedSickToday(data.emrNumber, data.administeredBy);
-  logAudit('MAR_RECORD', data.emrNumber, data.administeredBy, {
-    drug:   data.drug,
-    status: data.status,
-    route:  data.route,
-    time:   data.administeredAt,
-  }, data.administeredByRole);
+  markSeenIfReportedSickToday(safeData.emrNumber, safeData.administeredBy);
+  logAudit('MAR_RECORD', safeData.emrNumber, safeData.administeredBy, {
+    drug:   safeData.drug,
+    status: safeData.status,
+    route:  safeData.route,
+    time:   safeData.administeredAt,
+  }, safeData.administeredByRole);
 
   return { offline, id: offline ? null : result.id };
 }

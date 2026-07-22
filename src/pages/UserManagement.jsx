@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
-import { getAllUsers, createUser, updateUserRole, deactivateUser, reactivateUser } from '../lib/emr';
+import { getAllUsers, createUser, updateUserRole, updateUserProfile, deactivateUser, reactivateUser } from '../lib/emr';
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -30,6 +30,10 @@ export default function UserManagement() {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPw,   setShowNewPw]   = useState(false);
   const [resetting,   setResetting]   = useState(false);
+
+  // Edit-name modal state — fixes accounts with a missing/blank display name
+  const [editModal,   setEditModal]   = useState(null); // { uid, displayName, phone }
+  const [editSaving,  setEditSaving]  = useState(false);
 
   useEffect(() => {
     getAllUsers().then(u => { setUsers(u); setLoading(false); });
@@ -99,6 +103,25 @@ export default function UserManagement() {
       setUsers(u => u.map(x => x.uid === uid ? { ...x, active: true } : x));
       toast.success(`${name} reactivated`);
     } catch { toast.error('Failed to reactivate'); }
+  };
+
+  // ── EDIT NAME/PHONE (fixes missing displayName) ─
+  const handleSaveEdit = async () => {
+    if (!editModal.displayName.trim()) { toast.error('Name cannot be empty'); return; }
+    setEditSaving(true);
+    try {
+      await updateUserProfile(
+        editModal.uid,
+        { displayName: editModal.displayName.trim(), phone: editModal.phone },
+        profile?.displayName, profile?.role
+      );
+      setUsers(u => u.map(x => x.uid === editModal.uid
+        ? { ...x, displayName: editModal.displayName.trim(), phone: editModal.phone }
+        : x));
+      toast.success('Staff details updated');
+      setEditModal(null);
+    } catch { toast.error('Failed to update staff details'); }
+    setEditSaving(false);
   };
 
   // ── SEND RESET EMAIL ─────────────────────────
@@ -259,7 +282,21 @@ export default function UserManagement() {
                           }}>
                             {(u.displayName||'?').slice(0,2).toUpperCase()}
                           </div>
-                          <span style={{ fontWeight:700 }}>{u.displayName}</span>
+                          {u.displayName ? (
+                            <span style={{ fontWeight:700 }}>{u.displayName}</span>
+                          ) : (
+                            <span style={{ fontWeight:700, color:'var(--danger)', fontSize:11 }}>
+                              <i className="ti ti-alert-triangle" /> No name set
+                            </span>
+                          )}
+                          <button
+                            className="btn btn-sm"
+                            style={{ fontSize:10, padding:'2px 7px' }}
+                            onClick={() => setEditModal({ uid: u.uid, displayName: u.displayName || '', phone: u.phone || '' })}
+                            title="Edit name / phone"
+                          >
+                            <i className="ti ti-pencil" />
+                          </button>
                         </div>
                       </td>
                       <td className="text-muted" style={{ fontSize:11 }}>{u.email}</td>
@@ -403,6 +440,59 @@ export default function UserManagement() {
                     : <><i className="ti ti-mail" /> Send reset email</>}
                 </button>
                 <button className="btn" onClick={() => setResetModal(null)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT NAME/PHONE MODAL ── */}
+      {editModal && (
+        <div style={{
+          position:'fixed', inset:0, zIndex:1000,
+          background:'rgba(0,0,0,.55)', backdropFilter:'blur(3px)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          padding:16,
+        }}>
+          <div className="card" style={{ width:'100%', maxWidth:420 }}>
+            <div className="card-header">
+              <div className="card-title">
+                <i className="ti ti-pencil" /> Edit staff details
+              </div>
+              <button className="btn btn-sm btn-icon" onClick={() => setEditModal(null)}>
+                <i className="ti ti-x" />
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="form-group" style={{ marginBottom:14 }}>
+                <label className="form-label">Full name *</label>
+                <input
+                  className="form-input"
+                  placeholder="e.g. Nurse Adaeze"
+                  value={editModal.displayName}
+                  onChange={e => setEditModal(m => ({ ...m, displayName: e.target.value }))}
+                />
+                <div style={{ fontSize:10, color:'var(--t3)', marginTop:4 }}>
+                  Shown on every note, vitals entry, and administration this staff member records.
+                  An account with no name saved will fail to record clinical entries.
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom:14 }}>
+                <label className="form-label">Phone</label>
+                <input
+                  className="form-input"
+                  placeholder="Optional"
+                  value={editModal.phone}
+                  onChange={e => setEditModal(m => ({ ...m, phone: e.target.value }))}
+                />
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button className="btn btn-primary" onClick={handleSaveEdit} disabled={editSaving}>
+                  {editSaving
+                    ? <><i className="ti ti-loader-2" style={{animation:'spin 1s linear infinite'}} /> Saving…</>
+                    : <><i className="ti ti-device-floppy" /> Save</>}
+                </button>
+                <button className="btn" onClick={() => setEditModal(null)}>Cancel</button>
               </div>
             </div>
           </div>
