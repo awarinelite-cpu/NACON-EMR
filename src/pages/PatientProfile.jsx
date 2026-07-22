@@ -86,7 +86,8 @@ export default function PatientProfile() {
   // Tracks when the last official form was saved; used to exclude already-printed Rx from next form
   const [officialRxSavedAt, setOfficialRxSavedAt] = useState(null);
   const [fluidForm, setFluidForm] = useState({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
-  const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'' });
+  const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'', unit:'mmol/L' });
+  const [glucChartUnit, setGlucChartUnit] = useState('mmol/L');
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const [carePlanForm, setCarePlanForm] = useState({
     assessment: '', nursingDiagnosis: '', goal: '', interventions: '', rationale: '',
@@ -369,9 +370,11 @@ export default function PatientProfile() {
               {selectedEvent.type === 'glucose' && (() => {
                 const g = selectedEvent.data;
                 const val = parseFloat(g.reading);
-                const status = val<4?'Low':val>10?'High':val>7?'Elevated':'Normal';
-                const scls   = val<4?'badge-warn':val>10?'badge-danger':val>7?'badge-warn':'badge-ok';
-                const clr    = val<4?'var(--warn)':val>10?'var(--danger)':val>7?'var(--warn)':'var(--success)';
+                const gUnit = g.unit || 'mmol/L';
+                const mmolVal = toMmol(val, gUnit);
+                const status = mmolVal<4?'Low':mmolVal>10?'High':mmolVal>7?'Elevated':'Normal';
+                const scls   = mmolVal<4?'badge-warn':mmolVal>10?'badge-danger':mmolVal>7?'badge-warn':'badge-ok';
+                const clr    = mmolVal<4?'var(--warn)':mmolVal>10?'var(--danger)':mmolVal>7?'var(--warn)':'var(--success)';
                 return (
                   <div>
                     <div style={{
@@ -380,7 +383,7 @@ export default function PatientProfile() {
                     }}>
                       <div style={{ fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', marginBottom:6 }}>Blood Glucose</div>
                       <div style={{ fontSize:52, fontWeight:700, color:clr, lineHeight:1 }}>{g.reading}</div>
-                      <div style={{ fontSize:13, color:'var(--t3)', marginTop:4 }}>mmol/L</div>
+                      <div style={{ fontSize:13, color:'var(--t3)', marginTop:4 }}>{gUnit}</div>
                       <span className={`badge ${scls}`} style={{ marginTop:10, display:'inline-flex', fontSize:12, padding:'4px 14px' }}>{status}</span>
                     </div>
                     <div style={{ fontSize:11, color:'var(--t3)' }}>
@@ -549,6 +552,16 @@ export default function PatientProfile() {
     setSaving(false);
   };
 
+  // Blood glucose unit conversion — 1 mmol/L ≈ 18 mg/dL
+  const MGDL_PER_MMOL = 18;
+  const toMmol = (value, unit) => unit === 'mg/dL' ? value / MGDL_PER_MMOL : value;
+  const toMgdl = (value, unit) => unit === 'mg/dL' ? value : value * MGDL_PER_MMOL;
+  const convertGlucose = (value, fromUnit, toUnit) => {
+    if (fromUnit === toUnit) return value;
+    return toUnit === 'mg/dL' ? toMgdl(value, fromUnit) : toMmol(value, fromUnit);
+  };
+  const formatGlucose = (value, unit) => unit === 'mg/dL' ? Math.round(value) : (Math.round(value * 10) / 10).toFixed(1);
+
   const saveGlucose = async () => {
     if (!glucForm.reading) { toast.error('Enter glucose reading'); return; }
     if (!profile) { toast.error('Not logged in'); return; }
@@ -556,7 +569,7 @@ export default function PatientProfile() {
     try {
       const vid = await ensureVisitId();
       await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown', profile.role);
-      setGlucForm({ time:'', reading:'', context:'' });
+      setGlucForm(g => ({ time:'', reading:'', context:'', unit: g.unit }));
       toast.success('Glucose reading added');
     } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
@@ -623,7 +636,7 @@ export default function PatientProfile() {
     if (item.type==='vitals')  return `BP ${item.data.sbp}/${item.data.dbp} · HR ${item.data.hr} · Temp ${item.data.temp}°C · SpO₂ ${item.data.spo2}%`;
     if (item.type==='rx')      return `Prescription — ${item.data.drugs?.map(d=>d.drug).join(', ')}`;
     if (item.type==='fluid')   return `Fluid — In: ${item.data.intakeAmt}ml Out: ${item.data.outputAmt}ml`;
-    if (item.type==='glucose') return `Blood glucose ${item.data.reading} mmol/L (${item.data.context})`;
+    if (item.type==='glucose') return `Blood glucose ${item.data.reading} ${item.data.unit || 'mmol/L'} (${item.data.context})`;
     if (item.type==='upload')  return `File: ${item.data.fileName}`;
     return '';
   };
@@ -1796,12 +1809,34 @@ export default function PatientProfile() {
                 <div className="form-grid-3" style={{ gap:10 }}>
                   <div className="form-group"><label className="form-label">Time</label>
                     <input type="time" className="form-input" value={glucForm.time} onChange={e=>setGlucForm(g=>({...g,time:e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Blood glucose (mmol/L) *</label>
-                    <input className="form-input" placeholder="5.4" value={glucForm.reading} onChange={e=>setGlucForm(g=>({...g,reading:e.target.value}))} /></div>
+                  <div className="form-group">
+                    <label className="form-label">Blood glucose ({glucForm.unit}) *</label>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <input className="form-input" style={{ flex:1 }}
+                        placeholder={glucForm.unit === 'mg/dL' ? '97' : '5.4'}
+                        value={glucForm.reading} onChange={e=>setGlucForm(g=>({...g,reading:e.target.value}))} />
+                      <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', flexShrink:0 }}>
+                        {['mmol/L','mg/dL'].map(u => (
+                          <button key={u} type="button"
+                            onClick={() => setGlucForm(g => {
+                              const val = parseFloat(g.reading);
+                              const converted = !isNaN(val) ? formatGlucose(convertGlucose(val, g.unit, u), u) : g.reading;
+                              return { ...g, unit: u, reading: converted };
+                            })}
+                            style={{
+                              padding:'0 10px', fontSize:11, fontWeight:700, cursor:'pointer',
+                              border:'none', background: glucForm.unit === u ? 'var(--accent)' : 'transparent',
+                              color: glucForm.unit === u ? '#fff' : 'var(--t2)',
+                            }}
+                          >{u}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                   <div className="form-group"><label className="form-label">Context</label>
                     <select className="form-select" value={glucForm.context} onChange={e=>setGlucForm(g=>({...g,context:e.target.value}))}>
                       <option value="">Select…</option>
-                      {['Fasting','Pre-meal','Post-meal (2hr)','Random','Bedtime'].map(c=><option key={c}>{c}</option>)}
+                      {['Fasting','Pre-breakfast','2 hours post-breakfast','Pre-lunch','2 hours post-lunch','Pre-dinner','2 hours post-dinner'].map(c=><option key={c}>{c}</option>)}
                     </select></div>
                 </div>
                 <button className="btn btn-primary mt-3" onClick={saveGlucose} disabled={saving}>
@@ -1810,18 +1845,34 @@ export default function PatientProfile() {
               </div>
             </div>}
             <div className="card">
-              <div className="card-header"><div className="card-title"><i className="ti ti-table" />Glycemic Chart</div></div>
+              <div className="card-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
+                <div className="card-title"><i className="ti ti-table" />Glycemic Chart</div>
+                <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden' }}>
+                  {['mmol/L','mg/dL'].map(u => (
+                    <button key={u} type="button" onClick={() => setGlucChartUnit(u)}
+                      style={{
+                        padding:'4px 10px', fontSize:11, fontWeight:700, cursor:'pointer',
+                        border:'none', background: glucChartUnit === u ? 'var(--accent)' : 'transparent',
+                        color: glucChartUnit === u ? '#fff' : 'var(--t2)',
+                      }}
+                    >{u}</button>
+                  ))}
+                </div>
+              </div>
               <table className="chart-table">
-                <thead><tr><th>Time</th><th>Reading (mmol/L)</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
+                <thead><tr><th>Time</th><th>Reading ({glucChartUnit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
                 <tbody>
                   {glucose.map(g=>{
-                    const v=parseFloat(g.reading);
-                    const status=v<4?'Low':v>10?'High':v>7?'Elevated':'Normal';
-                    const scls=v<4?'badge-warn':v>10?'badge-danger':v>7?'badge-warn':'badge-ok';
+                    const raw = parseFloat(g.reading);
+                    const storedUnit = g.unit || 'mmol/L';
+                    const mmolVal = toMmol(raw, storedUnit);
+                    const displayVal = formatGlucose(convertGlucose(raw, storedUnit, glucChartUnit), glucChartUnit);
+                    const status=mmolVal<4?'Low':mmolVal>10?'High':mmolVal>7?'Elevated':'Normal';
+                    const scls=mmolVal<4?'badge-warn':mmolVal>10?'badge-danger':mmolVal>7?'badge-warn':'badge-ok';
                     return (
                       <tr key={g.id}>
                         <td>{g.time}</td>
-                        <td style={{fontWeight:700}}>{g.reading}</td>
+                        <td style={{fontWeight:700}}>{displayVal}</td>
                         <td className="text-muted">{g.context}</td>
                         <td><span className={`badge ${scls}`}>{status}</span></td>
                         <td className="text-muted text-sm">{g.recordedBy}</td>
@@ -2351,9 +2402,11 @@ export default function PatientProfile() {
               {selectedEvent.type === 'glucose' && (() => {
                 const g = selectedEvent.data;
                 const val = parseFloat(g.reading);
-                const status = val<4?'Low':val>10?'High':val>7?'Elevated':'Normal';
-                const scls   = val<4?'badge-warn':val>10?'badge-danger':val>7?'badge-warn':'badge-ok';
-                const clr    = val<4?'var(--warn)':val>10?'var(--danger)':val>7?'var(--warn)':'var(--success)';
+                const gUnit = g.unit || 'mmol/L';
+                const mmolVal = toMmol(val, gUnit);
+                const status = mmolVal<4?'Low':mmolVal>10?'High':mmolVal>7?'Elevated':'Normal';
+                const scls   = mmolVal<4?'badge-warn':mmolVal>10?'badge-danger':mmolVal>7?'badge-warn':'badge-ok';
+                const clr    = mmolVal<4?'var(--warn)':mmolVal>10?'var(--danger)':mmolVal>7?'var(--warn)':'var(--success)';
                 return (
                   <div>
                     <div style={{
@@ -2362,7 +2415,7 @@ export default function PatientProfile() {
                     }}>
                       <div style={{ fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', marginBottom:6 }}>Blood Glucose</div>
                       <div style={{ fontSize:52, fontWeight:700, color:clr, lineHeight:1 }}>{g.reading}</div>
-                      <div style={{ fontSize:13, color:'var(--t3)', marginTop:4 }}>mmol/L</div>
+                      <div style={{ fontSize:13, color:'var(--t3)', marginTop:4 }}>{gUnit}</div>
                       <span className={`badge ${scls}`} style={{ marginTop:10, display:'inline-flex', fontSize:12, padding:'4px 14px' }}>{status}</span>
                     </div>
                     <div style={{ fontSize:11, color:'var(--t3)' }}>
