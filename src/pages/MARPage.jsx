@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 import {
   listenPatients, listenPrescriptions, listenMAR,
-  recordAdministration, formatTime, formatDateTime, formatTs,
+  recordAdministration, updateDrugStatus, formatTime, formatDateTime, formatTs,
 } from '../lib/emr';
 
 const ROUTES = ['Oral', 'IM', 'IV', 'SC', 'Topical', 'PR'];
@@ -19,6 +19,13 @@ const STATUS_CFG = {
   given:   { label:'Given',   color:'var(--success)', bg:'var(--success-bg)' },
   held:    { label:'Held',    color:'var(--warn)',    bg:'var(--warn-bg)'    },
   refused: { label:'Refused', color:'var(--danger)',  bg:'var(--danger-bg)'  },
+};
+
+const DRUG_STATUS_CFG = {
+  active:       { label:'Active',       color:'var(--success)', bg:'var(--success-bg)' },
+  completed:    { label:'Completed',    color:'var(--info)',    bg:'var(--info-bg)'    },
+  discontinued: { label:'Discontinued', color:'var(--danger)',  bg:'var(--danger-bg)'  },
+  withheld:     { label:'Withheld',     color:'var(--warn)',    bg:'var(--warn-bg)'    },
 };
 
 export default function MARPage() {
@@ -34,6 +41,7 @@ export default function MARPage() {
   const [form,      setForm]      = useState({ route:'Oral', dose:'', time:'', notes:'', status:'given' });
   const [saving,    setSaving]    = useState(false);
   const [search,    setSearch]    = useState('');
+  const [statusSaving, setStatusSaving] = useState(null); // rxId+drugIndex currently saving
 
   // Unsub refs
   const [rxUnsub,  setRxUnsub]  = useState(null);
@@ -97,10 +105,26 @@ export default function MARPage() {
     setSaving(false);
   };
 
+  const handleStatusChange = async (drug, newStatus) => {
+    if (newStatus === drug.status) return;
+    const key = `${drug.rxId}-${drug.drugIndex}`;
+    setStatusSaving(key);
+    try {
+      await updateDrugStatus(drug.rxId, drug.drugIndex, newStatus, profile.displayName, profile.role);
+      toast.success(`${drug.drug} marked ${DRUG_STATUS_CFG[newStatus]?.label || newStatus}`);
+    } catch (err) {
+      console.error('[MARPage] updateDrugStatus failed:', err);
+      toast.error('Failed to update drug status');
+    }
+    setStatusSaving(null);
+  };
+
   // Build flat drug list from all prescriptions
   const drugs = rxList.flatMap(rx =>
-    (rx.drugs || []).map(d => ({
+    (rx.drugs || []).map((d, idx) => ({
       ...d,
+      status:       d.status || 'active',
+      drugIndex:    idx,
       rxId:         rx.id,
       prescribedBy: rx.prescribedBy,
       prescribedByRole: rx.prescribedByRole,
@@ -307,7 +331,8 @@ export default function MARPage() {
                     <div style={{ fontSize:11, marginTop:4 }}>Go to patient profile to add a prescription first</div>
                   </div>
                 ) : (
-                  <table className="data-table">
+                  <div className="mar-table-scroll">
+                  <table className="data-table mar-drugs-table">
                     <thead>
                       <tr>
                         <th>Drug</th>
@@ -316,6 +341,7 @@ export default function MARPage() {
                         <th>Duration</th>
                         <th>Prescribed by</th>
                         <th>Given today</th>
+                        <th>Status</th>
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -323,8 +349,9 @@ export default function MARPage() {
                       {drugs.map((d, i) => {
                         const administered = adminsForDrug(d.rxId, d.drug);
                         const lastAdmin    = administered[administered.length - 1];
+                        const isActive     = d.status === 'active';
                         return (
-                          <tr key={i}>
+                          <tr key={i} style={{ opacity: isActive ? 1 : 0.55 }}>
                             <td style={{ fontWeight:700 }}>
                               {d.drug}
                               {d.requiresCountersign && !d.countersigned && (
@@ -363,6 +390,24 @@ export default function MARPage() {
                               )}
                             </td>
                             <td>
+                              <select
+                                className="form-select"
+                                style={{
+                                  fontSize:11, fontWeight:700, padding:'4px 6px', minWidth:110,
+                                  color: DRUG_STATUS_CFG[d.status]?.color,
+                                  background: DRUG_STATUS_CFG[d.status]?.bg,
+                                  border:'1px solid var(--border)', borderRadius:8,
+                                }}
+                                value={d.status}
+                                disabled={statusSaving === `${d.rxId}-${d.drugIndex}`}
+                                onChange={e => handleStatusChange(d, e.target.value)}
+                              >
+                                {Object.entries(DRUG_STATUS_CFG).map(([val, cfg]) => (
+                                  <option key={val} value={val}>{cfg.label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
                               <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => {
@@ -370,6 +415,8 @@ export default function MARPage() {
                                   setForm({ route:'Oral', dose: d.dose || '', time:'', notes:'', status:'given' });
                                   setShowForm(true);
                                 }}
+                                disabled={!isActive}
+                                title={isActive ? '' : 'This drug is not active — change status to Active to record'}
                               >
                                 <i className="ti ti-plus" /> Record
                               </button>
@@ -379,6 +426,7 @@ export default function MARPage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
 
