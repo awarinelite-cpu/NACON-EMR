@@ -14,12 +14,14 @@ import {
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
   addCarePlan, listenCarePlans, updateCarePlanEvaluation,
+  listenMAR,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import NewsScore from '../components/patients/NewsScore';
 import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
+import CareSummaryDocument from '../components/patients/CareSummaryDocument';
 
 const TABS = [
   { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','admin','subadmin'] },
@@ -64,6 +66,8 @@ export default function PatientProfile() {
   const [labRequests, setLabRequests] = useState([]);
   const [labResults,  setLabResults]  = useState([]);
   const [carePlans,   setCarePlans]   = useState([]);
+  const [marRecords,  setMarRecords]  = useState([]);
+  const [showCareSummary, setShowCareSummary] = useState(false);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [visitId,   setVisitId]   = useState(null);
@@ -157,6 +161,7 @@ export default function PatientProfile() {
       listenPatientLabRequests(emrNumber, setLabRequests),
       listenPatientLabResults(emrNumber,  setLabResults),
       listenCarePlans(emrNumber,          setCarePlans),
+      listenMAR(emrNumber,                setMarRecords),
     ];
     return () => unsubs.forEach(u => u && u());
   }, [emrNumber]);
@@ -2148,9 +2153,24 @@ export default function PatientProfile() {
         )}
 
         {/* ── UPLOADS / LABS TAB ── */}
-        {activeTab==='uploads' && isDoctor && (
+        {activeTab==='uploads' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {!viewOnly && <div className="card">
+            {!isRecords && (
+              <div className="card">
+                <div className="card-header"><div className="card-title"><i className="ti ti-file-description" />Patient Care Document</div></div>
+                <div className="card-body">
+                  <p style={{ fontSize:12, color:'var(--t3)', marginTop:0, marginBottom:10 }}>
+                    Everything recorded for this patient, compiled into one document — vitals, notes, care plans,
+                    prescriptions, MAR, fluid I/O, glucose, lab and uploaded files. View it, print it, or share it
+                    (WhatsApp or any other app).
+                  </p>
+                  <button onClick={() => setShowCareSummary(true)} className="btn btn-primary btn-sm">
+                    <i className="ti ti-file-text" /> Open Document
+                  </button>
+                </div>
+              </div>
+            )}
+            {isDoctor && !viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-upload" />Upload Lab Result / Scan</div></div>
               <div className="card-body">
                 <div className="upload-zone" onClick={() => fileInput.current?.click()}>
@@ -2506,6 +2526,26 @@ export default function PatientProfile() {
             if (allergyAlert.onConfirm) await allergyAlert.onConfirm();
             else await doSaveRx(allergyAlert.pendingRx);
           }}
+        />
+      )}
+      {/* ── CARE SUMMARY DOCUMENT MODAL ── */}
+      {showCareSummary && (
+        <CareSummaryDocument
+          open={showCareSummary}
+          onClose={() => setShowCareSummary(false)}
+          patient={patient}
+          emrNumber={emrNumber}
+          compiledBy={profile?.displayName || profile?.email || 'Unknown'}
+          notes={notes}
+          vitals={vitals}
+          rx={rx}
+          fluid={fluid}
+          glucose={glucose}
+          carePlans={carePlans}
+          labRequests={labRequests}
+          labResults={labResults}
+          marRecords={marRecords}
+          uploads={uploads}
         />
       )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
