@@ -39,12 +39,6 @@ export default function NurseDashboard() {
   const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
   const referredToday   = patients.filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
 
-  const classBreakdown = () => {
-    const counts = {};
-    patients.forEach(p => { const c = p.classSet||'—'; counts[c]=(counts[c]||0)+1; });
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  };
-
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
@@ -57,16 +51,6 @@ export default function NurseDashboard() {
         <div className="stat-card" onClick={() => navigate('/nurse/patients')} style={{cursor:'pointer', marginBottom:12}}>
           <div className="stat-label"><i className="ti ti-users" style={{color:'#8b5cf6'}} />Total Registered Patients</div>
           <div className="stat-value" style={{color:'#8b5cf6'}}>{patients.length}</div>
-          {classBreakdown().length > 0 && (
-            <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:6}}>
-              {classBreakdown().map(([cls, cnt]) => (
-                <span key={cls} style={{
-                  fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10,
-                  background:'#ede9fe', color:'#7c3aed',
-                }}>{cls}: {cnt}</span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}

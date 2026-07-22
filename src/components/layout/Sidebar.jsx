@@ -24,7 +24,6 @@ const NAV = {
       { icon: 'ti-urgent',           label: 'Triage',         path: '/triage',           badge: 'p1' },
       { icon: 'ti-pill',             label: 'MAR',            path: '/mar' },
       { icon: 'ti-clock',            label: 'Queue',          path: '/nurse/queue',      badge: 'queue' },
-      { icon: 'ti-bed',              label: 'Sick Bay',       path: '/nurse/sickbay',    badge: 'sickbay' },
       { icon: 'ti-notes-medical',    label: 'Nursing Notes',  path: '/nurse/notes' },
       { icon: 'ti-pill',             label: 'Medication Log', path: '/nurse/meds' },
       { icon: 'ti-temperature',      label: 'Vital Signs',    path: '/nurse/vitals' },
