@@ -12,17 +12,21 @@ import { useAuth } from '../lib/AuthContext';
 import { getTodayStats, listenPatients, formatDateTime } from '../lib/emr';
 
 // ── SHARED PATIENT LIST ──────────────────────
-function PatientList({ onOpen }) {
+function PatientList({ onOpen, filterStatus }) {
   const [patients, setPatients] = useState([]);
   const [q, setQ]               = useState('');
 
   useEffect(() => listenPatients(setPatients), []);
 
+  const base = filterStatus
+    ? patients.filter(p => p.status === filterStatus)
+    : patients;
+
   const filtered = q
-    ? patients.filter(p =>
+    ? base.filter(p =>
         `${p.surname} ${p.firstName} ${p.otherNames} ${p.emrNumber} ${p.classSet} ${p.matricNo}`
           .toLowerCase().includes(q.toLowerCase()))
-    : patients;
+    : base;
 
   const STATUS = {
     active:     { cls:'badge-danger', label:'In clinic' },
@@ -54,7 +58,11 @@ function PatientList({ onOpen }) {
       <div className="card">
         {filtered.length === 0
           ? <div style={{ padding:24, textAlign:'center', fontSize:13, fontWeight:700, color:'var(--t3)' }}>
-              {q ? 'No patients match your search' : 'No patients registered yet'}
+              {q
+                ? 'No patients match your search'
+                : filterStatus === 'waiting'
+                  ? 'No patients waiting right now'
+                  : 'No patients registered yet'}
             </div>
           : filtered.map(p => {
               const c   = col(p.emrNumber);
@@ -119,7 +127,7 @@ export function DoctorPages() {
         </AppShell>
       }/>
       <Route path="patients"  element={<AppShell title="My Patients"><PatientList onOpen={emr=>navigate(`/doctor/patient/${emr}`)}/></AppShell>}/>
-      <Route path="queue"     element={<AppShell title="Today's Queue"><PatientList onOpen={emr=>navigate(`/doctor/patient/${emr}`)}/></AppShell>}/>
+      <Route path="queue"     element={<AppShell title="Today's Queue"><PatientList filterStatus="waiting" onOpen={emr=>navigate(`/doctor/patient/${emr}`)}/></AppShell>}/>
       <Route path="patient/:emr" element={
         <AppShell title="Patient Profile">
           <PatientProfile backPath="/doctor" />
@@ -147,7 +155,7 @@ export function NursePages() {
         </AppShell>
       }/>
       <Route path="patients"  element={<AppShell title="All Patients"><PatientList onOpen={emr=>navigate(`/nurse/patient/${emr}`)}/></AppShell>}/>
-      <Route path="queue"     element={<AppShell title="Queue"><PatientList onOpen={emr=>navigate(`/nurse/patient/${emr}`)}/></AppShell>}/>
+      <Route path="queue"     element={<AppShell title="Queue"><PatientList filterStatus="waiting" onOpen={emr=>navigate(`/nurse/patient/${emr}`)}/></AppShell>}/>
       <Route path="sickbay"   element={<AppShell title="Sick Bay"><PatientList onOpen={emr=>navigate(`/nurse/patient/${emr}`)}/></AppShell>}/>
       <Route path="patient/:emr" element={
         <AppShell title="Patient Profile">
