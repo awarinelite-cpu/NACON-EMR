@@ -1039,12 +1039,12 @@ export default function PatientProfile() {
 
               {/* Latest vitals mini */}
               {latestV && (
-                <div className="card">
+                <div className="card" style={{ flexGrow:1, display:'flex', flexDirection:'column' }}>
                   <div className="card-header">
                     <div className="card-title"><i className="ti ti-heart-rate-monitor" />Latest Vitals</div>
                     <span style={{ fontSize:10, color:'var(--t3)' }}>{formatTime(latestV.recordedAt)}</span>
                   </div>
-                  <div className="card-body">
+                  <div className="card-body" style={{ flex:1 }}>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       {[
                         { label:'BP',    value:`${latestV.sbp}/${latestV.dbp}`, unit:'mmHg', key:'sbp' },
