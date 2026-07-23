@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
+import NoteTextRenderer from '../components/shared/NoteTextRenderer';
 import {
   listenPatients, listenNotes, addNote,
   formatTs, formatTime,
@@ -251,8 +252,8 @@ export default function NursingNotesPage() {
                               {formatTs(n.createdAt)} {formatTime(n.createdAt)}
                             </span>
                           </div>
-                          <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                            {n.note}
+                          <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+                            <NoteTextRenderer text={n.note} />
                           </div>
                           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t3)', display: 'flex', gap: 6, alignItems: 'center' }}>
                             <i className="ti ti-user" style={{ fontSize: 12 }} />

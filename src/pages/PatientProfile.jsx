@@ -22,6 +22,7 @@ import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import NewsScore from '../components/patients/NewsScore';
 import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
 import CareSummaryDocument from '../components/patients/CareSummaryDocument';
+import NoteTextRenderer from '../components/shared/NoteTextRenderer';
 
 const TABS = [
   { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','admin','subadmin'] },
@@ -1986,7 +1987,7 @@ export default function PatientProfile() {
                     </span>
                     <div className="note-time">{formatDateTime(n.createdAt)}</div>
                   </div>
-                  <div className="note-text" style={{ whiteSpace:'pre-line' }}>{n.text}</div>
+                  <div className="note-text"><NoteTextRenderer text={n.text} /></div>
                 </div>
               ))}
               {notes.length===0 && <div style={{ padding:16, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No notes yet</div>}
@@ -2159,7 +2160,7 @@ export default function PatientProfile() {
                     <span className="badge badge-ok" style={{fontSize:9}}>Doctor's note</span>
                     <div className="note-time">{formatDateTime(n.createdAt)}</div>
                   </div>
-                  <div className="note-text" style={{ whiteSpace:'pre-line' }}>{n.text}</div>
+                  <div className="note-text"><NoteTextRenderer text={n.text} /></div>
                 </div>
               ))}
               {notes.filter(n=>n.authorRole==='doctor').length===0 && (
