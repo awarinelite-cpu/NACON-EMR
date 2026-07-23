@@ -43,8 +43,13 @@ service cloud.firestore {
       allow write: if isClinical() || isAdmin();
     }
     match /prescriptions/{doc} {
-      allow read:  if isAnyStaff();
-      allow write: if isClinical() || isAdmin();
+      allow read:   if isAnyStaff();
+      allow create: if isClinical() || isAdmin();
+      // Pharmacist/subadmin need to update the dispensed/dispensedBy/dispensedAt
+      // fields when they dispense a prescription from the Pharmacy dashboard.
+      allow update: if isClinical() || isAdmin()
+        || (isAuth() && isActive() && getRole() in ['pharmacist', 'subadmin']);
+      allow delete: if isAdmin();
     }
     match /nhis_prescriptions/{doc} {
       allow read:  if isAnyStaff();
