@@ -14,7 +14,7 @@
 // ─────────────────────────────────────────────
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { getVisits, formatTs, formatDateTime } from '../../lib/emr';
+import { getVisits, getAuditForPatient, formatTs, formatDateTime } from '../../lib/emr';
 
 const DAY_MS = 24 * 3600 * 1000;
 
@@ -67,21 +67,38 @@ export default function CareSummaryDocument({
     (async () => {
       setLoadingDocs(true);
       try {
-        const visits = await getVisits(emrNumber);
+        const [visits, auditLog] = await Promise.all([
+          getVisits(emrNumber),
+          getAuditForPatient(emrNumber, ['ADMIT', 'DISCHARGE']).catch(e => {
+            console.error('CareSummaryDocument: audit log lookup failed', e);
+            return [];
+          }),
+        ]);
         // Admission and discharge events are read as a flat timeline across
         // ALL of this patient's visit docs (not just matched pairs on a single
         // doc) — a patient's chart may have been reopened between the admit
         // and discharge actions, sending each timestamp to a different visit
         // record. Pairing chronologically here means every completed stay
         // still resolves to one correct episode either way.
-        const admits = visits
-          .filter(v => v.admittedAt)
-          .map(v => ({ t: tsMs(v.admittedAt), by: v.admittedBy || '—' }))
-          .sort((a, b) => a.t - b.t);
-        const discharges = visits
-          .filter(v => v.dischargedAt)
-          .map(v => ({ t: tsMs(v.dischargedAt), by: v.dischargedBy || null, note: v.dischargeNote || null }))
-          .sort((a, b) => a.t - b.t);
+        // The audit log (always written, independent of visitId) is merged
+        // in as a recovery source for any admit/discharge whose visit-doc
+        // write silently failed (e.g. a fallback local visitId) and so
+        // never has admittedAt/dischargedAt at all.
+        const mergeDedupe = (primary, secondary) => {
+          const merged = [...primary];
+          secondary.forEach(s => {
+            if (!merged.some(p => Math.abs(p.t - s.t) < 60000)) merged.push(s);
+          });
+          return merged.sort((a, b) => a.t - b.t);
+        };
+        const admits = mergeDedupe(
+          visits.filter(v => v.admittedAt).map(v => ({ t: tsMs(v.admittedAt), by: v.admittedBy || '—' })),
+          auditLog.filter(a => a.action === 'ADMIT').map(a => ({ t: tsMs(a.timestamp), by: a.performedBy || '—' })),
+        );
+        const discharges = mergeDedupe(
+          visits.filter(v => v.dischargedAt).map(v => ({ t: tsMs(v.dischargedAt), by: v.dischargedBy || null, note: v.dischargeNote || null })),
+          auditLog.filter(a => a.action === 'DISCHARGE').map(a => ({ t: tsMs(a.timestamp), by: a.performedBy || null, note: null })),
+        );
 
         const episodes = [];
         let dIdx = 0;

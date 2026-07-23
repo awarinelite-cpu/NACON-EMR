@@ -79,7 +79,7 @@ service cloud.firestore {
 
     // Audit log — admin read only, all staff can write (append only)
     match /audit_log/{doc} {
-      allow read:  if isAdmin();
+      allow read:  if isAnyStaff();
       allow create: if isAnyStaff();
       allow update, delete: if false;
     }

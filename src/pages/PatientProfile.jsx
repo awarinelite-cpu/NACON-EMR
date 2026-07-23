@@ -443,14 +443,28 @@ export default function PatientProfile() {
   const latestV      = vitals[0];
   const activeMeds   = rx.reduce((a, r) => a + (r.drugs?.length || 0), 0);
 
-  // Ensure visitId exists before saving
-  // If visitId from useEffect isn't ready yet, use a local fallback so saves never block
+  // Ensure visitId exists before saving.
+  // FIX: this used to fabricate a fake local ID ("visit_<emr>_<time>") the
+  // instant visitId wasn't ready yet — which happens any time staff act on
+  // a chart faster than the mount-time visit lookup resolves. That fake ID
+  // is never a real Firestore doc, so every subsequent write to it
+  // (including admittedAt/dischargedAt on Admit/Discharge) silently failed
+  // for the rest of the session — the patient's status still updated, but
+  // the visit-level record of the stay was permanently lost. Now it
+  // actually fetches/creates the real visit first, and only falls back to
+  // a local ID if Firestore itself is unreachable.
   const ensureVisitId = async () => {
     if (visitId) return visitId;
-    // Fallback: generate a local ID so Firestore write is never blocked
-    const fallback = `visit_${emrNumber}_${Date.now()}`;
-    setVisitId(fallback);
-    return fallback;
+    try {
+      const vid = await getOrOpenVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName, profile?.role);
+      setVisitId(vid);
+      return vid;
+    } catch (e) {
+      console.error('ensureVisitId: getOrOpenVisit failed, using local fallback', e);
+      const fallback = `visit_${emrNumber}_${Date.now()}`;
+      setVisitId(fallback);
+      return fallback;
+    }
   };
 
   // ── SAVE HANDLERS ──

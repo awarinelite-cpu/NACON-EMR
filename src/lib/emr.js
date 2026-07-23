@@ -741,6 +741,19 @@ export async function logAudit(action, targetId, performedBy, details = {}, perf
   }
 }
 
+// Every ADMIT/DISCHARGE action is logged here regardless of whether the
+// visits/{id} doc write itself succeeded — so it doubles as a recovery
+// source for admission episodes whose visit doc is missing admittedAt/
+// dischargedAt (e.g. from the ensureVisitId race described above).
+export async function getAuditForPatient(emrNumber, actions = null) {
+  const q = query(collection(db, COL.AUDIT), where('targetId', '==', emrNumber));
+  const snap = await getDocs(q);
+  let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (actions) docs = docs.filter(d => actions.includes(d.action));
+  docs.sort((a,b) => (a.timestamp?.seconds||0) - (b.timestamp?.seconds||0));
+  return docs;
+}
+
 // ─────────────────────────────────────────────
 // DASHBOARD STATS
 // ─────────────────────────────────────────────
