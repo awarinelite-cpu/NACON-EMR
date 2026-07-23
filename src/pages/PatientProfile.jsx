@@ -687,8 +687,11 @@ export default function PatientProfile() {
 
   const statusColor = patient.status === 'active' ? '#22C55E' : patient.status === 'discharged' ? '#64748B' : '#F59E0B';
 
-  // Check if patient already reported sick today
+  // Check if patient already reported sick today — but a discharged patient
+  // starts fresh: today's earlier report shouldn't block reporting them
+  // sick again if something comes up after they've left.
   const reportedSickToday = (() => {
+    if (patient.status === 'discharged') return false;
     const ts = patient.reportedSickAt;
     if (!ts) return false;
     const d = ts.toDate ? ts.toDate() : new Date(ts);
