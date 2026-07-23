@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { suggestDrugsForNote } from '../../lib/geminiInsights';
+import { lookupMedIndexDrug } from '../../lib/medIndex';
 
 // Renders **bold** markdown segments (used for AI headings/subheadings/drug
 // names) as <strong>, stripping the asterisks. Everything else stays as
@@ -112,15 +113,29 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const rows = extractDrugRows(result);
     if (!rows.length) {
       toast.error('No drug names could be found in the suggestion');
       return;
     }
-    onConfirmDrugs?.(rows);
+    // Best-effort: tag rows whose name matches a MedIndex formulary entry,
+    // so the confirmed prescription line carries a note that dosing was
+    // cross-checked against MedIndex rather than left as free-text AI recall.
+    const enriched = await Promise.all(
+      rows.map(async row => {
+        const match = await lookupMedIndexDrug(row.name).catch(() => null);
+        return match ? { ...row, medIndexVerified: true, medIndexClass: match.drug_class || '' } : row;
+      })
+    );
+    onConfirmDrugs?.(enriched);
     setConfirmed(true);
-    toast.success(`${rows.length} drug${rows.length > 1 ? 's' : ''} added to prescription — review and save`);
+    const verifiedCount = enriched.filter(r => r.medIndexVerified).length;
+    toast.success(
+      `${enriched.length} drug${enriched.length > 1 ? 's' : ''} added to prescription` +
+      (verifiedCount ? ` (${verifiedCount} matched to MedIndex)` : '') +
+      ' — review and save'
+    );
   };
 
   return (
