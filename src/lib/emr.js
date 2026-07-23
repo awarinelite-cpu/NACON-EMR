@@ -35,6 +35,25 @@ function stripUndefined(obj) {
   return clean;
 }
 
+// stripUndefined only cleans top-level keys. Nested arrays/objects — like
+// a prescription's `drugs` array, where individual drug entries can have
+// unset fields (qty, dose, route left blank on the Rx form) — still reach
+// Firestore with raw `undefined` inside them, which addDoc()/updateDoc()
+// reject outright ("Unsupported field value: undefined"), failing the
+// entire write. This recurses into arrays/objects so nested undefineds
+// are nulled out too.
+function deepStripUndefined(value) {
+  if (Array.isArray(value)) return value.map(deepStripUndefined);
+  if (value && typeof value === 'object' && typeof value.toDate !== 'function') {
+    const clean = {};
+    for (const [k, v] of Object.entries(value)) {
+      clean[k] = v === undefined ? null : deepStripUndefined(v);
+    }
+    return clean;
+  }
+  return value;
+}
+
 export async function offlineWrite(colName, operation, docId, data, onlineFn) {
   if (!navigator.onLine) {
     await enqueuePendingWrite(colName, operation, docId, data);
@@ -1467,7 +1486,7 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy, 
     prescriptionId,
     emrNumber:    rxData.emrNumber,
     patientName:  rxData.patientName || '',
-    drugs:        rxData.drugs || [],
+    drugs:        deepStripUndefined(rxData.drugs || []),
     prescribedBy: rxData.prescribedBy || '',
     dispensedBy,
     dispensedAt:  serverTimestamp(),

@@ -54,7 +54,7 @@ export default function PharmacyDashboard() {
       }, profile.displayName || profile.email || 'Pharmacist', profile.role);
       toast.success('Prescription dispensed');
       setDispensing(null);
-    } catch (e) { toast.error('Failed to dispense'); }
+    } catch (e) { console.error('[PharmacyDashboard] dispense failed:', e); toast.error('Failed to dispense'); }
     setSaving(false);
   };
 
