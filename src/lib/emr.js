@@ -1033,6 +1033,71 @@ export async function getInventorySnapshot() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Bulk-import inventory rows (e.g. from a parsed CSV shipment/stock sheet).
+ * rows: [{ name, category?, quantity, unit?, reorderAt?, location?, notes? }]
+ *
+ * Matching is by drug name (case-insensitive):
+ *  - New name         → creates a new inventory item.
+ *  - Matches existing  → ADDS the row's quantity onto the current stock
+ *                        (i.e. the CSV represents a shipment/delivery being
+ *                        received, not an absolute replacement of the count).
+ * Rows missing a name or a valid non-negative quantity are skipped and
+ * reported back rather than aborting the whole batch.
+ */
+export async function bulkUploadInventory(rows, addedBy, addedByRole = ROLES.PHARMACIST) {
+  const snap = await getDocs(collection(db, COL.INVENTORY));
+  const existing = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const result = { added: 0, restocked: 0, skipped: [] };
+
+  for (const row of rows) {
+    const name = (row.name || '').toString().trim();
+    const qty  = Number(row.quantity);
+    if (!name || !Number.isFinite(qty) || qty < 0) {
+      result.skipped.push({ row, reason: !name ? 'missing name' : 'missing/invalid quantity' });
+      continue;
+    }
+
+    const match = existing.find(i => i.name?.toLowerCase() === name.toLowerCase());
+    if (match) {
+      const newQty = (match.quantity || 0) + qty;
+      await updateDoc(doc(db, COL.INVENTORY, match.id), {
+        quantity: newQty,
+        // Widen the baseline so the low-stock % calculation stays meaningful
+        // after a restock, same convention as the manual restock flow.
+        initialQuantity: Math.max(match.initialQuantity || 0, newQty),
+        ...(row.category  ? { category: row.category }        : {}),
+        ...(row.unit      ? { unit: row.unit }                 : {}),
+        ...(row.location  ? { location: row.location }         : {}),
+        ...(row.reorderAt ? { reorderAt: Number(row.reorderAt) || match.reorderAt } : {}),
+        updatedAt: serverTimestamp(),
+      });
+      await logAudit('INVENTORY_BULK_RESTOCK', match.id, addedBy, { name, added: qty, remaining: newQty }, addedByRole);
+      match.quantity = newQty; // keep in sync in case the CSV lists the same drug twice
+      result.restocked++;
+    } else {
+      const ref = await addDoc(collection(db, COL.INVENTORY), {
+        name,
+        category:        row.category  || '',
+        quantity:        qty,
+        initialQuantity: qty,
+        unit:            row.unit      || 'tablets',
+        reorderAt:       Number(row.reorderAt) || 10,
+        location:        row.location  || '',
+        notes:           row.notes     || '',
+        createdAt:       serverTimestamp(),
+        updatedAt:       serverTimestamp(),
+      });
+      await logAudit('INVENTORY_BULK_ADD', ref.id, addedBy, { name, quantity: qty }, addedByRole);
+      existing.push({ id: ref.id, name, quantity: qty, initialQuantity: qty, reorderAt: Number(row.reorderAt) || 10 });
+      result.added++;
+    }
+  }
+
+  return result;
+}
+
 export async function deductInventory(drugName, qty, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   // Find matching inventory item by name (case-insensitive match)
   const snap = await getDocs(collection(db, COL.INVENTORY));

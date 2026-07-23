@@ -1,13 +1,71 @@
 // src/pages/PharmacyInventory.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { listenInventory, addInventoryItem, updateInventoryItem } from '../lib/emr';
+import { listenInventory, addInventoryItem, updateInventoryItem, bulkUploadInventory } from '../lib/emr';
 import toast from 'react-hot-toast';
 
 const EMPTY_FORM = { name:'', category:'', quantity:'', unit:'tablets', reorderAt:'10', location:'', notes:'' };
 const CATEGORIES = ['Analgesic','Antibiotic','Antimalaria','Antifungal','Antihistamine',
   'Vitamins/Supplements','Fluids/IV','Wound Care','Contraceptive','Other'];
 const UNITS = ['tablets','capsules','sachets','bottles','vials','tubes','strips','mg','ml'];
+
+// Recognized CSV header aliases → canonical field name (case-insensitive, spaces/underscores ignored)
+const HEADER_ALIASES = {
+  name: 'name', drug: 'name', drugname: 'name', item: 'name', itemname: 'name', drugitem: 'name',
+  category: 'category', type: 'category',
+  quantity: 'quantity', qty: 'quantity', stock: 'quantity',
+  unit: 'unit', units: 'unit',
+  reorderat: 'reorderAt', reorderlevel: 'reorderAt', reorder: 'reorderAt', reorderpoint: 'reorderAt',
+  location: 'location', shelf: 'location',
+  notes: 'notes', note: 'notes', remarks: 'notes',
+};
+
+// Minimal CSV parser — handles quoted fields (with embedded commas/quotes/newlines) and CRLF/LF.
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      row.push(field); field = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (!(row.length === 1 && row[0] === '')) rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// Parses raw CSV text into row objects keyed by canonical field names,
+// using the header row to map columns (order-independent).
+function csvToInventoryRows(text) {
+  const table = parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
+  if (table.length === 0) return { rows: [], unmatchedHeaders: [] };
+  const headerRow = table[0].map(h => h.trim().toLowerCase().replace(/[\s_-]+/g, ''));
+  const fieldMap = headerRow.map(h => HEADER_ALIASES[h] || null);
+  const unmatchedHeaders = table[0].filter((h, i) => !fieldMap[i]);
+
+  const rows = table.slice(1).map(cells => {
+    const obj = {};
+    fieldMap.forEach((field, i) => {
+      if (field && cells[i] !== undefined) obj[field] = cells[i].trim();
+    });
+    return obj;
+  });
+  return { rows, unmatchedHeaders };
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
@@ -25,11 +83,72 @@ export default function PharmacyInventory() {
   const [saving,    setSaving]   = useState(false);
   const [filterLow, setFilterLow]= useState(false);
 
+  // CSV bulk upload
+  const fileInputRef = useRef(null);
+  const [csvPreview, setCsvPreview] = useState(null); // { valid:[...], invalid:[...], fileName }
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [uploadingCsv, setUploadingCsv] = useState(false);
+
   // subscribe inventory
   useEffect(() => { const u = listenInventory(setItems); return u; }, []);
 
   // field setters
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const openCsvPicker = () => fileInputRef.current?.click();
+
+  const handleCsvFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name)) { toast.error('Please choose a .csv file'); return; }
+
+    const text = await file.text();
+    const { rows, unmatchedHeaders } = csvToInventoryRows(text);
+    if (rows.length === 0) { toast.error('No data rows found in that CSV'); return; }
+
+    const valid = [], invalid = [];
+    rows.forEach(row => {
+      const name = (row.name || '').trim();
+      const qty  = Number(row.quantity);
+      if (!name || !Number.isFinite(qty) || qty < 0) {
+        invalid.push({ row, reason: !name ? 'Missing drug name' : 'Missing/invalid quantity' });
+        return;
+      }
+      const existing = items.find(i => i.name?.toLowerCase() === name.toLowerCase());
+      valid.push({
+        row,
+        action: existing ? 'restock' : 'new',
+        currentQty: existing?.quantity ?? null,
+        newTotal: (existing?.quantity ?? 0) + qty,
+      });
+    });
+
+    if (unmatchedHeaders.length) {
+      toast(`Ignoring unrecognized column${unmatchedHeaders.length > 1 ? 's' : ''}: ${unmatchedHeaders.join(', ')}`, { icon: '⚠️' });
+    }
+    setCsvPreview({ valid, invalid, fileName: file.name });
+    setShowCsvModal(true);
+  };
+
+  const confirmCsvUpload = async () => {
+    if (!csvPreview?.valid.length) return;
+    setUploadingCsv(true);
+    try {
+      const result = await bulkUploadInventory(
+        csvPreview.valid.map(v => v.row),
+        profile.displayName || profile.email,
+        profile.role
+      );
+      toast.success(`${result.added} added, ${result.restocked} restocked${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}`);
+      setShowCsvModal(false);
+      setCsvPreview(null);
+    } catch (e) {
+      console.error('[PharmacyInventory] bulk upload failed:', e);
+      toast.error('Bulk upload failed');
+    }
+    setUploadingCsv(false);
+  };
 
   // inventory handlers
   const openAdd  = () => { setEditing(null); setForm(EMPTY_FORM); setShowForm(true); };
@@ -98,9 +217,16 @@ export default function PharmacyInventory() {
           Low stock {lowCount > 0 && <span className="badge badge-danger" style={{ marginLeft:4 }}>{lowCount}</span>}
         </button>
         {canManage && (
-          <button className="btn btn-primary" onClick={openAdd}>
-            <i className="ti ti-plus" /> Add item
-          </button>
+          <>
+            <input ref={fileInputRef} type="file" accept=".csv,text/csv"
+              style={{ display:'none' }} onChange={handleCsvFile} />
+            <button className="btn" onClick={openCsvPicker}>
+              <i className="ti ti-upload" /> Bulk upload CSV
+            </button>
+            <button className="btn btn-primary" onClick={openAdd}>
+              <i className="ti ti-plus" /> Add item
+            </button>
+          </>
         )}
       </div>
 
@@ -212,6 +338,91 @@ export default function PharmacyInventory() {
               <button className="btn" style={{ flex:1 }} onClick={() => setShowForm(false)}>Cancel</button>
               <button className="btn btn-primary" style={{ flex:2 }} onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving…' : editing ? 'Update item' : 'Add to inventory'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          CSV BULK UPLOAD PREVIEW MODAL
+      ══════════════════════════════════════════════════════ */}
+      {showCsvModal && csvPreview && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:16 }}
+          onClick={e => { if (e.target === e.currentTarget && !uploadingCsv) setShowCsvModal(false); }}>
+          <div style={{ background:'var(--card-bg)', borderRadius:16,
+            padding:20, width:'100%', maxWidth:640, maxHeight:'85vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+              <div style={{ fontWeight:800, fontSize:15 }}>Bulk upload preview</div>
+              <button onClick={() => !uploadingCsv && setShowCsvModal(false)}
+                style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'var(--t3)' }}>✕</button>
+            </div>
+            <div style={{ fontSize:11, color:'var(--t3)', marginBottom:12 }}>{csvPreview.fileName}</div>
+
+            <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+              <span className="badge badge-ok">{csvPreview.valid.filter(v => v.action === 'new').length} new</span>
+              <span className="badge" style={{ background:'var(--accent)', color:'#fff' }}>
+                {csvPreview.valid.filter(v => v.action === 'restock').length} restock
+              </span>
+              {csvPreview.invalid.length > 0 &&
+                <span className="badge badge-danger">{csvPreview.invalid.length} skipped</span>}
+            </div>
+
+            {csvPreview.valid.length > 0 && (
+              <div style={{ overflowX:'auto', marginBottom: csvPreview.invalid.length ? 16 : 0 }}>
+                <table className="data-table" style={{ minWidth:480 }}>
+                  <thead><tr>
+                    <th>Drug / Item</th><th style={{ textAlign:'center' }}>Action</th>
+                    <th style={{ textAlign:'center' }}>Qty in file</th><th style={{ textAlign:'center' }}>New total</th>
+                  </tr></thead>
+                  <tbody>
+                    {csvPreview.valid.map((v, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight:700 }}>{v.row.name}</td>
+                        <td style={{ textAlign:'center' }}>
+                          {v.action === 'new'
+                            ? <span className="badge badge-ok">New item</span>
+                            : <span className="badge" style={{ background:'var(--accent)', color:'#fff' }}>Restock</span>}
+                        </td>
+                        <td style={{ textAlign:'center' }}>{v.row.quantity}</td>
+                        <td style={{ textAlign:'center', fontWeight:800 }}>
+                          {v.action === 'restock' ? `${v.currentQty} → ${v.newTotal}` : v.newTotal}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {csvPreview.invalid.length > 0 && (
+              <div>
+                <div style={{ fontWeight:700, fontSize:12, color:'var(--danger)', marginBottom:6 }}>
+                  Skipped rows (fix and re-upload if needed)
+                </div>
+                <div style={{ overflowX:'auto' }}>
+                  <table className="data-table" style={{ minWidth:400 }}>
+                    <thead><tr><th>Row data</th><th>Reason</th></tr></thead>
+                    <tbody>
+                      {csvPreview.invalid.map((inv, i) => (
+                        <tr key={i}>
+                          <td style={{ fontSize:11, color:'var(--t3)' }}>{inv.row.name || '(no name)'}{inv.row.quantity ? ` · qty: ${inv.row.quantity}` : ''}</td>
+                          <td style={{ fontSize:11, color:'var(--danger)' }}>{inv.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:8, marginTop:20 }}>
+              <button className="btn" style={{ flex:1 }} disabled={uploadingCsv}
+                onClick={() => { setShowCsvModal(false); setCsvPreview(null); }}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex:2 }}
+                disabled={uploadingCsv || csvPreview.valid.length === 0} onClick={confirmCsvUpload}>
+                {uploadingCsv ? 'Uploading…' : `Confirm upload (${csvPreview.valid.length})`}
               </button>
             </div>
           </div>
