@@ -68,18 +68,40 @@ export default function CareSummaryDocument({
       setLoadingDocs(true);
       try {
         const visits = await getVisits(emrNumber);
-        const episodes = visits
-          .filter(v => v.admittedAt && (v.status === 'sickbay' || v.status === 'discharged'))
-          .map(v => ({
-            id: v.id,
-            admittedAt: tsMs(v.admittedAt),
-            admittedBy: v.admittedBy || '—',
-            dischargedAt: v.dischargedAt ? tsMs(v.dischargedAt) : null,
-            dischargedBy: v.dischargedBy || null,
-            dischargeNote: v.dischargeNote || patient?.dischargeNote || null,
-            ongoing: v.status === 'sickbay',
-          }))
-          .sort((a, b) => a.admittedAt - b.admittedAt);
+        // Admission and discharge events are read as a flat timeline across
+        // ALL of this patient's visit docs (not just matched pairs on a single
+        // doc) — a patient's chart may have been reopened between the admit
+        // and discharge actions, sending each timestamp to a different visit
+        // record. Pairing chronologically here means every completed stay
+        // still resolves to one correct episode either way.
+        const admits = visits
+          .filter(v => v.admittedAt)
+          .map(v => ({ t: tsMs(v.admittedAt), by: v.admittedBy || '—' }))
+          .sort((a, b) => a.t - b.t);
+        const discharges = visits
+          .filter(v => v.dischargedAt)
+          .map(v => ({ t: tsMs(v.dischargedAt), by: v.dischargedBy || null, note: v.dischargeNote || null }))
+          .sort((a, b) => a.t - b.t);
+
+        const episodes = [];
+        let dIdx = 0;
+        for (let i = 0; i < admits.length; i++) {
+          const admittedAt = admits[i].t;
+          const nextAdmit = admits[i + 1]?.t ?? Infinity;
+          while (dIdx < discharges.length && discharges[dIdx].t < admittedAt) dIdx++; // skip stale/earlier discharge events
+          let matched = null;
+          if (dIdx < discharges.length && discharges[dIdx].t < nextAdmit) {
+            matched = discharges[dIdx];
+            dIdx++;
+          }
+          episodes.push({
+            admittedAt, admittedBy: admits[i].by,
+            dischargedAt: matched?.t || null,
+            dischargedBy: matched?.by || null,
+            dischargeNote: matched?.note || patient?.dischargeNote || null,
+            ongoing: !matched,
+          });
+        }
 
         const groups = episodes.map((ep, i) => {
           const end = ep.dischargedAt || Date.now();

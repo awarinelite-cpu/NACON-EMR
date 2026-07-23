@@ -9,7 +9,7 @@ import {
   listenFluidChart, listenGlucoseChart, listenUploads,
   addNote, addVitals, addPrescription, addFluidEntry,
   addGlucoseReading, uploadPatientFile, createReferral,
-  dischargePatient, admitPatient, createVisit, formatTs, formatTime,
+  dischargePatient, admitPatient, getOrOpenVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
@@ -135,10 +135,10 @@ export default function PatientProfile() {
       setPatient(p);
       setLoading(false);
       try {
-        const vid = await createVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName, profile?.role);
+        const vid = await getOrOpenVisit(emrNumber, { type:'outpatient', date:new Date().toISOString() }, profile?.displayName, profile?.role);
         setVisitId(vid);
       } catch (e) {
-        console.error('createVisit on mount failed', e);
+        console.error('getOrOpenVisit on mount failed', e);
       }
     })();
   }, [emrNumber]);

@@ -217,7 +217,7 @@ export function listenPatients(callback) {
 // ─────────────────────────────────────────────
 // VISITS
 // ─────────────────────────────────────────────
-export async function createVisit(emrNumber, data, createdBy, createdByRole = null) {
+export async function createVisit(emrNumber, data, createdBy, createdByRole = null, opts = {}) {
   const visitRef = await addDoc(collection(db, COL.VISITS), {
     emrNumber,
     ...data,
@@ -226,26 +226,27 @@ export async function createVisit(emrNumber, data, createdBy, createdByRole = nu
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  // seenAt = moment they physically arrived at MRS (visit opened)
-  const patientUpdate = {
-    lastVisit: serverTimestamp(),
-    seenAt:    serverTimestamp(),
-    status:    'active',
-  };
-  // Ensure patients seen today via direct visit (not via Report Sick)
-  // still show up on the "Sick Report — Today" / "Seen" tabs.
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayTs = Timestamp.fromDate(today);
-  const existing = await getDoc(doc(db, COL.PATIENTS, emrNumber));
-  const reportedSickAt = existing.exists() ? existing.data().reportedSickAt : null;
-  const reportedToday = reportedSickAt &&
-    (reportedSickAt.toDate ? reportedSickAt.toDate() : new Date(reportedSickAt)) >= today;
-  if (!reportedToday) {
-    patientUpdate.reportedSickAt  = serverTimestamp();
-    patientUpdate.reportedSickBy  = createdBy;
-    patientUpdate.reportedSickHow = 'visit';
+  if (!opts.skipStamp) {
+    // seenAt = moment they physically arrived at MRS (visit opened)
+    const patientUpdate = {
+      lastVisit: serverTimestamp(),
+      seenAt:    serverTimestamp(),
+      status:    'active',
+    };
+    // Ensure patients seen today via direct visit (not via Report Sick)
+    // still show up on the "Sick Report — Today" / "Seen" tabs.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const existing = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+    const reportedSickAt = existing.exists() ? existing.data().reportedSickAt : null;
+    const reportedToday = reportedSickAt &&
+      (reportedSickAt.toDate ? reportedSickAt.toDate() : new Date(reportedSickAt)) >= today;
+    if (!reportedToday) {
+      patientUpdate.reportedSickAt  = serverTimestamp();
+      patientUpdate.reportedSickBy  = createdBy;
+      patientUpdate.reportedSickHow = 'visit';
+    }
+    await updatePatient(emrNumber, patientUpdate, createdBy, createdByRole);
   }
-  await updatePatient(emrNumber, patientUpdate, createdBy, createdByRole);
   await logAudit('CREATE_VISIT', emrNumber, createdBy, { visitId: visitRef.id }, createdByRole);
   return visitRef.id;
 }
@@ -256,6 +257,48 @@ export async function getVisits(emrNumber) {
   const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   docs.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
   return docs;
+}
+
+// FIX: opening a patient's profile used to unconditionally call createVisit(),
+// which meant admitting a patient in one page load and discharging them after
+// a later page load (a very normal thing — different shift, navigated away
+// and back) split the admission across two visit documents: the admission
+// timestamp landed on visit A, the discharge timestamp on a brand-new,
+// unrelated visit B. Neither doc then had both dates, so no complete
+// admission-to-discharge record could ever be assembled.
+// getOrOpenVisit reuses the most recent visit if it's still 'open' or
+// 'sickbay' (i.e. not yet discharged/cancelled), so one continuous stay
+// always writes to the same visit doc no matter how many times the chart
+// is reopened in between.
+export async function getOrOpenVisit(emrNumber, data, createdBy, createdByRole = null) {
+  const visits = await getVisits(emrNumber);
+  const open = visits.find(v => v.status === 'open' || v.status === 'sickbay');
+
+  // Still stamp "seen today" bookkeeping even when reusing an existing visit.
+  const patientUpdate = { lastVisit: serverTimestamp() };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const existing = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+  const data0 = existing.exists() ? existing.data() : {};
+  const reportedSickAt = data0.reportedSickAt;
+  const reportedToday = reportedSickAt &&
+    (reportedSickAt.toDate ? reportedSickAt.toDate() : new Date(reportedSickAt)) >= today;
+  if (!reportedToday) {
+    patientUpdate.reportedSickAt  = serverTimestamp();
+    patientUpdate.reportedSickBy  = createdBy;
+    patientUpdate.reportedSickHow = 'visit';
+  }
+  const seenAt = data0.seenAt;
+  const seenToday = seenAt && (seenAt.toDate ? seenAt.toDate() : new Date(seenAt)) >= today;
+  if (!seenToday) patientUpdate.seenAt = serverTimestamp();
+  // Don't clobber a patient who is currently admitted or already discharged —
+  // only nudge status to 'active' if nothing more significant is in play.
+  if (!open && data0.status !== 'sickbay' && data0.status !== 'discharged') {
+    patientUpdate.status = 'active';
+  }
+  await updatePatient(emrNumber, patientUpdate, createdBy, createdByRole);
+
+  if (open) return open.id;
+  return createVisit(emrNumber, data, createdBy, createdByRole, { skipStamp: true });
 }
 
 // Admit a patient to the sick bay. Sets patient.status = 'sickbay' so they
