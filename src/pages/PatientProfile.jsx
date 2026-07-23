@@ -1101,7 +1101,7 @@ export default function PatientProfile() {
                         </div>
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
-                        <div className="tl-time">{formatTime(item.ts)}</div>
+                        <div className="tl-time">{formatDateTime(item.ts)}</div>
                         <i className="ti ti-chevron-right" style={{ fontSize:11, color:'var(--t3)' }} />
                       </div>
                     </div>
