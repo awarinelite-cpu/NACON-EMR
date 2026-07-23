@@ -843,6 +843,24 @@ export async function recordAdministration(data) {
     time:   safeData.administeredAt,
   }, safeData.administeredByRole);
 
+  // Deduct pharmacy inventory only when the dose was actually given
+  // (not for 'held' / 'refused' statuses). Best-effort — a stock miss
+  // (e.g. drug not tracked in pharmacy inventory, or offline) should
+  // never block the MAR record itself.
+  if (!offline && String(safeData.status).toLowerCase() === 'given' && safeData.drug) {
+    try {
+      await deductInventory(
+        safeData.drug,
+        1,
+        safeData.emrNumber,
+        safeData.administeredBy,
+        safeData.administeredByRole
+      );
+    } catch (err) {
+      console.error('[recordAdministration] inventory deduction failed:', err);
+    }
+  }
+
   return { offline, id: offline ? null : result.id };
 }
 
