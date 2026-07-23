@@ -1031,18 +1031,29 @@ export async function getHealthStats(fromDate, toDate) {
 }
 
 // ═════════════════════════════════════════════
-// REPORT SICK — stamps patient doc independently
-// of status so discharged patients are excluded
+// REPORT SICK — stamps patient doc, and starts a fresh episode
+// if the patient was previously discharged
 // ═════════════════════════════════════════════
 export async function reportSick(emrNumber, by, method = 'manual') {
-  // Stamp the patient document with today's sick-report timestamp
-  await updateDoc(doc(db, COL.PATIENTS, emrNumber), {
+  const patientUpdate = {
     reportedSickAt:  serverTimestamp(),
     reportedSickBy:  by,
     reportedSickHow: method,   // 'qr' | 'manual'
     updatedAt:       serverTimestamp(),
     updatedBy:       by,
-  });
+  };
+  // A discharged patient who reports sick again is a new episode of care —
+  // clear the stale 'discharged' status so the header no longer shows them
+  // as discharged, the Report Sick button reflects today's fresh report,
+  // and they're admissible again.
+  try {
+    const snap = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+    if (snap.exists() && snap.data().status === 'discharged') {
+      patientUpdate.status = 'active';
+    }
+  } catch (_) { /* best-effort — the sick-report stamp below still proceeds */ }
+  // Stamp the patient document with today's sick-report timestamp
+  await updateDoc(doc(db, COL.PATIENTS, emrNumber), patientUpdate);
   // Also log into a subcollection for history
   await addDoc(collection(db, COL.PATIENTS, emrNumber, 'sickReports'), {
     reportedAt:  serverTimestamp(),
