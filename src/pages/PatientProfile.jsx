@@ -948,7 +948,7 @@ export default function PatientProfile() {
           <div style={{ overflow:'hidden' /* clearfix so the container wraps the floated left column */ }}>
 
             {/* Left: Patient profile card — floated so content after it (Timeline) wraps beside it, then reclaims full width once it clears the bottom */}
-            <div style={{ float:'left', width:'32%', marginRight:16, marginBottom:16, display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ float:'left', width:'36%', marginRight:16, marginBottom:16, display:'flex', flexDirection:'column', gap:12 }}>
               <div className="card">
                 <div className="card-header">
                   <div className="card-title"><i className="ti ti-user" />Patient Profile</div>
