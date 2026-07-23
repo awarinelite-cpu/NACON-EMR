@@ -849,9 +849,9 @@ export async function recordAdministration(data) {
   // never block the MAR record itself.
   if (!offline && String(safeData.status).toLowerCase() === 'given' && safeData.drug) {
     try {
-      await deductInventory(
+      await deductInventoryByDose(
         safeData.drug,
-        1,
+        safeData.dose,
         safeData.emrNumber,
         safeData.administeredBy,
         safeData.administeredByRole
@@ -1030,6 +1030,71 @@ export async function deductInventory(drugName, qty, emrNumber, dispensedBy, dis
     drug: drugName, qty, emrNumber, remaining: newQty,
   }, dispensedByRole);
   return { found: true, remaining: newQty, low: newQty <= (match.data().reorderAt || 10) };
+}
+
+// Extracts a numeric strength/amount from a free-text label, e.g.
+// "IV Paracetamol 300mg" -> {amount:300, kind:'mg'}, "900mg" -> {amount:900, kind:'mg'},
+// "1g" -> {amount:1000, kind:'mg'}, "500ml" -> {amount:500, kind:'ml'}.
+// Mass units are normalized to mg so different units on either side
+// (item strength vs administered dose) still compare correctly.
+function parseDoseAmount(text) {
+  if (!text) return null;
+  const m = String(text).match(
+    /([\d.]+)\s*(mcg|micrograms?|mg|milligrams?|g|grams?|ml|millilit(?:er|re)s?|iu|units?)\b/i
+  );
+  if (!m) return null;
+  const value = parseFloat(m[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const rawUnit = m[2].toLowerCase();
+  if (rawUnit.startsWith('mcg') || rawUnit.startsWith('microgram'))
+    return { amount: value / 1000, kind: 'mg' };
+  if (rawUnit.startsWith('mg') || rawUnit.startsWith('milligram'))
+    return { amount: value, kind: 'mg' };
+  if (rawUnit.startsWith('g') || rawUnit.startsWith('gram'))
+    return { amount: value * 1000, kind: 'mg' };
+  if (rawUnit.startsWith('ml') || rawUnit.startsWith('millilit'))
+    return { amount: value, kind: 'ml' };
+  if (rawUnit.startsWith('iu') || rawUnit.startsWith('unit'))
+    return { amount: value, kind: 'iu' };
+  return null;
+}
+
+/**
+ * Dose-aware inventory deduction — used for MAR administration.
+ * Reads the per-unit strength from the inventory item's name
+ * (e.g. "IV Paracetamol 300mg" = 300mg per ampoule) and the amount
+ * actually given (e.g. "900mg"), and deducts the equivalent number
+ * of ampoules/units (900 / 300 = 3), rounded to the nearest whole unit.
+ * Falls back to deducting 1 unit if either amount can't be parsed or
+ * the units are incompatible (e.g. mg vs ml).
+ */
+export async function deductInventoryByDose(drugName, doseGiven, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
+  const snap = await getDocs(collection(db, COL.INVENTORY));
+  const match = snap.docs.find(d =>
+    d.data().name?.toLowerCase() === drugName?.toLowerCase()
+  );
+  if (!match) return { found: false };
+
+  const itemData = match.data();
+  const perUnit  = parseDoseAmount(itemData.name);
+  const given    = parseDoseAmount(doseGiven);
+
+  let qty = 1;
+  let doseAware = false;
+  if (perUnit && given && perUnit.kind === given.kind && perUnit.amount > 0) {
+    qty = Math.max(1, Math.round(given.amount / perUnit.amount));
+    doseAware = true;
+  }
+
+  const current = itemData.quantity || 0;
+  const newQty  = Math.max(0, current - qty);
+  await updateDoc(doc(db, COL.INVENTORY, match.id), {
+    quantity: newQty, updatedAt: serverTimestamp(),
+  });
+  await logAudit('INVENTORY_DISPENSE', match.id, dispensedBy, {
+    drug: drugName, doseGiven, qtyDeducted: qty, doseAware, emrNumber, remaining: newQty,
+  }, dispensedByRole);
+  return { found: true, remaining: newQty, low: newQty <= (itemData.reorderAt || 10), qtyDeducted: qty, doseAware };
 }
 
 // ═════════════════════════════════════════════
