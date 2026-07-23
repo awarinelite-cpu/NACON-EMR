@@ -73,7 +73,7 @@ export default function MARPage() {
     if (!form.time)  { toast.error('Enter administration time'); return; }
     setSaving(true);
     try {
-      const { offline } = await recordAdministration({
+      const { offline, inventoryResult } = await recordAdministration({
         emrNumber:    selected.emrNumber,
         rxId:         activeDrug.rxId,
         drug:         activeDrug.drug,
@@ -90,6 +90,15 @@ export default function MARPage() {
         toast.success(`${activeDrug.drug} saved offline — will sync when back online`);
       } else {
         toast.success(`${activeDrug.drug} recorded as ${form.status}`);
+        if (inventoryResult && !inventoryResult.found) {
+          if (inventoryResult.ambiguous) {
+            toast(`Stock not updated — "${activeDrug.drug}" matches multiple inventory items (${inventoryResult.ambiguous.join(', ')}). Adjust stock manually.`,
+              { icon: '⚠️', duration: 7000 });
+          } else {
+            toast(`Stock not updated — no pharmacy inventory item matches "${activeDrug.drug}". Add it in Pharmacy Inventory or adjust stock manually.`,
+              { icon: '⚠️', duration: 7000 });
+          }
+        }
       }
       setShowForm(false);
       setActiveDrug(null);

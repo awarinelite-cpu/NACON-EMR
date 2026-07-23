@@ -863,12 +863,15 @@ export async function recordAdministration(data) {
   }, safeData.administeredByRole);
 
   // Deduct pharmacy inventory only when the dose was actually given
-  // (not for 'held' / 'refused' statuses). Best-effort — a stock miss
-  // (e.g. drug not tracked in pharmacy inventory, or offline) should
-  // never block the MAR record itself.
+  // (not for 'held' / 'refused' statuses). Best-effort in the sense that
+  // a stock miss (e.g. drug not tracked in pharmacy inventory, or offline)
+  // never blocks the MAR record itself — but we DO report it back to the
+  // caller so the nurse can be told stock wasn't touched, instead of it
+  // failing silently.
+  let inventoryResult = null;
   if (!offline && String(safeData.status).toLowerCase() === 'given' && safeData.drug) {
     try {
-      await deductInventoryByDose(
+      inventoryResult = await deductInventoryByDose(
         safeData.drug,
         safeData.dose,
         safeData.emrNumber,
@@ -877,10 +880,11 @@ export async function recordAdministration(data) {
       );
     } catch (err) {
       console.error('[recordAdministration] inventory deduction failed:', err);
+      inventoryResult = { found: false, error: true };
     }
   }
 
-  return { offline, id: offline ? null : result.id };
+  return { offline, id: offline ? null : result.id, inventoryResult };
 }
 
 export function listenMAR(emrNumber, callback) {
@@ -1116,6 +1120,20 @@ export async function deductInventory(drugName, qty, emrNumber, dispensedBy, dis
   return { found: true, remaining: newQty, low: newQty <= (match.data().reorderAt || 10) };
 }
 
+// Strips route prefixes, dose strengths, and punctuation so slightly
+// different free-text names for the same drug ('Paracetamol' on a Rx vs
+// 'Paracetamol 500mg' in inventory, or 'IV Paracetamol' vs 'Paracetamol')
+// can still be recognized as the same underlying drug for stock matching.
+function normalizeDrugName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\b(iv|im|sc|subcut|po|oral|pr|top(?:ical)?|tabs?|tablets?|caps?|capsules?|inj(?:ection)?|amp(?:oule)?s?|vials?|susp(?:ension)?|syrup|solution)\b/g, ' ')
+    .replace(/[\d.]+\s*(mcg|micrograms?|mg|milligrams?|g|grams?|ml|millilit(?:er|re)s?|iu|units?|%)/g, ' ')
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Extracts a numeric strength/amount from a free-text label, e.g.
 // "IV Paracetamol 300mg" -> {amount:300, kind:'mg'}, "900mg" -> {amount:900, kind:'mg'},
 // "1g" -> {amount:1000, kind:'mg'}, "500ml" -> {amount:500, kind:'ml'}.
@@ -1154,10 +1172,31 @@ function parseDoseAmount(text) {
  */
 export async function deductInventoryByDose(drugName, doseGiven, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   const snap = await getDocs(collection(db, COL.INVENTORY));
-  const match = snap.docs.find(d =>
-    d.data().name?.toLowerCase() === drugName?.toLowerCase()
+
+  // 1) Exact (case-insensitive) name match, as before.
+  let match = snap.docs.find(d =>
+    d.data().name?.toLowerCase().trim() === drugName?.toLowerCase().trim()
   );
-  if (!match) return { found: false };
+
+  // 2) Fallback: normalized-name match (ignores route/strength/units/punctuation),
+  //    but only trust it if exactly ONE inventory item normalizes to the same
+  //    base name — if two different formulations/strengths collide (e.g. an
+  //    'IV Paracetamol 300mg' ampoule vs an oral 'Paracetamol 500mg' tablet
+  //    both normalize to 'paracetamol'), deducting from the wrong one is
+  //    worse than not deducting, so we bail out and report the ambiguity.
+  let ambiguous = null;
+  if (!match) {
+    const norm = normalizeDrugName(drugName);
+    if (norm) {
+      const candidates = snap.docs.filter(d => normalizeDrugName(d.data().name) === norm);
+      if (candidates.length === 1) match = candidates[0];
+      else if (candidates.length > 1) ambiguous = candidates.map(d => d.data().name);
+    }
+  }
+
+  if (!match) {
+    return { found: false, ambiguous };
+  }
 
   const itemData = match.data();
   const perUnit  = parseDoseAmount(itemData.name);
