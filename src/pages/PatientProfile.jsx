@@ -945,10 +945,10 @@ export default function PatientProfile() {
 
         {/* ── VISIT TAB ── */}
         {activeTab==='visit' && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:16 }}>
+          <div style={{ overflow:'hidden' /* clearfix so the container wraps the floated left column */ }}>
 
-            {/* Left: Patient profile card */}
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {/* Left: Patient profile card — floated so content after it (Timeline) wraps beside it, then reclaims full width once it clears the bottom */}
+            <div style={{ float:'left', width:'32%', marginRight:16, marginBottom:16, display:'flex', flexDirection:'column', gap:12 }}>
               <div className="card">
                 <div className="card-header">
                   <div className="card-title"><i className="ti ti-user" />Patient Profile</div>
@@ -1070,8 +1070,8 @@ export default function PatientProfile() {
               )}
             </div>
 
-            {/* Right: Timeline */}
-            <div className="card" style={{ height:'fit-content' }}>
+            {/* Timeline — normal flow, wraps beside the floated left column then expands to full width */}
+            <div className="card" style={{ height:'fit-content', overflow:'hidden' }}>
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-activity" />Visit Timeline</div>
                 <span style={{ fontSize:11, color:'var(--t3)' }}>{timeline.length} events</span>
