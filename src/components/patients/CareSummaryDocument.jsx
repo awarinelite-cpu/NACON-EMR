@@ -424,7 +424,18 @@ export default function CareSummaryDocument({
         {/* ── DOCUMENT PREVIEW ── */}
         {selected && (
           <div style={{ overflowY:'auto', padding:'16px 18px', background:'#fff', color:'#111' }}>
-            <div ref={printRef}>
+            <div ref={printRef} style={{ position:'relative' }}>
+              {patient?.status === 'discharged' && (
+                <div style={{
+                  position:'absolute', inset:0, zIndex:-1, pointerEvents:'none',
+                  backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
+                    "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='220'>" +
+                    "<text x='-20' y='130' font-size='34' fill='rgba(220,38,38,0.16)' font-family='Arial, Helvetica, sans-serif' font-weight='800' transform='rotate(-28 160 110)'>DISCHARGED</text>" +
+                    "</svg>"
+                  )}")`,
+                  backgroundRepeat:'repeat',
+                }} />
+              )}
               <h1>{docTitle}</h1>
               <div className="meta">{patientName} &nbsp;·&nbsp; EMR {emrNumber} &nbsp;·&nbsp; {patient?.classSet} &nbsp;·&nbsp; {patient?.folderNumber}</div>
               <div className="meta">DOB: {patient?.dob || '—'} ({age(patient?.dob)}) &nbsp;·&nbsp; Sex: {patient?.sex || '—'} &nbsp;·&nbsp; Blood Group: {patient?.bloodGroup || '—'}</div>
