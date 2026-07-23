@@ -321,6 +321,41 @@ export async function admitPatient(emrNumber, visitId, doneBy, doneByRole = null
   await logAudit('ADMIT', emrNumber, doneBy, { visitId: visitId || 'none' }, doneByRole);
 }
 
+// When a patient is discharged, any prescription still marked 'active'
+// belongs to the admission that just ended — left as-is, it would keep
+// showing under "Active Medications" if the patient is readmitted later,
+// mixing this stay's meds with a past one. Auto-close them out here so
+// each admission's MAR always starts clean.
+async function closeOutActiveMedications(emrNumber, doneBy, doneByRole = null) {
+  try {
+    const q = query(collection(db, COL.PRESCRIPTIONS), where('emrNumber', '==', emrNumber));
+    const snap = await getDocs(q);
+    const writes = [];
+    snap.docs.forEach(d => {
+      const drugs = d.data().drugs || [];
+      let changed = false;
+      const updated = drugs.map(dr => {
+        if (!dr.status || dr.status === 'active') {
+          changed = true;
+          return stripUndefined({
+            ...dr,
+            status: 'discontinued',
+            statusUpdatedBy: doneBy,
+            statusUpdatedAt: new Date().toISOString(),
+            statusNote: 'Auto-closed at discharge',
+          });
+        }
+        return dr;
+      });
+      if (changed) writes.push(updateDoc(doc(db, COL.PRESCRIPTIONS, d.id), { drugs: updated }));
+    });
+    await Promise.all(writes);
+  } catch (e) {
+    console.error('closeOutActiveMedications failed', e);
+    // Never let this block the actual discharge.
+  }
+}
+
 // FIX: dischargePatient — only update visit doc if a real visitId is provided
 // Discharge only makes sense for patients currently admitted to the sick bay
 // (status === 'sickbay') — someone who was never admitted was never in the
@@ -344,6 +379,7 @@ export async function dischargePatient(emrNumber, visitId, dischargeNote, doneBy
     }
   }
   await updatePatient(emrNumber, { status: 'discharged', dischargeNote }, doneBy, doneByRole);
+  await closeOutActiveMedications(emrNumber, doneBy, doneByRole);
   await logAudit('DISCHARGE', emrNumber, doneBy, { visitId: visitId || 'none' }, doneByRole);
 }
 
