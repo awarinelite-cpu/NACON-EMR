@@ -261,6 +261,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
             No administrations recorded today
           </div>
         ) : (
+          <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
@@ -298,6 +299,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -307,6 +309,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
           <div className="card-header">
             <div className="card-title"><i className="ti ti-calendar-stats" />Full MAR History</div>
           </div>
+          <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
@@ -336,6 +339,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -1154,6 +1154,7 @@ export default function PatientProfile() {
             </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />Vitals History</div></div>
+              <div className="table-scroll">
               <table className="data-table">
                 <thead><tr><th>Time</th><th>BP</th><th>HR</th><th>Temp</th><th>RR</th><th>SpO₂</th><th>By</th></tr></thead>
                 <tbody>
@@ -1171,6 +1172,7 @@ export default function PatientProfile() {
                   {vitals.length===0 && <tr><td colSpan={7} style={{ textAlign:'center', color:'var(--t3)', padding:16 }}>No vitals recorded yet</td></tr>}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -1837,6 +1839,7 @@ export default function PatientProfile() {
                   </div>
                 )}
               </div>
+              <div className="table-scroll">
               <table className="chart-table">
                 <thead><tr><th>Time</th><th>Intake (ml)</th><th>Type</th><th>Output (ml)</th><th>Type</th><th>By</th></tr></thead>
                 <tbody>
@@ -1853,6 +1856,7 @@ export default function PatientProfile() {
                   {fluid.length===0 && <tr><td colSpan={6} style={{textAlign:'center',color:'var(--t3)',padding:16}}>No entries yet</td></tr>}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -1916,6 +1920,7 @@ export default function PatientProfile() {
                   ))}
                 </div>
               </div>
+              <div className="table-scroll">
               <table className="chart-table">
                 <thead><tr><th>Time</th><th>Reading ({glucChartUnit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
                 <tbody>
@@ -1939,6 +1944,7 @@ export default function PatientProfile() {
                   {glucose.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--t3)',padding:16}}>No readings yet</td></tr>}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}

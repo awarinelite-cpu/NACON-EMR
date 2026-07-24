@@ -260,6 +260,7 @@ export default function PharmacyDashboard() {
                   Manage Inventory →
                 </span>
               </div>
+              <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -291,6 +292,7 @@ export default function PharmacyDashboard() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}

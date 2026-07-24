@@ -239,6 +239,7 @@ export default function TriagePage() {
               <div style={{ fontSize:11 }}>Use "Triage Patient" to add a patient to the queue</div>
             </div>
           ) : (
+            <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -348,6 +349,7 @@ export default function TriagePage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

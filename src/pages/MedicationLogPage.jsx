@@ -295,6 +295,7 @@ export default function MedicationLogPage() {
                     <div style={{ fontSize: 11, marginTop: 4 }}>Change the date filter or administer via MAR</div>
                   </div>
                 ) : (
+                  <div className="table-scroll">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -339,6 +340,7 @@ export default function MedicationLogPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
             </>

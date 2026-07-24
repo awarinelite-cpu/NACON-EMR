@@ -1066,7 +1066,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
      wrapper (Pharmacy Inventory, User Management, etc.) — keep the table
      itself a normal table with the wrapper owning the horizontal scroll,
      instead of the table becoming its own ambiguous scroll container. */
-  .table-scroll .data-table {
+  .table-scroll .data-table,
+  .table-scroll .chart-table {
     display: table;
     overflow-x: visible;
   }

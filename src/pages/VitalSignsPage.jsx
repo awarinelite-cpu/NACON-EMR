@@ -289,7 +289,7 @@ export default function VitalSignsPage() {
                     <div style={{ fontSize: 11, marginTop: 4 }}>Click "Record Vitals" to add the first entry</div>
                   </div>
                 ) : (
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="table-scroll">
                     <table className="data-table">
                       <thead>
                         <tr>

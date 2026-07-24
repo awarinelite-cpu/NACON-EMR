@@ -454,6 +454,7 @@ export default function MARPage() {
                     No administrations recorded today
                   </div>
                 ) : (
+                  <div className="table-scroll">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -498,6 +499,7 @@ export default function MARPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
 
@@ -509,6 +511,7 @@ export default function MARPage() {
                       <i className="ti ti-calendar" /> Full MAR History
                     </div>
                   </div>
+                  <div className="table-scroll">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -543,6 +546,7 @@ export default function MARPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </>

@@ -519,6 +519,7 @@ function VitalsHistory({ vitals }) {
   return (
     <div className="card">
       <div className="card-header"><div className="card-title"><i className="ti ti-history" />Vitals History</div></div>
+      <div className="table-scroll">
       <table className="data-table">
         <thead><tr>
           <th>Date/Time</th><th>BP</th><th>HR</th><th>Temp</th><th>RR</th><th>SpO₂</th><th>By</th>
@@ -533,6 +534,7 @@ function VitalsHistory({ vitals }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1035,6 +1037,7 @@ function FluidHistory({ fluids }) {
           </span>
         </div>
       </div>
+      <div className="table-scroll">
       <table className="chart-table">
         <thead><tr><th>Time</th><th>Intake (ml)</th><th>Type</th><th>Output (ml)</th><th>Type</th><th>By</th></tr></thead>
         <tbody>
@@ -1050,6 +1053,7 @@ function FluidHistory({ fluids }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1104,6 +1108,7 @@ function GlucoseHistory({ glucoses }) {
   return (
     <div className="card">
       <div className="card-header"><div className="card-title"><i className="ti ti-history" />Glucose Chart</div></div>
+      <div className="table-scroll">
       <table className="chart-table">
         <thead><tr><th>Time</th><th>Reading (mmol/L)</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
         <tbody>
@@ -1118,6 +1123,7 @@ function GlucoseHistory({ glucoses }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

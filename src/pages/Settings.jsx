@@ -127,6 +127,7 @@ export default function Settings() {
               If patient timelines or charts show errors, a missing index is usually the cause.
               Add all indexes below in Firebase Console.
             </div>
+            <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -151,6 +152,7 @@ export default function Settings() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
