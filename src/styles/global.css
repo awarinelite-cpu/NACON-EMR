@@ -471,28 +471,39 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--card-bg2); }
 
-/* MAR "Active Medications" table — dedicated horizontal-scroll wrapper.
-   The wrapper (not the table itself) owns overflow-x, so vertical page
-   scroll is never captured by the table on mobile, and on desktop the
-   table gets its own scrollbar instead of overflowing off-screen. */
+/* MAR "Active Medications" table — self-contained scroll box.
+   Both axes are owned by THIS element and only this element, so there's no
+   ambiguity for the browser to resolve between it and the page scroll — a
+   drag in any direction just scrolls this box like a normal scrollable pane
+   (think: a spreadsheet). The page above/below it scrolls normally too,
+   since this box has a bounded height instead of growing forever. */
 .mar-table-scroll {
   width: 100%;
-  overflow-x: auto;
+  max-height: 58vh;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+}
+.mar-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-bg2, var(--card-bg));
 }
 .mar-drugs-table { min-width: 760px; }
 
 /* Generic version of the same pattern for any other data table (Pharmacy
-   Inventory, User Management, etc.) — same reasoning: only the wrapper
-   owns overflow-x, never the table element itself, so a horizontal swipe
-   on the table doesn't also turn into an ambiguous vertical scroll
-   container that fights the page's own scroll on mobile. */
+   Inventory, User Management, etc.) */
 .table-scroll {
   width: 100%;
-  overflow-x: auto;
+  max-height: 58vh;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+}
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-bg2, var(--card-bg));
 }
 
 /* ══════════════════════════════════

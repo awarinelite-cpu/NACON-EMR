@@ -1,6 +1,6 @@
 /* NACON MRS EMR — Service Worker v3.0 — Offline-First */
 
-const CACHE_VERSION = 'nacon-emr-v3';
+const CACHE_VERSION = 'nacon-emr-v4';
 
 const PRECACHE_URLS = [
   '/',
