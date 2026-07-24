@@ -1103,12 +1103,9 @@ export async function bulkUploadInventory(rows, addedBy, addedByRole = ROLES.PHA
 }
 
 export async function deductInventory(drugName, qty, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
-  // Find matching inventory item by name (case-insensitive match)
   const snap = await getDocs(collection(db, COL.INVENTORY));
-  const match = snap.docs.find(d =>
-    d.data().name?.toLowerCase() === drugName?.toLowerCase()
-  );
-  if (!match) return { found: false };
+  const { match, ambiguous } = findInventoryMatch(snap.docs, drugName);
+  if (!match) return { found: false, ambiguous };
   const current = match.data().quantity || 0;
   const newQty  = Math.max(0, current - qty);
   await updateDoc(doc(db, COL.INVENTORY, match.id), {
@@ -1132,6 +1129,50 @@ function normalizeDrugName(name) {
     .replace(/[^a-z\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Finds the inventory item matching a free-text prescribed drug name,
+ * using progressively looser tiers — but only trusts a looser tier when
+ * it resolves to exactly ONE item, to avoid deducting from the wrong
+ * formulation/strength when the pharmacy stocks more than one product
+ * under a similar name (e.g. 'IV Paracetamol 300mg' ampoules vs an oral
+ * 'Paracetamol 500mg' tablet — genuinely different products).
+ *
+ *  1. Exact name match (case/whitespace-insensitive).
+ *  2. Raw substring match — one full name contains the other, e.g. the Rx
+ *     says 'IV paracetamol' and inventory has 'IV Paracetamol 300mg'.
+ *     This still respects a route prefix like 'IV' that only one
+ *     candidate has, so it correctly disambiguates the case above (the
+ *     oral 'Paracetamol 500mg' entry doesn't contain 'iv paracetamol').
+ *  3. Fully normalized base-name match (route/strength/units stripped) —
+ *     the loosest tier, last resort.
+ *
+ * Returns { match, ambiguous } — ambiguous is the list of inventory names
+ * that tied at whichever tier produced more than one candidate.
+ */
+function findInventoryMatch(invDocs, drugName) {
+  const rxLower = drugName?.toLowerCase().trim();
+  if (!rxLower) return { match: null, ambiguous: null };
+
+  let match = invDocs.find(d => d.data().name?.toLowerCase().trim() === rxLower);
+  if (match) return { match, ambiguous: null };
+
+  const subCandidates = invDocs.filter(d => {
+    const invLower = d.data().name?.toLowerCase().trim() || '';
+    return invLower && (invLower.includes(rxLower) || rxLower.includes(invLower));
+  });
+  if (subCandidates.length === 1) return { match: subCandidates[0], ambiguous: null };
+  if (subCandidates.length > 1) return { match: null, ambiguous: subCandidates.map(d => d.data().name) };
+
+  const norm = normalizeDrugName(drugName);
+  if (norm) {
+    const normCandidates = invDocs.filter(d => normalizeDrugName(d.data().name) === norm);
+    if (normCandidates.length === 1) return { match: normCandidates[0], ambiguous: null };
+    if (normCandidates.length > 1) return { match: null, ambiguous: normCandidates.map(d => d.data().name) };
+  }
+
+  return { match: null, ambiguous: null };
 }
 
 // Extracts a numeric strength/amount from a free-text label, e.g.
@@ -1172,28 +1213,7 @@ function parseDoseAmount(text) {
  */
 export async function deductInventoryByDose(drugName, doseGiven, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   const snap = await getDocs(collection(db, COL.INVENTORY));
-
-  // 1) Exact (case-insensitive) name match, as before.
-  let match = snap.docs.find(d =>
-    d.data().name?.toLowerCase().trim() === drugName?.toLowerCase().trim()
-  );
-
-  // 2) Fallback: normalized-name match (ignores route/strength/units/punctuation),
-  //    but only trust it if exactly ONE inventory item normalizes to the same
-  //    base name — if two different formulations/strengths collide (e.g. an
-  //    'IV Paracetamol 300mg' ampoule vs an oral 'Paracetamol 500mg' tablet
-  //    both normalize to 'paracetamol'), deducting from the wrong one is
-  //    worse than not deducting, so we bail out and report the ambiguity.
-  let ambiguous = null;
-  if (!match) {
-    const norm = normalizeDrugName(drugName);
-    if (norm) {
-      const candidates = snap.docs.filter(d => normalizeDrugName(d.data().name) === norm);
-      if (candidates.length === 1) match = candidates[0];
-      else if (candidates.length > 1) ambiguous = candidates.map(d => d.data().name);
-    }
-  }
-
+  const { match, ambiguous } = findInventoryMatch(snap.docs, drugName);
   if (!match) {
     return { found: false, ambiguous };
   }
