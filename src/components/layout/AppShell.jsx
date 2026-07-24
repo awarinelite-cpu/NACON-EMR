@@ -36,6 +36,53 @@ export default function AppShell() {
     };
   }, []);
 
+  // Axis-lock touch handling for horizontally-scrollable tables (.table-scroll,
+  // .mar-table-scroll). CSS touch-action alone can't reliably guarantee "vertical
+  // always wins" across mobile browsers, so we detect the gesture direction on
+  // touchstart/touchmove and toggle the table wrapper's overflow-x accordingly:
+  // a mostly-vertical drag disables the wrapper's horizontal scroll for the
+  // duration of that gesture (letting it fall through to the page), a mostly-
+  // horizontal drag scrolls the table as normal.
+  useEffect(() => {
+    let startX = 0, startY = 0, activeEl = null, axis = null;
+
+    const onTouchStart = (e) => {
+      const el = e.target.closest?.('.table-scroll, .mar-table-scroll');
+      if (!el) { activeEl = null; return; }
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY;
+      activeEl = el; axis = null;
+    };
+
+    const onTouchMove = (e) => {
+      if (!activeEl) return;
+      const t = e.touches[0];
+      const dx = Math.abs(t.clientX - startX);
+      const dy = Math.abs(t.clientY - startY);
+      if (axis === null && (dx > 6 || dy > 6)) {
+        axis = dx > dy ? 'x' : 'y';
+        activeEl.style.overflowX = axis === 'y' ? 'hidden' : 'auto';
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (activeEl) activeEl.style.overflowX = 'auto';
+      activeEl = null; axis = null;
+    };
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    document.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, []);
+
   // Real-time queue listener — badge reflects only today's waiting triage entries
   useEffect(() => {
     const unsub = listenTriageQueue(rows => {
