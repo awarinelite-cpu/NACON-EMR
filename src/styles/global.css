@@ -483,6 +483,18 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 }
 .mar-drugs-table { min-width: 760px; }
 
+/* Generic version of the same pattern for any other data table (Pharmacy
+   Inventory, User Management, etc.) — same reasoning: only the wrapper
+   owns overflow-x, never the table element itself, so a horizontal swipe
+   on the table doesn't also turn into an ambiguous vertical scroll
+   container that fights the page's own scroll on mobile. */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
 /* ══════════════════════════════════
    PATIENT ROW
 ══════════════════════════════════ */
@@ -1047,6 +1059,14 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   /* MAR drugs table: scrolling is handled by .mar-table-scroll wrapper
      instead, so it doesn't fight the page's vertical scroll on mobile */
   .mar-drugs-table {
+    display: table;
+    overflow-x: visible;
+  }
+  /* Same reasoning for any other table using the generic .table-scroll
+     wrapper (Pharmacy Inventory, User Management, etc.) — keep the table
+     itself a normal table with the wrapper owning the horizontal scroll,
+     instead of the table becoming its own ambiguous scroll container. */
+  .table-scroll .data-table {
     display: table;
     overflow-x: visible;
   }

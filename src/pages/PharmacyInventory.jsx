@@ -255,7 +255,7 @@ export default function PharmacyInventory() {
               {filterLow ? 'No low-stock items' : 'No items in inventory yet'}
             </div>
           )}
-          <div style={{ overflowX:'auto' }}>
+          <div className="table-scroll">
             <table className="data-table" style={{ minWidth:600 }}>
               <thead><tr>
                 <th>Drug / Item</th><th>Category</th>
@@ -370,7 +370,7 @@ export default function PharmacyInventory() {
             </div>
 
             {csvPreview.valid.length > 0 && (
-              <div style={{ overflowX:'auto', marginBottom: csvPreview.invalid.length ? 16 : 0 }}>
+              <div className="table-scroll" style={{ marginBottom: csvPreview.invalid.length ? 16 : 0 }}>
                 <table className="data-table" style={{ minWidth:480 }}>
                   <thead><tr>
                     <th>Drug / Item</th><th style={{ textAlign:'center' }}>Action</th>
@@ -401,7 +401,7 @@ export default function PharmacyInventory() {
                 <div style={{ fontWeight:700, fontSize:12, color:'var(--danger)', marginBottom:6 }}>
                   Skipped rows (fix and re-upload if needed)
                 </div>
-                <div style={{ overflowX:'auto' }}>
+                <div className="table-scroll">
                   <table className="data-table" style={{ minWidth:400 }}>
                     <thead><tr><th>Row data</th><th>Reason</th></tr></thead>
                     <tbody>

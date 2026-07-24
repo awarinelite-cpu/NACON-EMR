@@ -255,7 +255,7 @@ export default function UserManagement() {
             </div>
           )}
           {!loading && (
-            <div style={{ overflowX:'auto' }}>
+            <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
