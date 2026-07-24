@@ -480,6 +480,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-y;
 }
 .mar-drugs-table { min-width: 760px; }
 
@@ -493,6 +494,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-y;
 }
 
 /* ══════════════════════════════════
