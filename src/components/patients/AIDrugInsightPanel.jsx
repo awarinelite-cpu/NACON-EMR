@@ -136,9 +136,12 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
   const [confirmed, setConfirmed] = useState(false);
   const [rows, setRows] = useState([]);          // extracted + allergy-flagged drug rows
   const [acknowledged, setAcknowledged] = useState({}); // rowKey -> bool, for overriding a flagged conflict
+  const [selected, setSelected] = useState({});  // rowKey -> bool, which drugs go into this patient's course chart
 
   const allergyList = parseAllergyList(patient?.allergies);
   const hasAllergyHistory = allergyList.length > 0;
+
+  const rowKey = r => `${r.category}::${r.name.toLowerCase()}`;
 
   const handleSuggest = async () => {
     if (!noteText || !noteText.trim()) {
@@ -150,6 +153,7 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
     setConfirmed(false);
     setRows([]);
     setAcknowledged({});
+    setSelected({});
     try {
       const { text } = await suggestDrugsForNote({
         noteText,
@@ -177,6 +181,15 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
       const flagged = flagAllergicRows(enriched, patient?.allergies);
       setRows(flagged);
 
+      // Nothing is auto-prescribed — but pre-check the single top-ranked
+      // Main Therapy option (first listed, not allergy-conflicted) as a
+      // starting point for the course chart, since that's the option the
+      // model ranked as its primary recommendation. Everything else
+      // (alternatives, adjunct, combination) starts unchecked; the
+      // clinician actively picks what this specific patient is getting.
+      const topMain = flagged.find(r => r.category === 'MAIN THERAPY' && !r.allergyConflict);
+      setSelected(topMain ? { [rowKey(topMain)]: true } : {});
+
       if (flagged.some(r => r.allergyConflict)) {
         toast.error('AI suggested a drug that conflicts with a recorded allergy — review flagged item(s) before confirming', { duration: 6000 });
       }
@@ -190,20 +203,21 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
   };
 
   const handleConfirm = async () => {
-    if (!rows.length) {
-      toast.error('No drug names could be found in the suggestion');
+    const chosen = rows.filter(r => selected[rowKey(r)]);
+    if (!chosen.length) {
+      toast.error('Select at least one drug for this patient\'s course chart first');
       return;
     }
-    const unresolved = rows.filter(r => r.allergyConflict && !acknowledged[r.name.toLowerCase()]);
+    const unresolved = chosen.filter(r => r.allergyConflict && !acknowledged[r.name.toLowerCase()]);
     if (unresolved.length) {
       toast.error(`Acknowledge the allergy conflict on ${unresolved.map(r => r.name).join(', ')} before confirming`);
       return;
     }
-    onConfirmDrugs?.(rows);
+    onConfirmDrugs?.(chosen);
     setConfirmed(true);
-    const verifiedCount = rows.filter(r => r.medIndexVerified).length;
+    const verifiedCount = chosen.filter(r => r.medIndexVerified).length;
     toast.success(
-      `${rows.length} drug${rows.length > 1 ? 's' : ''} added to prescription` +
+      `${chosen.length} drug${chosen.length > 1 ? 's' : ''} added to prescription` +
       (verifiedCount ? ` (${verifiedCount} matched to MedIndex)` : '') +
       ' — review and save'
     );
@@ -215,6 +229,7 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
     'ADJUNCT THERAPY': rows.filter(r => r.category === 'ADJUNCT THERAPY'),
     'COMBINATION THERAPY': rows.filter(r => r.category === 'COMBINATION THERAPY'),
   };
+  const chosenRows = rows.filter(r => selected[rowKey(r)]);
 
   return (
     <div className="card" style={{ marginTop: 12, border: '1px dashed var(--info)' }}>
@@ -279,21 +294,60 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                       <div style={{ whiteSpace: 'pre-line', fontSize: 13.5, lineHeight: 1.5, color: 'var(--t2)' }}>
                         {renderFormattedText(bodyText)}
                       </div>
-                      {categoryRows?.some(r => r.allergyConflict) && (
-                        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {categoryRows.filter(r => r.allergyConflict).map(r => (
-                            <label key={r.name} style={{
-                              display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5,
-                              fontWeight: 700, color: 'var(--danger)', cursor: 'pointer',
-                            }}>
-                              <input
-                                type="checkbox"
-                                checked={!!acknowledged[r.name.toLowerCase()]}
-                                onChange={e => setAcknowledged(a => ({ ...a, [r.name.toLowerCase()]: e.target.checked }))}
-                              />
-                              <i className="ti ti-alert-triangle" /> {r.name} conflicts with a recorded allergy — I acknowledge and want to override
-                            </label>
-                          ))}
+                      {categoryRows?.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--t3)' }}>
+                            Select for this patient's course chart:
+                          </div>
+                          {categoryRows.map(r => {
+                            const key = rowKey(r);
+                            const isConflict = r.allergyConflict;
+                            return (
+                              <label key={key} style={{
+                                display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12,
+                                fontWeight: isConflict ? 700 : 500,
+                                color: isConflict ? 'var(--danger)' : 'var(--t2)', cursor: 'pointer',
+                              }}>
+                                <input
+                                  type="checkbox"
+                                  style={{ marginTop: 2 }}
+                                  checked={!!selected[key]}
+                                  onChange={e => setSelected(s => ({ ...s, [key]: e.target.checked }))}
+                                />
+                                <span>
+                                  {r.name}
+                                  {(r.dose || r.frequency || r.duration) && (
+                                    <span style={{ color: 'var(--t3)', fontWeight: 400 }}>
+                                      {' — '}{[r.dose, r.frequency, r.duration && `for ${r.duration}`].filter(Boolean).join(', ')}
+                                    </span>
+                                  )}
+                                  {isConflict && (
+                                    <>
+                                      {' '}
+                                      <i className="ti ti-alert-triangle" /> conflicts with a recorded allergy
+                                    </>
+                                  )}
+                                </span>
+                              </label>
+                            );
+                          })}
+                          {categoryRows.some(r => r.allergyConflict) && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+                              {categoryRows.filter(r => r.allergyConflict).map(r => (
+                                <label key={r.name} style={{
+                                  display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5,
+                                  fontWeight: 700, color: 'var(--danger)', cursor: 'pointer',
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!acknowledged[r.name.toLowerCase()]}
+                                    onChange={e => setAcknowledged(a => ({ ...a, [r.name.toLowerCase()]: e.target.checked }))}
+                                  />
+                                  <i className="ti ti-alert-hexagon" /> I acknowledge the {r.name} allergy conflict and want to override
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -307,6 +361,57 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                 </div>
               )}
 
+              {/* Drug Course Chart — the actual combined treatment plan for
+                  THIS patient, built only from whatever the clinician has
+                  ticked above. Distinct from the therapy lists, which show
+                  every clinically valid option, not just what's prescribed. */}
+              {rows.length > 0 && (
+                <div style={{ marginTop: 4, marginBottom: 14 }}>
+                  <div style={{
+                    display: 'inline-block', fontSize: 10.5, fontWeight: 700,
+                    padding: '2px 9px', borderRadius: 10, marginBottom: 8,
+                    background: 'var(--card-bg2)', color: 'var(--t1)', border: '1px solid var(--border)',
+                  }}>
+                    <i className="ti ti-table" /> Drug Course Chart
+                  </div>
+                  {chosenRows.length === 0 ? (
+                    <div style={{ fontSize: 12, color: 'var(--t3)' }}>
+                      Nothing selected yet — tick drugs above to build this patient's combined course chart.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                        <thead>
+                          <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                            <th style={{ padding: '5px 8px 5px 0', color: 'var(--t3)', fontWeight: 700 }}>Drug</th>
+                            <th style={{ padding: '5px 8px', color: 'var(--t3)', fontWeight: 700 }}>Dose</th>
+                            <th style={{ padding: '5px 8px', color: 'var(--t3)', fontWeight: 700 }}>Frequency</th>
+                            <th style={{ padding: '5px 8px', color: 'var(--t3)', fontWeight: 700 }}>Duration</th>
+                            <th style={{ padding: '5px 0 5px 8px', color: 'var(--t3)', fontWeight: 700 }}>Role</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chosenRows.map(r => (
+                            <tr key={rowKey(r)} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '6px 8px 6px 0', fontWeight: 700, color: r.allergyConflict ? 'var(--danger)' : 'var(--t1)' }}>
+                                {r.name}
+                                {r.allergyConflict && <i className="ti ti-alert-triangle" style={{ marginLeft: 4 }} />}
+                              </td>
+                              <td style={{ padding: '6px 8px', color: 'var(--t2)' }}>{r.dose || '—'}</td>
+                              <td style={{ padding: '6px 8px', color: 'var(--t2)' }}>{r.frequency || '—'}</td>
+                              <td style={{ padding: '6px 8px', color: 'var(--t2)' }}>{r.duration || '—'}</td>
+                              <td style={{ padding: '6px 0 6px 8px', color: 'var(--t3)' }}>
+                                {SECTION_META[r.category]?.label || r.category}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--warn, #b45309)' }}>
                 <i className="ti ti-alert-triangle" /> AI suggestion only — not a
                 prescription. Confirm against allergy history, dosage, and local
@@ -315,12 +420,12 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
               <button
                 className="btn btn-primary btn-sm mt-2"
                 onClick={handleConfirm}
-                disabled={confirmed || !rows.length}
+                disabled={confirmed || !chosenRows.length}
               >
                 {confirmed ? (
                   <><i className="ti ti-circle-check" /> Added to prescription</>
                 ) : (
-                  <><i className="ti ti-check" /> Confirm — use these drugs</>
+                  <><i className="ti ti-check" /> Confirm course chart ({chosenRows.length} drug{chosenRows.length === 1 ? '' : 's'})</>
                 )}
               </button>
             </>
