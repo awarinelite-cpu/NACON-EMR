@@ -181,14 +181,22 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
       const flagged = flagAllergicRows(enriched, patient?.allergies);
       setRows(flagged);
 
-      // Nothing is auto-prescribed — but pre-check the single top-ranked
-      // Main Therapy option (first listed, not allergy-conflicted) as a
-      // starting point for the course chart, since that's the option the
-      // model ranked as its primary recommendation. Everything else
-      // (alternatives, adjunct, combination) starts unchecked; the
-      // clinician actively picks what this specific patient is getting.
+      // Nothing is auto-prescribed — but pre-check a sensible starting
+      // point: the top-ranked Main Therapy option (first listed, not
+      // allergy-conflicted), plus every Combination Therapy row if one was
+      // suggested. Combination Therapy is the standard-of-care *package*
+      // for the diagnosis (e.g. all components of an ACT, or all legs of
+      // triple therapy) rather than a menu of interchangeable
+      // alternatives, so selecting only the first line there would hand
+      // back an incomplete regimen. Adjunct stays fully opt-in —
+      // symptomatic add-ons genuinely depend on what this patient is
+      // presenting with (fever, pain, etc.) and shouldn't be assumed.
       const topMain = flagged.find(r => r.category === 'MAIN THERAPY' && !r.allergyConflict);
-      setSelected(topMain ? { [rowKey(topMain)]: true } : {});
+      const combinationRows = flagged.filter(r => r.category === 'COMBINATION THERAPY' && !r.allergyConflict);
+      const defaults = {};
+      if (topMain) defaults[rowKey(topMain)] = true;
+      combinationRows.forEach(r => { defaults[rowKey(r)] = true; });
+      setSelected(defaults);
 
       if (flagged.some(r => r.allergyConflict)) {
         toast.error('AI suggested a drug that conflicts with a recorded allergy — review flagged item(s) before confirming', { duration: 6000 });
