@@ -74,7 +74,7 @@ const FREQUENCY_PHRASES = [
   'four times a day', 'three times a day', 'twice a day', 'once a day',
   'four times weekly', 'three times weekly', 'twice weekly', 'once weekly',
   'every 4 hours', 'every 6 hours', 'every 8 hours', 'every 12 hours',
-  'every other day', 'at bedtime', 'as needed',
+  'every other day', 'at bedtime', 'as needed', 'stat', 'once off',
 ];
 
 // Extracts drug rows from a block of lines, tagged with which clinical
@@ -92,12 +92,16 @@ function extractDrugRows(lines, category) {
     // Dosing info is everything before the first explanatory parenthesis.
     const dosingText = m[2].split('(')[0].replace(/\.\s*$/, '').trim();
 
-    const doseMatch = dosingText.match(/\d+(?:\.\d+)?\s?(mg|g|mcg|µg|ml|units?|iu)\b/i);
+    const doseMatch = dosingText.match(/\d+(?:\.\d+)?\s?(mg|g|mcg|µg|ml|l|units?|iu)\b/i);
     const dose = doseMatch ? doseMatch[0].replace(/\s+/, ' ').trim() : '';
 
-    const durationMatch = dosingText.match(
-      /\bfor\s+(\d+(?:\s*[-–]\s*\d+)?\s*(days|day|weeks|week|months|month))/i
-    );
+    // Standard course durations ("for 4 weeks") and fluid infusion spans
+    // ("over 8 hours") use different prepositions/units, so both are
+    // matched — otherwise every IV fluid order (dextrose saline, normal
+    // saline, etc.) comes through with a blank duration column.
+    const durationMatch =
+      dosingText.match(/\bfor\s+(\d+(?:\s*[-–]\s*\d+)?\s*(days|day|weeks|week|months|month|hours|hour))/i) ||
+      dosingText.match(/\bover\s+(\d+(?:\s*[-–]\s*\d+)?\s*(hours|hour|minutes|minute|days|day))/i);
     const duration = durationMatch ? durationMatch[1].trim() : '';
 
     const lowerDosing = dosingText.toLowerCase();
