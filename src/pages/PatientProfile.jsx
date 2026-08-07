@@ -492,6 +492,12 @@ export default function PatientProfile() {
         dose: row.dose || '',
         frequency: row.frequency || '',
         duration: row.duration || '',
+        // Cosmetic only — shown as a small badge next to the drug number so
+        // main/adjunct/combination therapy stays visually distinguishable
+        // after it lands in the Rx form. Never mixed into `drug` itself,
+        // since that field is fuzzy-matched against pharmacy inventory on
+        // dispensing and any suffix would break that match.
+        category: row.category || null,
       }));
       return [...filled, ...newRows];
     });
@@ -1204,7 +1210,18 @@ export default function PatientProfile() {
                   }}>
                     {/* Drug number + delete */}
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                      <span style={{ fontSize:11, fontWeight:700, color:'var(--accent)' }}>Drug {i + 1}</span>
+                      <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ fontSize:11, fontWeight:700, color:'var(--accent)' }}>Drug {i + 1}</span>
+                        {row.category === 'MAIN THERAPY' && (
+                          <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'var(--success-bg)', color:'var(--success)' }}>MAIN</span>
+                        )}
+                        {row.category === 'ADJUNCT THERAPY' && (
+                          <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'var(--card-bg2)', color:'var(--info, #0369a1)' }}>ADJUNCT</span>
+                        )}
+                        {row.category === 'COMBINATION THERAPY' && (
+                          <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'#f3e8ff', color:'#7c3aed' }}>COMBO</span>
+                        )}
+                      </span>
                       {rxForm.length > 1 && (
                         <button className="btn btn-sm btn-danger btn-icon" onClick={() => setRxForm(r => r.filter((_,j)=>j!==i))}>
                           <i className="ti ti-trash" />
