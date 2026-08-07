@@ -78,12 +78,27 @@ export async function findRelevantMedIndexDrugs({ noteText, primaryDiagnosis }, 
   if (!drugs.length) return [];
   const text = `${noteText || ''} ${primaryDiagnosis || ''}`.toLowerCase();
   const keywords = Array.from(new Set(text.split(/[^a-z0-9]+/).filter(Boolean)));
-  return drugs
+  const ranked = drugs
     .map(d => ({ d, score: scoreDrug(d, keywords) }))
     .filter(x => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(x => x.d);
+    .sort((a, b) => b.score - a.score);
+
+  // The formulary can hold more than one document for the same generic
+  // drug (different brand entries, duplicate/legacy records, etc). Left
+  // undeduped, each near-identical record gets handed to Gemini as if it
+  // were a distinct option, which is how the same drug ends up repeated
+  // 4-5 times in a single AI suggestion instead of showing real
+  // alternatives. Keep only the highest-scoring record per generic name.
+  const seenNames = new Set();
+  const deduped = [];
+  for (const { d } of ranked) {
+    const key = (d.generic_name || '').trim().toLowerCase();
+    if (!key || seenNames.has(key)) continue;
+    seenNames.add(key);
+    deduped.push(d);
+    if (deduped.length >= limit) break;
+  }
+  return deduped;
 }
 
 // Exact/near lookup by generic name — used to enrich a drug the AI already
