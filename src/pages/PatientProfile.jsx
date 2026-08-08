@@ -807,7 +807,19 @@ export default function PatientProfile() {
         const chronic   = patient.pastMedHistory?.trim();
         const CHRONIC_KEYWORDS = ['asthma','sickle cell','diabetes','epilepsy','hypertension',
           'hiv','hepatitis','heart','renal','kidney','liver','stroke','cancer','lupus','thyroid'];
-        const hasAllergy  = allergies && allergies.toLowerCase() !== 'none' && allergies.toLowerCase() !== 'nil';
+        // Anything phrased as "no allergy" should NOT trigger the red
+        // clinical-alert banner — that's for real, named allergies only.
+        // This used to only recognize the exact strings "none" / "nil",
+        // so a value like "None known" (or "No known allergies", "NKA",
+        // "N/A"...) fell through and got flagged as if it were a real
+        // allergy. Matches the same set of phrasings the AI Drug Insight's
+        // allergy parser already treats as "no allergy" (allergyGuard.js).
+        const NO_ALLERGY_PHRASES = [
+          'none', 'nil', 'na', 'n/a', 'nka',
+          'none known', 'not known', 'no known allergies', 'no known allergy',
+          'none recorded', 'none reported', 'no allergies', 'no allergy',
+        ];
+        const hasAllergy = !!allergies && !NO_ALLERGY_PHRASES.includes(allergies.toLowerCase().replace(/[.\s]+$/, ''));
         const hasChronic  = chronic && CHRONIC_KEYWORDS.some(k => chronic.toLowerCase().includes(k));
         if (!hasAllergy && !hasChronic) return null;
         return (

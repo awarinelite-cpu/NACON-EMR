@@ -44,7 +44,7 @@ export function parseAllergyList(allergiesText) {
         .split(/[,;\n/]+/)
         .map(s => s.trim().toLowerCase())
         .filter(Boolean)
-        .filter(s => !['none', 'nil', 'no known allergies', 'nka', 'none recorded', 'none reported'].includes(s))
+        .filter(s => !['none', 'nil', 'na', 'n/a', 'nka', 'none known', 'not known', 'no known allergies', 'no known allergy', 'none recorded', 'none reported', 'no allergies', 'no allergy'].includes(s))
     )
   );
 }
