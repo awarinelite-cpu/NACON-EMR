@@ -960,13 +960,19 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     white-space: nowrap;
   }
 
-  /* Page content: full scroll area */
+  /* Page content: NOT its own scroll container on mobile — .main-area
+     (display:block, overflow-y:auto, height:100vh) is the single scroll
+     container for the whole page there. Leaving overflow-y:auto here too
+     created exactly the "two competing scrollable ancestors for the same
+     gesture" bug already diagnosed and fixed for data tables (see
+     .table-scroll below) — depending on how a given mobile browser
+     resolved which of the two ancestors owned a swipe, page-content could
+     end up silently eating vertical swipes instead of letting them bubble
+     to .main-area, so pages with more content than fits one screen (e.g.
+     a 20+ patient list) stopped scrolling. */
   .page-content {
-    flex: 1;
-    overflow-y: auto;
     padding: 10px;
-    overscroll-behavior: none;
-    overscroll-behavior: contain;
+    overflow: visible;
   }
 
   /* Profile layout: full width */
