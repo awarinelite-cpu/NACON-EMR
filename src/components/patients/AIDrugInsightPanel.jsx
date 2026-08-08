@@ -4,7 +4,7 @@
 // Intentionally role-agnostic: in NACON MRS, nurses and doctors perform the
 // same clinical function, so this panel is not gated by `isDoctor`.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { suggestDrugsForNote } from '../../lib/geminiInsights';
 import { lookupMedIndexDrug } from '../../lib/medIndex';
@@ -243,6 +243,23 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
   };
   const chosenRows = rows.filter(r => selected[rowKey(r)]);
 
+  // Keeps the parent (note-save handler) live-synced with whatever is
+  // ticked in "Give This" — ticking a checkbox is what a clinician sees as
+  // "adding it to the chart", so that alone must be enough for it to save
+  // with the note. The separate "Confirm" button below is no longer the
+  // only path in; it stays for the explicit allergy-conflict acknowledgment
+  // flow, but plain unconflicted selections sync up as soon as they're
+  // ticked, without waiting for that click. Rows still under an
+  // unacknowledged allergy conflict are held back until acknowledged, so an
+  // unresolved conflict can never be saved by accident.
+  useEffect(() => {
+    const resolvedChosen = chosenRows.filter(
+      r => !r.allergyConflict || acknowledged[r.name.toLowerCase()]
+    );
+    onConfirmDrugs?.(resolvedChosen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, acknowledged, rows]);
+
   return (
     <div className="card" style={{ marginTop: 12, border: '1px dashed var(--info)' }}>
       <div className="card-header">
@@ -429,13 +446,17 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                 prescription. Confirm against allergy history, dosage, and local
                 protocol before prescribing.
               </div>
+              <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
+                Ticked drugs above are already staged — press <b>Save note</b> below
+                to write them to this visit together with the note.
+              </div>
               <button
                 className="btn btn-primary btn-sm mt-2"
                 onClick={handleConfirm}
                 disabled={confirmed || !chosenRows.length}
               >
                 {confirmed ? (
-                  <><i className="ti ti-circle-check" /> Added to prescription</>
+                  <><i className="ti ti-circle-check" /> Confirmed</>
                 ) : (
                   <><i className="ti ti-check" /> Confirm — Give This ({chosenRows.length} drug{chosenRows.length === 1 ? '' : 's'})</>
                 )}
