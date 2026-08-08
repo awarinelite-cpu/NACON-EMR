@@ -12,6 +12,7 @@ import DoctorDashboard  from './pages/DoctorDashboard';
 import NurseDashboard   from './pages/NurseDashboard';
 import RecordsDashboard from './pages/RecordsDashboard';
 import AdminDashboard   from './pages/AdminDashboard';
+import BulkImportPatients from './pages/BulkImportPatients';
 import RegisterPatient  from './pages/RegisterPatient';
 import PatientProfile   from './pages/PatientProfile';
 import UserManagement   from './pages/UserManagement';
@@ -194,6 +195,9 @@ export default function App() {
             } />
             <Route path="/admin/patients" element={
               <ProtectedRoute allowedRoles={['admin','subadmin']}><AllPatients role="admin" /></ProtectedRoute>
+            } />
+            <Route path="/admin/patients/bulk-import" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><BulkImportPatients /></ProtectedRoute>
             } />
             <Route path="/admin/reports" element={
               <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Reports" /></ProtectedRoute>

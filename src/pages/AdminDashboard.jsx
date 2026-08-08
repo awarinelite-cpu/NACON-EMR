@@ -30,6 +30,9 @@ export default function AdminDashboard() {
         <button className="btn" onClick={()=>navigate('/admin/users')}>
           <i className="ti ti-user-cog" /> Manage users
         </button>
+        <button className="btn" onClick={()=>navigate('/admin/patients/bulk-import')}>
+          <i className="ti ti-file-upload" /> Bulk import patients
+        </button>
         <button className="btn btn-primary" onClick={()=>navigate('/admin/users')}>
           <i className="ti ti-user-plus" /> Add staff user
         </button>

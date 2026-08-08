@@ -53,6 +53,11 @@ export default function AllPatients({ role, filter }) {
             <i className="ti ti-user-plus" /> Register new
           </button>
         )}
+        {role === 'admin' && (
+          <button className="btn btn-primary" onClick={() => navigate('/admin/patients/bulk-import')}>
+            <i className="ti ti-file-upload" /> Bulk import (CSV)
+          </button>
+        )}
       </div>
       <div className="page-content">
         {/* Filter pills */}
