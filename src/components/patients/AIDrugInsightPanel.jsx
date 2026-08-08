@@ -217,7 +217,7 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
   const handleConfirm = async () => {
     const chosen = rows.filter(r => selected[rowKey(r)]);
     if (!chosen.length) {
-      toast.error('Select at least one drug for this patient\'s course chart first');
+      toast.error('Select at least one drug for "Give This" first');
       return;
     }
     const unresolved = chosen.filter(r => r.allergyConflict && !acknowledged[r.name.toLowerCase()]);
@@ -309,7 +309,7 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                       {categoryRows?.length > 0 && (
                         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
                           <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--t3)' }}>
-                            Select for this patient's course chart:
+                            Select for "Give This":
                           </div>
                           {categoryRows.map(r => {
                             const key = rowKey(r);
@@ -373,10 +373,10 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                 </div>
               )}
 
-              {/* Drug Course Chart — the actual combined treatment plan for
-                  THIS patient, built only from whatever the clinician has
-                  ticked above. Distinct from the therapy lists, which show
-                  every clinically valid option, not just what's prescribed. */}
+              {/* "Give This" — the actual combined treatment plan for THIS
+                  patient, built only from whatever the clinician has ticked
+                  above. Distinct from the therapy lists, which show every
+                  clinically valid option, not just what's prescribed. */}
               {rows.length > 0 && (
                 <div style={{ marginTop: 4, marginBottom: 14 }}>
                   <div style={{
@@ -384,11 +384,11 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                     padding: '2px 9px', borderRadius: 10, marginBottom: 8,
                     background: 'var(--card-bg2)', color: 'var(--t1)', border: '1px solid var(--border)',
                   }}>
-                    <i className="ti ti-table" /> Drug Course Chart
+                    <i className="ti ti-table" /> Give This
                   </div>
                   {chosenRows.length === 0 ? (
                     <div style={{ fontSize: 12, color: 'var(--t3)' }}>
-                      Nothing selected yet — tick drugs above to build this patient's combined course chart.
+                      Nothing selected yet — tick drugs above to build "Give This".
                     </div>
                   ) : (
                     <div style={{ overflowX: 'auto' }}>
@@ -437,7 +437,7 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
                 {confirmed ? (
                   <><i className="ti ti-circle-check" /> Added to prescription</>
                 ) : (
-                  <><i className="ti ti-check" /> Confirm course chart ({chosenRows.length} drug{chosenRows.length === 1 ? '' : 's'})</>
+                  <><i className="ti ti-check" /> Confirm — Give This ({chosenRows.length} drug{chosenRows.length === 1 ? '' : 's'})</>
                 )}
               </button>
             </>
