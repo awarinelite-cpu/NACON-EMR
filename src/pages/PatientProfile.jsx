@@ -102,6 +102,7 @@ export default function PatientProfile() {
   const [selectedEvent, setSelectedEvent] = useState(null); // timeline detail drawer
   const [viewOnly,       setViewOnly]       = useState(false);  // action buttons open view-only
   const [allergyAlert, setAllergyAlert] = useState(null); // { conflicts, pendingRx }
+  const [pendingGiveThis, setPendingGiveThis] = useState([]); // drugs confirmed via AI "Give This", saved together with the note
   const fileInput = useRef();
 
   // Scroll listener: collapse vitals+actions using DOM classList (no re-render = no shake)
@@ -469,40 +470,55 @@ export default function PatientProfile() {
   };
 
   // ── SAVE HANDLERS ──
+  // Saves the note and, if the clinician confirmed a "Give This" list from
+  // the AI Drug Insight panel, saves that as a prescription in the same
+  // action — both land on the visit timeline together. Runs the same
+  // independent allergy re-check as the Rx tab's own save before writing
+  // anything, since the panel's own check shouldn't be the only gate.
   const saveNote = async () => {
     if (!noteText.trim()) { toast.error('Write a note first'); return; }
+    const giveThisDrugs = pendingGiveThis.filter(d => d.drug.trim());
+    if (giveThisDrugs.length) {
+      const allergyStr = patient?.allergies?.trim();
+      const conflicts = checkAllergyConflicts(allergyStr, giveThisDrugs);
+      if (conflicts.length > 0) {
+        setAllergyAlert({ conflicts, pendingRx: giveThisDrugs, allergyStr, onConfirm: () => doSaveNote(giveThisDrugs) });
+        return; // block until user decides
+      }
+    }
+    await doSaveNote(giveThisDrugs);
+  };
+
+  const doSaveNote = async (giveThisDrugs) => {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
       await addNote(emrNumber, vid, { text: noteText, type: isDoctor?'doctor':'nurse' }, profile.displayName || profile.email || 'Unknown', profile.role);
-      setNoteText(''); toast.success('Note saved');
+      if (giveThisDrugs.length) {
+        await addPrescription(emrNumber, vid, giveThisDrugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
+      }
+      setNoteText('');
+      setPendingGiveThis([]);
+      toast.success(giveThisDrugs.length
+        ? `Note saved — ${giveThisDrugs.length} drug${giveThisDrugs.length>1?'s':''} from "Give This" added to prescription`
+        : 'Note saved');
     } catch(e) { console.error('saveNote',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
 
-  // Called when the nurse/doctor taps "Confirm — use these drugs" in the
-  // AI Drug Insight panel. Drops the drug names (no explanation text) into
-  // the prescription form, ready for dose/frequency/duration to be filled
-  // in and saved — nothing is auto-saved.
+  // Called when the nurse/doctor taps "Confirm — Give This" in the AI Drug
+  // Insight panel. Holds the confirmed rows so they save together with the
+  // note when "Save note" is pressed — no separate trip to the Rx tab
+  // required. Stays on the current note tab (no forced navigation).
   const handleConfirmDrugs = (rows) => {
-    setRxForm(r => {
-      const filled = r.filter(x => x.drug.trim());
-      const newRows = rows.map(row => ({
-        drug: row.name,
-        dose: row.dose || '',
-        frequency: row.frequency || '',
-        duration: row.duration || '',
-        // Cosmetic only — shown as a small badge next to the drug number so
-        // main/adjunct/combination therapy stays visually distinguishable
-        // after it lands in the Rx form. Never mixed into `drug` itself,
-        // since that field is fuzzy-matched against pharmacy inventory on
-        // dispensing and any suffix would break that match.
-        category: row.category || null,
-      }));
-      return [...filled, ...newRows];
-    });
-    setActiveTab('rx');
-    setViewOnly(false);
+    const newRows = rows.map(row => ({
+      drug: row.name,
+      dose: row.dose || '',
+      frequency: row.frequency || '',
+      duration: row.duration || '',
+      category: row.category || null,
+    }));
+    setPendingGiveThis(newRows);
   };
 
   const saveCarePlan = async () => {
@@ -2001,8 +2017,18 @@ export default function PatientProfile() {
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
                 <AIDrugInsightPanel noteText={noteText} patient={patient} onConfirmDrugs={handleConfirmDrugs} />
+                {pendingGiveThis.length > 0 && (
+                  <div style={{
+                    marginTop: 10, padding: '8px 12px', borderRadius: 8,
+                    background: 'var(--success-bg, #d1fae5)', color: 'var(--success, #065f46)',
+                    fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <i className="ti ti-pill" />
+                    {pendingGiveThis.length} drug{pendingGiveThis.length > 1 ? 's' : ''} from "Give This" will save with this note
+                  </div>
+                )}
                 <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
-                  <i className="ti ti-device-floppy" /> Save note
+                  <i className="ti ti-device-floppy" /> Save note{pendingGiveThis.length > 0 ? ` + ${pendingGiveThis.length} drug${pendingGiveThis.length > 1 ? 's' : ''}` : ''}
                 </button>
               </div>
             </div>}
@@ -2179,8 +2205,18 @@ export default function PatientProfile() {
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
                 <AIDrugInsightPanel noteText={noteText} patient={patient} onConfirmDrugs={handleConfirmDrugs} />
+                {pendingGiveThis.length > 0 && (
+                  <div style={{
+                    marginTop: 10, padding: '8px 12px', borderRadius: 8,
+                    background: 'var(--success-bg, #d1fae5)', color: 'var(--success, #065f46)',
+                    fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <i className="ti ti-pill" />
+                    {pendingGiveThis.length} drug{pendingGiveThis.length > 1 ? 's' : ''} from "Give This" will save with this note
+                  </div>
+                )}
                 <button className="btn btn-primary mt-3" onClick={saveNote} disabled={saving}>
-                  <i className="ti ti-device-floppy" /> Save note
+                  <i className="ti ti-device-floppy" /> Save note{pendingGiveThis.length > 0 ? ` + ${pendingGiveThis.length} drug${pendingGiveThis.length > 1 ? 's' : ''}` : ''}
                 </button>
               </div>
             </div>}
