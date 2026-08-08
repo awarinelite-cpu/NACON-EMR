@@ -675,6 +675,7 @@ export default function PatientProfile() {
     ...(isRecords ? [] : vitals.map(v  => ({ ts:v.recordedAt,  type:'vitals',  data:v }))),
     ...(isRecords ? [] : fluid.map(f   => ({ ts:f.recordedAt,  type:'fluid',   data:f }))),
     ...(isRecords ? [] : glucose.map(g => ({ ts:g.recordedAt,  type:'glucose', data:g }))),
+    ...(isRecords ? [] : rx.map(r      => ({ ts:r.createdAt,   type:'rx',      data:r }))),
     ...uploads.map(u => ({ ts:u.uploadedAt,  type:'upload',  data:u })),
   ].sort((a,b) => ((b.ts?.seconds||0)-(a.ts?.seconds||0)));
 
