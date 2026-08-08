@@ -257,7 +257,6 @@ export default function AIDrugInsightPanel({ noteText, patient, onConfirmDrugs }
       r => !r.allergyConflict || acknowledged[r.name.toLowerCase()]
     );
     onConfirmDrugs?.(resolvedChosen);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, acknowledged, rows]);
 
   return (
