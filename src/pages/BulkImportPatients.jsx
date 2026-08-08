@@ -249,16 +249,25 @@ export default function BulkImportPatients() {
 
         {parsedRows.length > 0 && !importResults && (
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="card-header">
+            <div className="card-header" style={{ flexWrap: 'wrap', gap: 8 }}>
               <div className="card-title">
                 <i className="ti ti-list-check" /> 3. Review ({parsedRows.length} row{parsedRows.length === 1 ? '' : 's'})
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span className="badge badge-ok">{validCount} ready</span>
                 {invalidCount > 0 && <span className="badge badge-danger">{invalidCount} need fixing</span>}
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleImport}
+                  disabled={importing || validCount === 0}
+                >
+                  {importing
+                    ? <><i className="ti ti-loader-2" style={{ animation: 'spin 1s linear infinite' }} /> Importing…</>
+                    : <><i className="ti ti-device-floppy" /> Import {validCount}</>}
+                </button>
               </div>
             </div>
-            <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 340, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
               {parsedRows.map(({ rowNum, row, errors }) => (
                 <div key={rowNum} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 16px',
