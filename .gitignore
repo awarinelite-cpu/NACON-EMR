@@ -4,3 +4,5 @@ build/
 .env.local
 npm-debug.log*
 .DS_Store
+functions/node_modules/
+functions/.env

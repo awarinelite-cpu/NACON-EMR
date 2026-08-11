@@ -5,20 +5,28 @@
 // this is intentionally NOT gated by role. Any caller (doctor or nurse)
 // gets the same suggestions.
 //
-// The actual prompt + model call live server-side on MedIndex's
-// /api/drug-ai-details endpoint (mode: 'clinical_plan') — MedIndex's CORS
-// is already open ('*') for its Capacitor native builds, so this is a
-// plain cross-origin fetch. This file's job is just to gather NACON-EMR's
-// side of the grounding (MedIndex formulary matches via the cross-app
-// Firestore read below, allergy parsing/filtering) and hand it over — the
-// prompt itself is written once, in MedIndex's repo, so both apps' AI
-// Drug Insight stays identical without two copies to keep in sync.
+// The prompt + model call live server-side on NACON-EMR's OWN Cloud
+// Function (functions/index.js, exports.aiClinicalConsult). This used to
+// call MedIndex's /api/drug-ai-details endpoint (mode: 'clinical_plan') as
+// a shared engine, but MedIndex added a sign-in + AI-credits gate there for
+// its own users, and NACON-EMR and MedIndex are separate Firebase projects
+// — so NACON-EMR could never satisfy that gate. AI Clinical Consult was
+// built for NACON-EMR first, so it's decoupled here: NACON-EMR's own
+// backend, NACON-EMR's own Firebase Auth token, no MedIndex dependency.
+// MedIndex reference-drug grounding (via ./medIndex, a public read of
+// MedIndex's Firestore) is unrelated to this and still used below.
 
+import { auth } from './firebase';
 import { findRelevantMedIndexDrugs, lookupMedIndexCondition } from './medIndex';
 import { parseAllergyList, filterAllergicDrugs } from './allergyGuard';
 
-const MEDINDEX_API_BASE = 'https://med-index-six.vercel.app';
-const CLINICAL_PLAN_URL = `${MEDINDEX_API_BASE}/api/drug-ai-details`;
+// Cloud Function URL — replace <region>-<project-id> with your deployed
+// function's actual URL once `firebase deploy --only functions` finishes
+// (it's printed in the deploy output), or set REACT_APP_AI_CONSULT_URL in
+// .env to override without editing code.
+const CLINICAL_PLAN_URL =
+  process.env.REACT_APP_AI_CONSULT_URL ||
+  'https://us-central1-<your-project-id>.cloudfunctions.net/aiClinicalConsult';
 
 /**
  * Ask Gemini to suggest candidate drugs/treatment options based on the
@@ -62,15 +70,23 @@ export async function suggestDrugsForNote({ noteText, allergies, primaryDiagnosi
   // even offered as a candidate — the model should never see it.
   const { safe: medIndexDrugs, excluded: medIndexExcluded } = filterAllergicDrugs(medIndexDrugsRaw, allergies);
 
-  // The prompt itself is built server-side on MedIndex's endpoint (mode:
-  // 'clinical_plan') — this is a plain fetch, not a streamed connection,
-  // since NACON-EMR's panel just needs the finished text, same as the old
-  // direct-Gemini call did.
+  // Authenticate with NACON-EMR's own Firebase ID token — this is what the
+  // Cloud Function verifies (admin.auth().verifyIdToken) before running.
+  // No sign-in means no token means the function returns 401, same message
+  // as before, but now because THIS app's user isn't signed in, not because
+  // of an unrelated MedIndex account.
+  if (!auth.currentUser) {
+    throw new Error('Please sign in to use AI Clinical Consult.');
+  }
+  const idToken = await auth.currentUser.getIdToken();
+
   const res = await fetch(CLINICAL_PLAN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
     body: JSON.stringify({
-      mode: 'clinical_plan',
       noteText,
       age,
       sex,
