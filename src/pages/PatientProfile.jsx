@@ -19,6 +19,7 @@ import {
 
 import MARTab from '../components/patients/MARTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
+import GlycemicChart from '../components/patients/GlycemicChart';
 import NewsScore from '../components/patients/NewsScore';
 import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
 import CareSummaryDocument from '../components/patients/CareSummaryDocument';
@@ -1951,47 +1952,11 @@ export default function PatientProfile() {
                 </button>
               </div>
             </div>}
-            <div className="card">
-              <div className="card-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
-                <div className="card-title"><i className="ti ti-table" />Glycemic Chart</div>
-                <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden' }}>
-                  {['mmol/L','mg/dL'].map(u => (
-                    <button key={u} type="button" onClick={() => setGlucChartUnit(u)}
-                      style={{
-                        padding:'4px 10px', fontSize:11, fontWeight:700, cursor:'pointer',
-                        border:'none', background: glucChartUnit === u ? 'var(--accent)' : 'transparent',
-                        color: glucChartUnit === u ? '#fff' : 'var(--t2)',
-                      }}
-                    >{u}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="table-scroll">
-              <table className="chart-table">
-                <thead><tr><th>Time</th><th>Reading ({glucChartUnit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
-                <tbody>
-                  {glucose.map(g=>{
-                    const raw = parseFloat(g.reading);
-                    const storedUnit = g.unit || 'mmol/L';
-                    const mmolVal = toMmol(raw, storedUnit);
-                    const displayVal = formatGlucose(convertGlucose(raw, storedUnit, glucChartUnit), glucChartUnit);
-                    const status=mmolVal<4?'Low':mmolVal>10?'High':mmolVal>7?'Elevated':'Normal';
-                    const scls=mmolVal<4?'badge-warn':mmolVal>10?'badge-danger':mmolVal>7?'badge-warn':'badge-ok';
-                    return (
-                      <tr key={g.id}>
-                        <td>{g.time}</td>
-                        <td style={{fontWeight:700}}>{displayVal}</td>
-                        <td className="text-muted">{g.context}</td>
-                        <td><span className={`badge ${scls}`}>{status}</span></td>
-                        <td className="text-muted text-sm">{g.recordedBy}</td>
-                      </tr>
-                    );
-                  })}
-                  {glucose.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--t3)',padding:16}}>No readings yet</td></tr>}
-                </tbody>
-              </table>
-              </div>
-            </div>
+            {glucose.length === 0 ? (
+              <div className="card"><div className="card-body" style={{textAlign:'center',color:'var(--t3)',padding:16}}>No readings yet</div></div>
+            ) : (
+              <GlycemicChart glucose={glucose} />
+            )}
           </div>
         )}
 
