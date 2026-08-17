@@ -14,13 +14,14 @@ import {
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
   addCarePlan, listenCarePlans, updateCarePlanEvaluation,
-  listenMAR,
+  listenMAR, createClinicalAlert,
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import GlycemicChart from '../components/patients/GlycemicChart';
-import NewsScore from '../components/patients/NewsScore';
+import FluidBalanceChart from '../components/patients/FluidBalanceChart';
+import NewsScore, { calculateNEWS2 } from '../components/patients/NewsScore';
 import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
 import CareSummaryDocument from '../components/patients/CareSummaryDocument';
 import NoteTextRenderer from '../components/shared/NoteTextRenderer';
@@ -556,6 +557,21 @@ export default function PatientProfile() {
       await addVitals(emrNumber, vid, vitalForm, profile.displayName || profile.email || 'Unknown', profile.role);
       setVitalForm({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
       toast.success('Vitals recorded');
+
+      // NEWS2 auto-alerting — a Medium/High risk score raises a facility-wide alert
+      try {
+        const news = calculateNEWS2(vitalForm);
+        if (news.risk !== 'Low') {
+          const patientName = `${patient?.surname || ''} ${patient?.firstName || ''} ${patient?.otherNames || ''}`.trim();
+          await createClinicalAlert({
+            emrNumber, patientName, visitId: vid,
+            score: news.total, risk: news.risk, action: news.action,
+            vitals: vitalForm,
+          }, profile.displayName || profile.email || 'Unknown', profile.role);
+          if (news.risk === 'High') toast.error(`NEWS2 ${news.total} — High Risk. ${news.action}`, { duration: 6000 });
+          else toast(`NEWS2 ${news.total} — Medium Risk. ${news.action}`, { icon: '⚠️', duration: 5000 });
+        }
+      } catch (alertErr) { console.error('NEWS2 alert', alertErr); }
     } catch(e) { console.error('saveVitals',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
@@ -1876,38 +1892,13 @@ export default function PatientProfile() {
                 </button>
               </div>
             </div>}
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title"><i className="ti ti-table" />Fluid Chart</div>
-                {fluid.length > 0 && (
-                  <div style={{ fontSize:11, fontWeight:700 }}>
-                    In: <span style={{color:'var(--info)'}}>{fluid.reduce((a,f)=>a+(parseInt(f.intakeAmt)||0),0)}ml</span> ·
-                    Out: <span style={{color:'var(--warn)'}}>{fluid.reduce((a,f)=>a+(parseInt(f.outputAmt)||0),0)}ml</span>
-                  </div>
-                )}
-              </div>
-              <div className="table-scroll">
-              <table className="chart-table">
-                <thead><tr><th>Time</th><th>Intake (ml)</th><th>Type</th><th>Output (ml)</th><th>Type</th><th>By</th></tr></thead>
-                <tbody>
-                  {fluid.map(f=>(
-                    <tr key={f.id}>
-                      <td>{f.time}</td>
-                      <td style={{color:'var(--info)',fontWeight:700}}>{f.intakeAmt||'—'}</td>
-                      <td className="text-muted">{f.intakeType}</td>
-                      <td style={{color:'var(--warn)',fontWeight:700}}>{f.outputAmt||'—'}</td>
-                      <td className="text-muted">{f.outputType}</td>
-                      <td className="text-muted text-sm">{f.recordedBy}</td>
-                    </tr>
-                  ))}
-                  {fluid.length===0 && <tr><td colSpan={6} style={{textAlign:'center',color:'var(--t3)',padding:16}}>No entries yet</td></tr>}
-                </tbody>
-              </table>
-              </div>
-            </div>
+            {fluid.length === 0 ? (
+              <div className="card"><div className="card-body" style={{textAlign:'center',color:'var(--t3)',padding:16}}>No entries yet</div></div>
+            ) : (
+              <FluidBalanceChart fluid={fluid} />
+            )}
           </div>
         )}
-
         {/* ── GLUCOSE TAB ── */}
         {activeTab==='glucose' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>

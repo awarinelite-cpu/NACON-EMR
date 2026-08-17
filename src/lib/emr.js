@@ -96,6 +96,7 @@ export const COL = {
   LAB_REQUESTS: 'lab_requests',
   LAB_RESULTS:  'lab_results',
   CARE_PLANS:   'nursing_care_plans',
+  ALERTS:       'clinical_alerts',
 };
 
 // ── ROLES ────────────────────────────────────
@@ -538,6 +539,50 @@ export function listenVitals(emrNumber, callback) {
     docs.sort((a,b) => (b.recordedAt?.seconds||0) - (a.recordedAt?.seconds||0));
     callback(docs);
   });
+}
+
+// ─────────────────────────────────────────────
+// CLINICAL ALERTS (NEWS2/EWS auto-alerting)
+// ─────────────────────────────────────────────
+export async function createClinicalAlert(alertData, createdBy, createdByRole = null) {
+  const ref = await addDoc(collection(db, COL.ALERTS), {
+    ...alertData,
+    acknowledged: false,
+    acknowledgedBy: null,
+    acknowledgedAt: null,
+    createdBy,
+    createdAt: serverTimestamp(),
+  });
+  await logAudit('CLINICAL_ALERT', alertData.emrNumber, createdBy, alertData, createdByRole);
+  return ref.id;
+}
+
+// Listens to all unacknowledged alerts facility-wide, most recent first.
+export function listenActiveAlerts(callback) {
+  const q = query(collection(db, COL.ALERTS), where('acknowledged', '==', false));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    callback(docs);
+  });
+}
+
+export function listenAlertsForPatient(emrNumber, callback) {
+  const q = query(collection(db, COL.ALERTS), where('emrNumber', '==', emrNumber));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    callback(docs);
+  });
+}
+
+export async function acknowledgeAlert(alertId, acknowledgedBy, acknowledgedByRole = null) {
+  await updateDoc(doc(db, COL.ALERTS, alertId), {
+    acknowledged: true,
+    acknowledgedBy,
+    acknowledgedAt: serverTimestamp(),
+  });
+  await logAudit('ACKNOWLEDGE_ALERT', null, acknowledgedBy, { alertId }, acknowledgedByRole);
 }
 
 // ─────────────────────────────────────────────
