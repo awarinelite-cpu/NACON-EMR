@@ -9,7 +9,7 @@ import {
   listenFluidChart, listenGlucoseChart, listenUploads,
   addNote, addVitals, addPrescription, addFluidEntry,
   addGlucoseReading, uploadPatientFile, createReferral,
-  dischargePatient, admitPatient, getOrOpenVisit, formatTs, formatTime,
+  admitPatient, getOrOpenVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
@@ -21,6 +21,7 @@ import MARTab from '../components/patients/MARTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import GlycemicChart from '../components/patients/GlycemicChart';
 import FluidBalanceChart from '../components/patients/FluidBalanceChart';
+import DischargeSummary from '../components/patients/DischargeSummary';
 import NewsScore, { calculateNEWS2 } from '../components/patients/NewsScore';
 import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
 import CareSummaryDocument from '../components/patients/CareSummaryDocument';
@@ -83,6 +84,7 @@ export default function PatientProfile() {
   const [vitalForm, setVitalForm] = useState({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
   const [rxForm,    setRxForm]    = useState([{ drug:'', dose:'', frequency:'', duration:'' }]);
   const [rxHistoryOpen, setRxHistoryOpen] = useState(false); // prescription history collapsed by default
+  const [dischargeSummaryOpen, setDischargeSummaryOpen] = useState(false);
   // Official printed Rx form state (NHIS for soldiers, NACON for civilians)
   const [officialRx,    setOfficialRx]    = useState(null);   // null = collapsed, object = open
   const [officialRxSaving, setOfficialRxSaving] = useState(false);
@@ -660,20 +662,7 @@ export default function PatientProfile() {
     setSaving(false);
   };
 
-  const handleDischarge = async () => {
-    if (patient.status !== 'sickbay') {
-      toast.error('Only patients admitted to the sick bay can be discharged');
-      return;
-    }
-    if (!window.confirm('Discharge this patient?')) return;
-    setSaving(true);
-    try {
-      await dischargePatient(emrNumber, visitId, 'Discharged in good condition', profile.displayName || profile.email || 'Unknown', profile.role);
-      toast.success('Patient discharged'); navigate(-1);
-    } catch (e) { console.error('handleDischarge', e); toast.error(e?.message || 'Failed'); }
-    setSaving(false);
-  };
-
+  
   const handleAdmit = async () => {
     if (!window.confirm(`Admit ${patient.surname} ${patient.firstName} to the sick bay?`)) return;
     setSaving(true);
@@ -2306,7 +2295,7 @@ export default function PatientProfile() {
                   <button className="btn btn-primary" onClick={handleReferral} disabled={saving}>
                     <i className="ti ti-file-export" /> Generate referral letter
                   </button>
-                  <button className="btn btn-success" onClick={handleDischarge} disabled={saving || patient.status !== 'sickbay'}
+                  <button className="btn btn-success" onClick={() => setDischargeSummaryOpen(true)} disabled={saving || patient.status !== 'sickbay'}
                     title={patient.status !== 'sickbay' ? 'Patient must be admitted to the sick bay before they can be discharged' : undefined}>
                     <i className="ti ti-door-exit" /> Discharge patient
                   </button>
@@ -2592,6 +2581,22 @@ export default function PatientProfile() {
           labResults={labResults}
           marRecords={marRecords}
           uploads={uploads}
+        />
+      )}
+      {/* ── DISCHARGE SUMMARY MODAL ── */}
+      {dischargeSummaryOpen && (
+        <DischargeSummary
+          open={dischargeSummaryOpen}
+          onClose={() => setDischargeSummaryOpen(false)}
+          patient={patient}
+          emrNumber={emrNumber}
+          visitId={visitId}
+          vitals={vitals}
+          glucose={glucose}
+          fluid={fluid}
+          rx={rx}
+          compiledBy={profile?.displayName || profile?.email || 'Unknown'}
+          onDischarged={() => navigate(-1)}
         />
       )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
