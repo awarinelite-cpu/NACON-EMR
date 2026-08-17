@@ -118,6 +118,123 @@ const ScorePip = ({ score }) => {
   );
 };
 
+const NewsScoreModal = ({ news, onO2, setOnO2, avpu, setAvpu, onClose }) => {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 16,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="card"
+        style={{
+          border: `1.5px solid ${news.border}`, maxWidth: 420, width: '100%',
+          maxHeight: '85vh', overflowY: 'auto',
+        }}
+      >
+        <div className="card-header" style={{ background: news.bg }}>
+          <div className="card-title" style={{ color: news.color }}>
+            <i className="ti ti-activity-heartbeat" />
+            NEWS2 Early Warning Score
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: news.color, lineHeight: 1 }}>{news.total}</div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: news.color }}>
+              <i className="ti ti-x" />
+            </button>
+          </div>
+        </div>
+
+        <div className="card-body" style={{ paddingTop: 12 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: news.color }}>{news.risk} Risk</div>
+            <div style={{ fontSize: 11, color: news.color, opacity: 0.85 }}>{news.action}</div>
+          </div>
+
+          {/* Modifiers */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              <input type="checkbox" checked={onO2} onChange={e => setOnO2(e.target.checked)} />
+              On supplemental O₂
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>Consciousness:</span>
+              {['A', 'V', 'C', 'U'].map(v => (
+                <button key={v} onClick={() => setAvpu(v)}
+                  style={{
+                    padding: '2px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    border: `1px solid ${avpu === v ? news.color : 'var(--border)'}`,
+                    background: avpu === v ? news.color : 'transparent',
+                    color: avpu === v ? '#fff' : 'var(--t2)',
+                  }}>{v}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Component breakdown */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {news.components.map(c => (
+              <div key={c.name} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '5px 8px', borderRadius: 6,
+                background: c.score > 0 ? news.bg : 'transparent',
+              }}>
+                <ScorePip score={c.score} />
+                <span style={{ fontSize: 12, fontWeight: 700, flex: 1, color: 'var(--t1)' }}>{c.name}</span>
+                <span style={{ fontSize: 12, color: 'var(--t3)', fontFamily: 'var(--mono)' }}>
+                  {c.val !== undefined && c.val !== null && c.val !== '' ? `${c.val} ${c.unit}` : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Total bar */}
+          <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)' }}>Total NEWS2 score</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: news.color }}>{news.total} / 21</span>
+            </div>
+            <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${Math.min(100, (news.total / 21) * 100)}%`,
+                background: news.color, borderRadius: 4,
+                transition: 'width .4s ease',
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+              {[
+                { range: '0', label: 'Minimum', c: '#16a34a' },
+                { range: '1–4', label: 'Low', c: '#16a34a' },
+                { range: '5–6', label: 'Medium', c: '#d97706' },
+                { range: '7+', label: 'High', c: '#dc2626' },
+              ].map(s => (
+                <div key={s.range} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: s.c }}>{s.range}</div>
+                  <div style={{ fontSize: 9, color: 'var(--t3)' }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{
+            marginTop: 10, padding: '8px 10px', borderRadius: 8,
+            background: news.bg, border: `1px solid ${news.border}`,
+            fontSize: 11, fontWeight: 700, color: news.color,
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <i className="ti ti-bell" />
+            {news.action}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function NewsScore({ vitals, compact = false }) {
   const [open, setOpen] = useState(false);
   const [onO2, setOnO2] = useState(false);
