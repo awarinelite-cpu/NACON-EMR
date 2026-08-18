@@ -26,6 +26,7 @@ import NewsScore, { calculateNEWS2 } from '../components/patients/NewsScore';
 import AllergyAlert, { checkAllergyConflicts, checkAllergyConflictsInText } from '../components/patients/AllergyAlert';
 import CareSummaryDocument from '../components/patients/CareSummaryDocument';
 import NoteTextRenderer from '../components/shared/NoteTextRenderer';
+import { exportPatientRecordJSON } from '../lib/exportBackup';
 
 const TABS = [
   { id:'visit',    label:'Visit',           icon:'🏥',  roles: ['doctor','nurse','admin','subadmin'] },
@@ -821,6 +822,24 @@ export default function PatientProfile() {
           }}>
             <i className="ti ti-printer" style={{fontSize:13}} /> Print
           </button>
+          {(isDoctor || isNurse || isRecords) && (
+            <button onClick={async () => {
+              try {
+                await exportPatientRecordJSON(emrNumber, { performedBy: profile?.displayName || profile?.email, performedByRole: profile?.role });
+                toast.success('Record exported');
+              } catch (e) {
+                console.error('Patient record export failed:', e);
+                toast.error('Export failed: ' + (e?.message || String(e)));
+              }
+            }} title="Download this patient's complete record as JSON" style={{
+              background:'none', border:'1px solid var(--border)', borderRadius:8,
+              padding:'5px 10px', cursor:'pointer', color:'var(--t2)',
+              fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5,
+              fontFamily:'var(--font)',
+            }}>
+              <i className="ti ti-database-export" style={{fontSize:13}} /> Export
+            </button>
+          )}
         </div>
       </div>
 
@@ -2263,6 +2282,8 @@ export default function PatientProfile() {
             <LabResultsHistory
               labResults={labResults}
               labRequests={labRequests}
+              patient={patient}
+              emrNumber={emrNumber}
             />
           </div>
         )}
@@ -2727,10 +2748,68 @@ const URGENCY_BADGE_L = { stat:'badge-danger', urgent:'badge-warn', routine:'bad
 const STATUS_BADGE_L  = { pending:'badge-warn', processing:'badge-info', completed:'badge-ok' };
 const FLAG_COLOR_L    = { high:'#dc2626', low:'#d97706', normal:'var(--success)', '':'var(--t3)' };
 
-function LabResultsHistory({ labResults, labRequests }) {
+function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
   const [openId, setOpenId] = useState(null);
   const allRequests = [...labRequests].sort((a,b) =>
     (b.requestedAt?.seconds||0) - (a.requestedAt?.seconds||0));
+
+  const patientName = `${patient?.surname || ''} ${patient?.firstName || ''} ${patient?.otherNames || ''}`.trim();
+
+  const printLabSlip = (req, result) => {
+    const rowsHtml = result
+      ? Object.entries(result.results || {}).map(([test, r]) => `
+          <tr>
+            <td>${test}</td>
+            <td style="font-weight:700;color:${r.flag==='high'?'#dc2626':r.flag==='low'?'#d97706':'#000'}">${r.value || '—'}</td>
+            <td>${r.unit || '—'}</td>
+            <td>${r.referenceRange || '—'}</td>
+            <td>${r.flag ? r.flag.toUpperCase() : '—'}</td>
+          </tr>`).join('')
+      : (req.tests || []).map(t => `
+          <tr><td>${t}</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`).join('');
+
+    const w = window.open('', '_blank', 'width=820,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><title>Lab ${result ? 'Result' : 'Request'} — ${patientName}</title>
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Times New Roman',Times,serif;background:#fff;color:#000;padding:28px;font-size:13px}
+        h1{font-size:16px;text-align:center;margin-bottom:2px}
+        .sub{text-align:center;font-size:11px;margin-bottom:16px;color:#333}
+        .meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;border-top:1px solid #000;border-bottom:1px solid #000;padding:8px 0;margin-bottom:14px;font-size:12px}
+        .meta div{min-width:45%}
+        .meta b{display:inline-block;min-width:110px}
+        table{width:100%;border-collapse:collapse;margin-bottom:14px}
+        th,td{border:1px solid #000;padding:6px 8px;text-align:left;font-size:12px}
+        th{background:#eee;text-transform:uppercase;font-size:10px}
+        .sig{margin-top:40px;display:flex;justify-content:space-between}
+        .sig div{width:45%;border-top:1px solid #000;padding-top:4px;font-size:11px}
+        @media print{body{padding:10px}}
+      </style></head><body>
+      <h1>Nigerian Army College of Nursing (NACON)</h1>
+      <div class="sub">${result ? 'Laboratory Result' : 'Laboratory Request Form'}</div>
+      <div class="meta">
+        <div><b>Patient:</b> ${patientName || '—'}</div>
+        <div><b>EMR No.:</b> ${emrNumber || '—'}</div>
+        <div><b>Date:</b> ${formatTs(req.requestedAt)}</div>
+        <div><b>Priority:</b> ${(req.urgency || 'routine').toUpperCase()}</div>
+        <div><b>Requested by:</b> ${req.requestedBy || '—'}</div>
+        <div><b>Status:</b> ${req.status || 'pending'}</div>
+        ${req.notes ? `<div style="min-width:100%"><b>Clinical notes:</b> ${req.notes}</div>` : ''}
+        ${result ? `<div><b>Reported by:</b> ${result.resultEnteredBy || '—'}</div>
+        <div><b>Reported on:</b> ${formatTs(result.completedAt)}</div>` : ''}
+      </div>
+      <table>
+        <thead><tr><th>Test</th><th>Result</th><th>Unit</th><th>Ref. Range</th><th>Flag</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="sig">
+        <div>Requesting clinician signature</div>
+        <div>Lab officer signature</div>
+      </div>
+      </body></html>`);
+    w.document.close(); w.focus();
+    setTimeout(() => w.print(), 400);
+  };
 
   if (!allRequests.length) return (
     <div className="card">
@@ -2779,6 +2858,13 @@ function LabResultsHistory({ labResults, labRequests }) {
               <span className={`badge ${STATUS_BADGE_L[req.status]||'badge-neutral'}`} style={{fontSize:10}}>
                 {req.status}
               </span>
+              <button onClick={e => { e.stopPropagation(); printLabSlip(req, result); }}
+                title="Print lab slip"
+                style={{ background:'none', border:'1px solid var(--border)', borderRadius:6,
+                  width:28, height:28, cursor:'pointer', display:'flex', alignItems:'center',
+                  justifyContent:'center', color:'var(--t2)', flexShrink:0 }}>
+                <i className="ti ti-printer" style={{ fontSize:14 }} />
+              </button>
               <i className={`ti ${isOpen?'ti-chevron-up':'ti-chevron-down'}`}
                 style={{ fontSize:16, color:'var(--t3)', flexShrink:0 }} />
             </div>

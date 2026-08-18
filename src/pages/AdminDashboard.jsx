@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { listenPatients, getTodayStats, getAllUsers } from '../lib/emr';
+import { exportFullBackupJSON, exportCollectionCSV, BACKUP_COLLECTIONS } from '../lib/exportBackup';
+import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
@@ -10,6 +12,9 @@ export default function AdminDashboard() {
   const [stats,   setStats]   = useState({});
   const [users,   setUsers]   = useState([]);
   const [patients,setPatients]= useState([]);
+  const [exporting, setExporting] = useState(false); // full backup in progress
+  const [exportingCol, setExportingCol] = useState(null); // single-collection CSV in progress ('' key)
+  const [csvCol, setCsvCol] = useState(BACKUP_COLLECTIONS[0].key);
 
   useEffect(() => {
     getTodayStats().then(setStats);
@@ -22,6 +27,30 @@ export default function AdminDashboard() {
     doctor:'badge-ok', nurse:'badge-info', records:'badge-warn',
     admin:'badge-danger', subadmin:'badge-neutral',
   }[r]||'badge-neutral');
+
+  const handleFullBackup = async () => {
+    setExporting(true);
+    try {
+      await exportFullBackupJSON({ performedBy: profile?.displayName || profile?.email, performedByRole: profile?.role });
+      toast.success('Backup downloaded');
+    } catch (e) {
+      console.error('Full backup export failed:', e);
+      toast.error('Export failed: ' + (e?.message || String(e)));
+    }
+    setExporting(false);
+  };
+
+  const handleCsvExport = async () => {
+    setExportingCol(csvCol);
+    try {
+      await exportCollectionCSV(csvCol, { performedBy: profile?.displayName || profile?.email, performedByRole: profile?.role });
+      toast.success('CSV downloaded');
+    } catch (e) {
+      console.error('CSV export failed:', e);
+      toast.error('Export failed: ' + (e?.message || String(e)));
+    }
+    setExportingCol(null);
+  };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
@@ -50,6 +79,41 @@ export default function AdminDashboard() {
               <div className="stat-value">{s.value}</div>
             </div>
           ))}
+        </div>
+
+        <div className="card" style={{marginBottom:12}}>
+          <div className="card-header">
+            <div className="card-title"><i className="ti ti-database-export" />Data Export &amp; Backup</div>
+          </div>
+          <div className="card-body">
+            <p style={{fontSize:11,color:'var(--t3)',marginBottom:12,lineHeight:1.6}}>
+              For records-retention requirements. Full backup includes every patient, visit, vitals,
+              prescription, care plan, lab, and audit record as one restorable JSON file. Every export
+              is itself logged to the audit trail.
+            </p>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:12}}>
+              <button className="btn btn-primary" onClick={handleFullBackup} disabled={exporting}>
+                {exporting
+                  ? <><i className="ti ti-loader-2" style={{animation:'spin 1s linear infinite'}} /> Exporting…</>
+                  : <><i className="ti ti-download" /> Export full backup (JSON)</>
+                }
+              </button>
+            </div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+              <select className="form-input" style={{width:'auto',minWidth:180}}
+                value={csvCol} onChange={e=>setCsvCol(e.target.value)}>
+                {BACKUP_COLLECTIONS.map(c => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </select>
+              <button className="btn" onClick={handleCsvExport} disabled={!!exportingCol}>
+                {exportingCol
+                  ? <><i className="ti ti-loader-2" style={{animation:'spin 1s linear infinite'}} /> Exporting…</>
+                  : <><i className="ti ti-file-spreadsheet" /> Export as CSV</>
+                }
+              </button>
+            </div>
+          </div>
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
