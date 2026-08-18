@@ -964,7 +964,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.filter(t => t.roles.includes(profile?.role?.toLowerCase())).map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor');  }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor' && t.id !== 'careplan');  }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
