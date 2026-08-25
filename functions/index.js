@@ -32,6 +32,13 @@ admin.initializeApp();
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const MODEL = 'gemini-2.5-flash-lite';
 
+// Nursing-reminders Telegram bot (FBS/RBS timing, drug administration
+// timing, IV infusion timing) — see functions/telegramBot.js and
+// functions/scheduledReminders.js. Requires the TELEGRAM_BOT_TOKEN secret:
+//   firebase functions:secrets:set TELEGRAM_BOT_TOKEN
+exports.telegramWebhook = require('./telegramBot').telegramWebhook;
+exports.scheduledReminders = require('./scheduledReminders').scheduledReminders;
+
 // Allow the NACON-EMR web app (any origin — the real gate is the Firebase
 // ID token check below, not CORS) to call this from the browser.
 function applyCors(res) {

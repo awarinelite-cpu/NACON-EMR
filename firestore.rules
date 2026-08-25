@@ -139,5 +139,37 @@ service cloud.firestore {
       allow read:  if isAnyStaff();
       allow write: if isAuth() && isActive() && getRole() in ['lab','admin','subadmin'];
     }
+
+    // ── Telegram nursing-reminders bot ──
+    // Medication / IV / glucose reminder queues — clinical staff create and
+    // manage them from the app; the bot's webhook (Cloud Function, Admin SDK)
+    // updates status server-side and bypasses these rules entirely.
+    match /med_reminders/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /iv_infusions/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    match /glucose_schedule/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isClinical() || isAdmin();
+    }
+    // Short-lived linking codes — a signed-in staff member can create one
+    // for themselves; the bot webhook (Admin SDK) is what marks it used.
+    match /link_codes/{code} {
+      allow read:   if isAnyStaff();
+      allow create: if isAnyStaff() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false; // only the webhook (Admin SDK) marks these used
+    }
+    // Telegram <-> nurse link records — only the webhook (Admin SDK) writes
+    // these; the owner can read their own to show "Linked" status, and may
+    // delete it themselves to unlink from the app.
+    match /telegram_links/{uid} {
+      allow read:   if isAuth() && (request.auth.uid == uid || isAdmin());
+      allow delete: if isAuth() && request.auth.uid == uid;
+      allow create, update: if false; // written by the webhook via Admin SDK
+    }
   }
 }

@@ -1,11 +1,44 @@
 // src/pages/Settings.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import toast from 'react-hot-toast';
+import { generateLinkCode, listenTelegramLink, unlinkTelegram } from '../lib/telegramReminders';
+
+const BOT_USERNAME = process.env.REACT_APP_TELEGRAM_BOT_USERNAME || null;
 
 export default function Settings() {
   const { profile, theme, toggleTheme } = useAuth();
   const [copied, setCopied] = useState('');
+  const [tgLink, setTgLink] = useState(null);
+  const [tgCode, setTgCode] = useState(null);
+  const [tgLoading, setTgLoading] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    return listenTelegramLink(profile.uid, setTgLink);
+  }, [profile?.uid]);
+
+  const handleGenerateCode = async () => {
+    setTgLoading(true);
+    try {
+      const code = await generateLinkCode(profile.uid, profile.displayName);
+      setTgCode(code);
+    } catch (err) {
+      console.error('[Settings] generateLinkCode failed:', err);
+      toast.error('Could not generate a code — try again');
+    }
+    setTgLoading(false);
+  };
+
+  const handleUnlink = async () => {
+    try {
+      await unlinkTelegram(profile.uid);
+      toast.success('Telegram unlinked');
+    } catch (err) {
+      console.error('[Settings] unlinkTelegram failed:', err);
+      toast.error('Failed to unlink');
+    }
+  };
 
   const copy = (text, label) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -33,6 +66,12 @@ export default function Settings() {
     { collection: 'uploads',        fields: 'emrNumber ASC, uploadedAt DESC' },
     { collection: 'visits',         fields: 'emrNumber ASC, createdAt DESC' },
     { collection: 'audit_log',      fields: 'timestamp DESC' },
+    { collection: 'med_reminders',    fields: 'status ASC, nextDueAt ASC' },
+    { collection: 'med_reminders',    fields: 'assignedNurseUid ASC, status ASC' },
+    { collection: 'iv_infusions',     fields: 'status ASC, endAt ASC' },
+    { collection: 'iv_infusions',     fields: 'assignedNurseUid ASC, status ASC' },
+    { collection: 'glucose_schedule', fields: 'status ASC, dueAt ASC' },
+    { collection: 'glucose_schedule', fields: 'assignedNurseUid ASC, status ASC' },
   ];
 
   return (
@@ -89,6 +128,48 @@ export default function Settings() {
               To change your password, use the <strong>Reset link</strong> button in User Management,
               or ask another admin to reset it for you.
             </div>
+          </div>
+        </div>
+
+        {/* ── TELEGRAM BOT ── */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title"><i className="ti ti-brand-telegram" />Telegram Bot</div>
+          </div>
+          <div className="card-body">
+            <p style={{ fontSize:13, color:'var(--t2)', marginTop:0 }}>
+              Link your account to get medication, IV infusion, and FBS/RBS glucose-check
+              reminders as DMs on Telegram.
+            </p>
+            {tgLink ? (
+              <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                <span className="badge" style={{ background:'var(--success-bg)', color:'var(--success)' }}>
+                  ✅ Linked{tgLink.telegramFirstName ? ` as ${tgLink.telegramFirstName}` : ''}
+                </span>
+                <button className="btn btn-sm btn-outline" onClick={handleUnlink}>Unlink</button>
+              </div>
+            ) : (
+              <div>
+                {tgCode ? (
+                  <div className="alert alert-info" style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    <div>
+                      In Telegram, open {BOT_USERNAME ? <strong>@{BOT_USERNAME}</strong> : 'the NACON-EMR bot'} and send:
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <code style={{ fontSize:16, fontWeight:700 }}>/link {tgCode}</code>
+                      <button className="btn btn-sm" onClick={() => copy(`/link ${tgCode}`, 'Command')}>
+                        {copied === 'Command' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--t3)' }}>Code expires in 15 minutes.</div>
+                  </div>
+                ) : (
+                  <button className="btn" disabled={tgLoading} onClick={handleGenerateCode}>
+                    <i className="ti ti-link" /> {tgLoading ? 'Generating…' : 'Generate link code'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

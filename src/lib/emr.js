@@ -97,6 +97,11 @@ export const COL = {
   LAB_RESULTS:  'lab_results',
   CARE_PLANS:   'nursing_care_plans',
   ALERTS:       'clinical_alerts',
+  MED_REMINDERS:    'med_reminders',
+  IV_INFUSIONS:     'iv_infusions',
+  GLUCOSE_SCHEDULE: 'glucose_schedule',
+  TELEGRAM_LINKS:   'telegram_links',
+  LINK_CODES:       'link_codes',
 };
 
 // ── ROLES ────────────────────────────────────

@@ -18,6 +18,7 @@ import {
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
+import BotRemindersTab from '../components/patients/BotRemindersTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import GlycemicChart from '../components/patients/GlycemicChart';
 import FluidBalanceChart from '../components/patients/FluidBalanceChart';
@@ -38,6 +39,7 @@ const TABS = [
   { id:'careplan', label:'Care Plan',       icon:'📝',  roles: ['nurse'] },
   { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
   { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
+  { id:'reminders',label:'Bot Reminders',   icon:'🔔',  roles: ['doctor','nurse'] },
   { id:'lab',      label:'Lab',             icon:'🔬',  roles: ['doctor','nurse','lab','admin','subadmin'] },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄',  roles: ['doctor','nurse'] },
   { id:'uploads',  label:'Documents',       icon:'📁',  roles: ['doctor','nurse','records','admin','subadmin','lab'] },
@@ -2262,6 +2264,15 @@ export default function PatientProfile() {
             visitId={visitId}
             prescriptions={rx}
             patient={patient}
+          />
+        )}
+
+        {/* ── BOT REMINDERS TAB ── */}
+        {activeTab==='reminders' && (
+          <BotRemindersTab
+            emrNumber={emrNumber}
+            patient={patient}
+            prescriptions={rx}
           />
         )}
 
