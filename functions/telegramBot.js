@@ -64,12 +64,12 @@ async function handleUnlink(token, chatId) {
 
 async function handleStatus(token, chatId) {
   const link = await getLinkByChatId(chatId);
-  await sendMessage(token, chatId, link ? '✅ You are linked and will receive reminders here.' : '❌ Not linked. Send /link <code> using a code from Settings in the web app.');
+  await sendMessage(token, chatId, link ? '✅ You are linked and will receive reminders here.' : '❌ Not linked. Send /link followed by your code (e.g. /link 123456) using a code from Settings in the web app.');
 }
 
 async function handlePending(token, chatId) {
   const link = await getLinkByChatId(chatId);
-  if (!link) { await sendMessage(token, chatId, 'Not linked. Send /link <code> first.'); return; }
+  if (!link) { await sendMessage(token, chatId, 'Not linked. Send /link followed by your code first (e.g. /link 123456).'); return; }
   const [meds, ivs, glucose] = await Promise.all([
     db().collection('med_reminders').where('assignedNurseUid', '==', link.uid).where('status', '==', 'pending').get(),
     db().collection('iv_infusions').where('assignedNurseUid', '==', link.uid).where('status', '==', 'running').get(),
@@ -124,7 +124,7 @@ async function handleMessage(token, msg) {
   const chatId = msg.chat.id;
   const text = (msg.text || '').trim();
   if (text.startsWith('/start')) {
-    await sendMessage(token, chatId, '👋 Welcome to the NACON-EMR nursing reminders bot.\n\nSend /link <code> to connect your account (generate a code from Settings in the web app). Once linked you\'ll get DMs for medication, IV infusion, and FBS/RBS glucose-check timing.');
+    await sendMessage(token, chatId, '👋 Welcome to the NACON-EMR nursing reminders bot.\n\nSend /link followed by your code to connect your account, e.g. /link 123456 (generate a code from Settings in the web app). Once linked you\'ll get DMs for medication, IV infusion, and FBS/RBS glucose-check timing.');
     return;
   }
   if (text.startsWith('/link')) { await handleLink(token, chatId, msg.from, text.split(' ')[1]); return; }
@@ -142,7 +142,7 @@ async function handleCallback(token, cq) {
 
   const link = await getLinkByChatId(chatId);
   if (!link) {
-    await answerCallbackQuery(token, cq.id, 'Not linked — send /link <code> first.');
+    await answerCallbackQuery(token, cq.id, 'Not linked — send /link followed by your code first.');
     return;
   }
   const user = await getUserDoc(link.uid);
