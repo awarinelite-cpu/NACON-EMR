@@ -10,6 +10,9 @@ import OfflineBanner           from '../shared/OfflineBanner';
 export default function AppShell() {
   const [stats, setStats]             = useState({ waiting: 0, sickBay: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(
+    () => localStorage.getItem('nacon_sidebar_collapsed') === '1'
+  );
   const mainRef    = useRef(null);
   const lastScroll = useRef(0);
   const location   = useLocation();
@@ -65,10 +68,29 @@ export default function AppShell() {
   }, []);
 
   const closeSidebar  = () => setSidebarOpen(false);
-  const toggleSidebar = () => setSidebarOpen(o => !o);
+
+  // Same hamburger button drives two different behaviors depending on
+  // viewport: on mobile it slides the sidebar in/out over the content;
+  // on desktop it reopens the sidebar after it's been collapsed via the
+  // in-sidebar collapse button (see toggleDesktopCollapse below).
+  const toggleSidebar = () => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(o => !o);
+    } else {
+      setDesktopCollapsed(false);
+    }
+  };
+
+  const toggleDesktopCollapse = () => {
+    setDesktopCollapsed(c => {
+      const next = !c;
+      localStorage.setItem('nacon_sidebar_collapsed', next ? '1' : '0');
+      return next;
+    });
+  };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${desktopCollapsed ? ' sidebar-desktop-collapsed' : ''}`}>
       <button
         className="hamburger-btn"
         onClick={toggleSidebar}
@@ -89,7 +111,7 @@ export default function AppShell() {
         aria-hidden="true"
       />
 
-      <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} />
+      <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} onCollapse={toggleDesktopCollapse} />
 
       <div className="main-area" ref={mainRef}>
         <OfflineBanner />
