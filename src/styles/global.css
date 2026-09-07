@@ -94,13 +94,13 @@
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html {
-  font-size: 14px;
+  font-size: 16px;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
 }
 body {
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 16px;
   background: var(--main-bg);
   color: var(--t1);
   min-height: 100vh;
