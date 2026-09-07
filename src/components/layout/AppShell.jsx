@@ -80,6 +80,15 @@ export default function AppShell() {
 
   const closeSidebar  = () => setSidebarOpen(false);
 
+  const openDesktopSidebar = () => {
+    setDesktopCollapsed(false);
+    localStorage.setItem('nacon_sidebar_collapsed', '0');
+  };
+  const closeDesktopSidebar = () => {
+    setDesktopCollapsed(true);
+    localStorage.setItem('nacon_sidebar_collapsed', '1');
+  };
+
   // One hamburger button, two contexts: on mobile it slides the sidebar
   // in/out over the content; on desktop it shows/hides the sidebar, which
   // is collapsed (width 0) by default so the hamburger is always visible.
@@ -87,15 +96,21 @@ export default function AppShell() {
     if (window.innerWidth <= 768) {
       setSidebarOpen(o => !o);
     } else {
-      setDesktopCollapsed(c => {
-        const next = !c;
-        localStorage.setItem('nacon_sidebar_collapsed', next ? '1' : '0');
-        return next;
-      });
+      desktopCollapsed ? openDesktopSidebar() : closeDesktopSidebar();
+    }
+  };
+
+  // Clicking anywhere outside the sidebar closes it, on both mobile and desktop
+  const closeNav = () => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    } else {
+      closeDesktopSidebar();
     }
   };
 
   const navVisible = isDesktop ? !desktopCollapsed : sidebarOpen;
+  const backdropActive = isDesktop ? !desktopCollapsed : sidebarOpen;
 
   return (
     <div className={`app-shell${desktopCollapsed ? ' sidebar-desktop-collapsed' : ''}`}>
@@ -112,10 +127,10 @@ export default function AppShell() {
         <AlertsBell />
       </div>
 
-      {/* Backdrop — closes sidebar on tap outside */}
+      {/* Backdrop — closes sidebar on click outside (dims on mobile, invisible click-catcher on desktop) */}
       <div
-        className={`sidebar-backdrop${sidebarOpen ? ' active' : ''}`}
-        onClick={closeSidebar}
+        className={`sidebar-backdrop${backdropActive ? ' active' : ''}${isDesktop ? ' sidebar-backdrop--desktop' : ''}`}
+        onClick={closeNav}
         aria-hidden="true"
       />
 

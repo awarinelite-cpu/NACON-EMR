@@ -899,6 +899,12 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   .app-shell:not(.sidebar-desktop-collapsed) .hamburger-btn {
     left: 232px;
   }
+
+  /* Invisible click-catcher: closes the sidebar when clicking outside it */
+  .sidebar-backdrop--desktop {
+    display: block;
+    background: transparent;
+  }
 }
 
 /* ══════════════════════════════════
