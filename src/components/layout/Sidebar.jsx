@@ -90,7 +90,7 @@ const NAV = {
   ],
 };
 
-export default function Sidebar({ stats = {}, isOpen, onClose, onCollapse }) {
+export default function Sidebar({ stats = {}, isOpen, onClose }) {
   const { profile, logout, toggleTheme, theme } = useAuth();
   const navigate   = useNavigate();
   const location   = useLocation();
@@ -155,14 +155,6 @@ export default function Sidebar({ stats = {}, isOpen, onClose, onCollapse }) {
           <div className="sb-name">NACON MRS</div>
           <div className="sb-loc">Yaba · Lagos</div>
         </div>
-        <button
-          className="sb-collapse-btn"
-          onClick={onCollapse}
-          aria-label="Hide sidebar"
-          title="Hide sidebar"
-        >
-          <i className="ti ti-layout-sidebar-left-collapse" aria-hidden="true" />
-        </button>
       </div>
 
       {/* Search */}

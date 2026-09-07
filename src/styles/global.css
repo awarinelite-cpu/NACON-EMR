@@ -164,20 +164,6 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .sb-brand-text { overflow: hidden; }
 .sb-name { font-size: 13px; font-weight: 700; color: #D6E8F8; white-space: nowrap; }
 .sb-loc  { font-size: 10px; color: var(--sb-text3); font-weight: 500; }
-.sb-collapse-btn {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--sb-text3);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  display: none; /* shown on desktop only, see below */
-  transition: var(--trans);
-}
-.sb-collapse-btn:hover { background: var(--sb-bg3); color: var(--sb-text2); }
 
 /* Search inside sidebar */
 .sb-search {
@@ -892,8 +878,11 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
    DESKTOP SIDEBAR COLLAPSE ≥769px
 ══════════════════════════════════ */
 @media (min-width: 769px) {
-  /* Small collapse button in the sidebar brand header */
-  .sb-collapse-btn { display: flex; align-items: center; justify-content: center; }
+  /* Hamburger toggle is always available on desktop */
+  .hamburger-btn { display: flex; }
+
+  /* Reserve room in the topbar so its content never sits under the hamburger */
+  .topbar { padding-left: 58px; }
 
   /* Sidebar fully hides (no reserved space) when collapsed */
   .app-shell.sidebar-desktop-collapsed .sidebar {
@@ -905,14 +894,10 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     pointer-events: none;
   }
 
-  /* Floating hamburger reappears (top-left) to bring the sidebar back */
-  .app-shell.sidebar-desktop-collapsed .hamburger-btn {
-    display: flex;
-  }
-
-  /* Give the topbar room so its content doesn't sit under the hamburger */
-  .app-shell.sidebar-desktop-collapsed .topbar {
-    padding-left: 58px;
+  /* When the sidebar is open, float the hamburger just past its edge
+     instead of on top of the brand logo */
+  .app-shell:not(.sidebar-desktop-collapsed) .hamburger-btn {
+    left: 232px;
   }
 }
 

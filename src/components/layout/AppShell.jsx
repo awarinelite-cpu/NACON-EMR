@@ -10,12 +10,23 @@ import OfflineBanner           from '../shared/OfflineBanner';
 export default function AppShell() {
   const [stats, setStats]             = useState({ waiting: 0, sickBay: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [desktopCollapsed, setDesktopCollapsed] = useState(
-    () => localStorage.getItem('nacon_sidebar_collapsed') === '1'
-  );
+  // Desktop: sidebar is hidden by default; a hamburger button opens it.
+  // Preference is remembered per-browser once the user changes it.
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
+    const saved = localStorage.getItem('nacon_sidebar_collapsed');
+    return saved === null ? true : saved === '1';
+  });
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth > 768);
   const mainRef    = useRef(null);
   const lastScroll = useRef(0);
   const location   = useLocation();
+
+  // Track viewport so the hamburger icon/behavior matches mobile vs desktop
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth > 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Auto-close sidebar on every route change
   useEffect(() => {
@@ -69,25 +80,22 @@ export default function AppShell() {
 
   const closeSidebar  = () => setSidebarOpen(false);
 
-  // Same hamburger button drives two different behaviors depending on
-  // viewport: on mobile it slides the sidebar in/out over the content;
-  // on desktop it reopens the sidebar after it's been collapsed via the
-  // in-sidebar collapse button (see toggleDesktopCollapse below).
+  // One hamburger button, two contexts: on mobile it slides the sidebar
+  // in/out over the content; on desktop it shows/hides the sidebar, which
+  // is collapsed (width 0) by default so the hamburger is always visible.
   const toggleSidebar = () => {
     if (window.innerWidth <= 768) {
       setSidebarOpen(o => !o);
     } else {
-      setDesktopCollapsed(false);
+      setDesktopCollapsed(c => {
+        const next = !c;
+        localStorage.setItem('nacon_sidebar_collapsed', next ? '1' : '0');
+        return next;
+      });
     }
   };
 
-  const toggleDesktopCollapse = () => {
-    setDesktopCollapsed(c => {
-      const next = !c;
-      localStorage.setItem('nacon_sidebar_collapsed', next ? '1' : '0');
-      return next;
-    });
-  };
+  const navVisible = isDesktop ? !desktopCollapsed : sidebarOpen;
 
   return (
     <div className={`app-shell${desktopCollapsed ? ' sidebar-desktop-collapsed' : ''}`}>
@@ -95,9 +103,9 @@ export default function AppShell() {
         className="hamburger-btn"
         onClick={toggleSidebar}
         aria-label="Toggle navigation"
-        aria-expanded={sidebarOpen}
+        aria-expanded={navVisible}
       >
-        <i className={`ti ${sidebarOpen ? 'ti-x' : 'ti-menu-2'}`} />
+        <i className={`ti ${navVisible ? 'ti-x' : 'ti-menu-2'}`} />
       </button>
 
       <div style={{ position: 'fixed', top: 10, right: 12, zIndex: 210 }}>
@@ -111,7 +119,7 @@ export default function AppShell() {
         aria-hidden="true"
       />
 
-      <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} onCollapse={toggleDesktopCollapse} />
+      <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} />
 
       <div className="main-area" ref={mainRef}>
         <OfflineBanner />
