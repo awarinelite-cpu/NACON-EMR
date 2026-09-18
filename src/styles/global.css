@@ -95,6 +95,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html {
   font-size: 16px;
+  zoom: 106.25%; /* scales all fixed px font-sizes app-wide: 16px base -> 17px */
   overscroll-behavior: none;
   overscroll-behavior-y: none;
 }
