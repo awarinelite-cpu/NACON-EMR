@@ -18,7 +18,6 @@ export default function AppShell() {
   });
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth > 768);
   const mainRef    = useRef(null);
-  const lastScroll = useRef(0);
   const location   = useLocation();
 
   // Track viewport so the hamburger icon/behavior matches mobile vs desktop
@@ -57,25 +56,6 @@ export default function AppShell() {
       setStats(prev => ({ ...prev, waiting: rows.length }));
     });
     return () => unsub();
-  }, []);
-
-  // Scroll listener — hides topbar on scroll down
-  useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const topbar = el.querySelector('.topbar');
-      if (!topbar) return;
-      const currentY = el.scrollTop;
-      if (currentY > lastScroll.current && currentY > 40) {
-        topbar.classList.add('topbar-hidden');
-      } else {
-        topbar.classList.remove('topbar-hidden');
-      }
-      lastScroll.current = currentY <= 0 ? 0 : currentY;
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
   const closeSidebar  = () => setSidebarOpen(false);

@@ -956,28 +956,19 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     display: block !important;
   }
 
-  /* Topbar: scroll-aware — hides on scroll down, shows on scroll up */
+  /* Topbar: always visible (no scroll-away behavior) — the title/search
+     row stays on screen so it's never cut off, and it reserves enough
+     height that the fixed hamburger/bell buttons sit inside it instead
+     of over the page content below. */
   .topbar {
-    padding: 9px 12px 9px 58px; /* left padding for hamburger button */
-    min-height: 56px; /* guarantee enough height to clear the fixed hamburger/bell even with a short title, so they never overlap the content below */
+    padding: 12px 12px 12px 58px; /* left padding for hamburger button */
+    min-height: 64px; /* comfortably taller than the 38px hamburger + its 10px offset, so it never overlaps cards below */
     flex-wrap: wrap;
     gap: 6px;
-    max-height: 120px;
     overflow: visible; /* allow search dropdown to show below topbar */
-    opacity: 1;
-    transition: max-height 0.32s ease, opacity 0.25s ease, padding 0.32s ease;
     flex-shrink: 0;
     position: relative;
     z-index: 50;
-  }
-  .topbar.topbar-hidden {
-    max-height: 56px; /* keep enough room to clear the fixed hamburger/bell buttons, so content below never scrolls under them */
-    overflow: hidden;
-    opacity: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    border-bottom-width: 0;
-    pointer-events: none;
   }
   /* Title takes full first line */
   .topbar-title {
