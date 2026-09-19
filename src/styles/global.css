@@ -248,7 +248,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   background: var(--main-bg);
   overflow: hidden;
   overscroll-behavior: none;
-  height: 100vh; /* ensure it fills the viewport height */
+  height: 100vh; /* fallback for browsers without dvh support */
+  height: 100dvh; /* real visible viewport height — avoids content hiding behind mobile browser chrome (address bar, gesture area) that 100vh doesn't account for */
 }
 
 /* Topbar */
@@ -947,7 +948,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     margin-left: 0 !important;
     width: 100vw;
     max-width: 100vw;
-    height: 100vh;
+    height: 100vh; /* fallback for browsers without dvh support */
+    height: 100dvh; /* real visible viewport height, so the scroll end lines up with what's actually on screen, not hidden behind the address bar */
     overflow-y: auto !important;
     overflow-x: hidden;
     overscroll-behavior: none;
@@ -1009,7 +1011,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
      to .main-area, so pages with more content than fits one screen (e.g.
      a 20+ patient list) stopped scrolling. */
   .page-content {
-    padding: 10px;
+    padding: 10px 10px 32px;
     overflow: visible;
   }
 
