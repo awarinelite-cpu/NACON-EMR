@@ -882,6 +882,10 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   /* Hamburger toggle is always available on desktop */
   .hamburger-btn { display: flex; }
 
+  /* Sidebar must stack above its own click-catcher backdrop (z-index 999),
+     otherwise the backdrop intercepts every click meant for a nav item. */
+  .sidebar { position: relative; z-index: 1000; }
+
   /* Reserve room in the topbar so its content never sits under the hamburger */
   .topbar { padding-left: 58px; }
 
