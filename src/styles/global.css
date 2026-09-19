@@ -1013,6 +1013,29 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overflow: visible;
   }
 
+  /* MAR page: same "two competing scrollable ancestors" bug as above —
+     the patient list tried to scroll independently inside a height-
+     constrained flex row, so it fell short of the real bottom on mobile.
+     Let everything flow naturally and stack, so .main-area is the only
+     scroll owner and the list reaches its true last item. */
+  .mar-split {
+    flex-direction: column;
+    overflow: visible !important;
+  }
+  .mar-patient-list {
+    width: 100% !important;
+    overflow: visible !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+  .mar-patient-list-scroll {
+    overflow-y: visible !important;
+    flex: none !important;
+  }
+  .mar-detail-panel {
+    overflow-y: visible !important;
+  }
+
   /* Profile layout: full width */
   /* Profile page: entire page scrolls as one unit on mobile */
   .profile-header {

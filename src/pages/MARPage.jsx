@@ -179,11 +179,11 @@ export default function MARPage() {
         </div>
       </div>
 
-      <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
+      <div className="mar-split" style={{ display:'flex', flex:1, overflow:'hidden' }}>
 
         {/* ── LEFT PANEL — patient list ── */}
         {!selected && (
-        <div style={{
+        <div className="mar-patient-list" style={{
           width:260, flexShrink:0,
           borderRight:'1px solid var(--border)',
           display:'flex', flexDirection:'column',
@@ -206,7 +206,7 @@ export default function MARPage() {
             </div>
           </div>
 
-          <div style={{ flex:1, overflowY:'auto' }}>
+          <div className="mar-patient-list-scroll" style={{ flex:1, overflowY:'auto' }}>
             {filteredPts.length === 0 && (
               <div style={{ padding:24, textAlign:'center', color:'var(--t3)', fontSize:12, fontWeight:700 }}>
                 No active patients
@@ -266,7 +266,7 @@ export default function MARPage() {
         )}
 
         {/* ── RIGHT PANEL — MAR content ── */}
-        <div style={{ flex:1, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:14 }}>
+        <div className="mar-detail-panel" style={{ flex:1, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:14 }}>
 
           {!selected ? (
             <div style={{
