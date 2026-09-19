@@ -940,40 +940,10 @@ export default function PatientProfile() {
           </div>
         )}
 
-        {/* Action Buttons — hidden entirely for records staff */}
-        {!isRecords && (
-        <div style={{
-          display:'flex', gap:6, flexWrap:'wrap',
-          padding:'8px 14px 10px',
-        }}>
-          {[
-            { tab:'vitals',  label:'Add Vitals',     icon:'ti-heart-rate-monitor', show: true },
-            { tab:'rx',      label:'Prescription',   icon:'ti-pill',               show: canPrescribe },
-            { tab:'nursing', label:'Nursing Report', icon:'ti-notes-medical',      show: isNurse },
-            { tab:'glucose', label:'Glucose',        icon:'ti-activity',           show: true },
-            { tab:'fluid',   label:'Fluid I/O',      icon:'ti-droplet',            show: true },
-            { tab:'uploads', label:'Wound Care',     icon:'ti-bandage',            show: isNurse || isDoctor },
-            { tab:'mar',     label:'Give Medication', icon:'ti-pill',              show: isNurse || isDoctor },
-            { tab:'lab',     label:'Order Lab',      icon:'ti-microscope',         show: isNurse || isDoctor },
-          ].filter(b => b.show).map((btn, i) => (
-            <button key={i} onClick={() => { setActiveTab(btn.tab); setViewOnly(false); }} style={{
-              display:'flex', alignItems:'center', gap:5,
-              padding:'6px 12px',
-              background:'var(--card-bg)',
-              border:'1px solid var(--border)',
-              borderRadius:8,
-              fontSize:11, fontWeight:700,
-              color:'var(--t2)',
-              cursor:'pointer',
-              fontFamily:'var(--font)',
-            }}>
-              <i className={`ti ${btn.icon}`} style={{ fontSize:13, color:'var(--accent)' }} />
-              {btn.label}
-            </button>
-          ))}
-        </div>
-        )}
+        {/* Quick actions have been merged into their matching tabs below —
+            tapping Vitals/Prescription/Fluid I/O/etc. now opens the add form directly. */}
       </div>
+
 
       {/* ══ TABS — always visible, sticky ══ */}
       <div style={{
@@ -985,7 +955,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.filter(t => t.roles.includes(profile?.role?.toLowerCase())).map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(t.id !== 'nursing' && t.id !== 'doctor' && t.id !== 'careplan');  }} style={{
+          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(['visit','reminders','referral'].includes(t.id)); }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
