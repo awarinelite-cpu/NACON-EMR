@@ -968,8 +968,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     z-index: 50;
   }
   .topbar.topbar-hidden {
-    max-height: 0;
-    overflow: hidden; /* clip during collapse animation */
+    max-height: 56px; /* keep enough room to clear the fixed hamburger/bell buttons, so content below never scrolls under them */
+    overflow: hidden;
     opacity: 0;
     padding-top: 0;
     padding-bottom: 0;
