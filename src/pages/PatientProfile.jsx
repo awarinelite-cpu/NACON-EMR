@@ -977,38 +977,42 @@ export default function PatientProfile() {
 
         {/* ── VISIT TAB ── */}
         {activeTab==='visit' && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:16 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
-            {/* Left: Patient profile card */}
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              <div className="card">
-                <div className="card-header">
-                  <div className="card-title"><i className="ti ti-user" />Patient Profile</div>
-                </div>
-                <div className="card-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                  {/* Avatar */}
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, paddingBottom:14, borderBottom:'1px solid var(--border)' }}>
-                    <div style={{
-                      width:64, height:64, borderRadius:'50%',
-                      background:'var(--accent-bg)', color:'var(--accent)',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:24, fontWeight:700,
-                    }}>
-                      {(patient.surname?.[0]||'')+(patient.firstName?.[0]||'')}
-                    </div>
-                    <div style={{ textAlign:'center' }}>
-                      <div style={{ fontWeight:700, fontSize:15 }}>{patient.surname} {patient.firstName}</div>
-                      <div style={{ fontSize:11, color:'var(--t3)', fontFamily:'var(--mono)' }}>{patient.emrNumber}</div>
-                      <div style={{ fontSize:11, color:'var(--t3)' }}>{patient.classSet}</div>
-                      <span style={{
-                        display:'inline-block', marginTop:4,
-                        background: statusColor+'22', color: statusColor,
-                        fontSize:10, fontWeight:700, padding:'2px 10px', borderRadius:20,
-                        textTransform:'capitalize',
-                      }}>{patient.status}</span>
-                    </div>
+            {/* Patient profile — horizontal, swipeable strip at the top */}
+            <div style={{
+              display:'flex', gap:10, overflowX:'auto', paddingBottom:6,
+              scrollSnapType:'x proximity', WebkitOverflowScrolling:'touch',
+            }}>
+              {/* Identity */}
+              <div className="card" style={{ flex:'0 0 190px', minWidth:190, scrollSnapAlign:'start' }}>
+                <div className="card-body" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, textAlign:'center' }}>
+                  <div style={{
+                    width:56, height:56, borderRadius:'50%',
+                    background:'var(--accent-bg)', color:'var(--accent)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:20, fontWeight:700,
+                  }}>
+                    {(patient.surname?.[0]||'')+(patient.firstName?.[0]||'')}
                   </div>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:14 }}>{patient.surname} {patient.firstName}</div>
+                    <div style={{ fontSize:11, color:'var(--t3)', fontFamily:'var(--mono)' }}>{patient.emrNumber}</div>
+                    <div style={{ fontSize:11, color:'var(--t3)' }}>{patient.classSet}</div>
+                    <span style={{
+                      display:'inline-block', marginTop:4,
+                      background: statusColor+'22', color: statusColor,
+                      fontSize:10, fontWeight:700, padding:'2px 10px', borderRadius:20,
+                      textTransform:'capitalize',
+                    }}>{patient.status}</span>
+                  </div>
+                </div>
+              </div>
 
+              {/* Details */}
+              <div className="card" style={{ flex:'0 0 220px', minWidth:220, scrollSnapAlign:'start' }}>
+                <div className="card-header"><div className="card-title"><i className="ti ti-user" />Details</div></div>
+                <div className="card-body" style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {[
                     ['Date of Birth',  patient.dob],
                     ['Gender',         patient.sex],
@@ -1024,54 +1028,59 @@ export default function PatientProfile() {
                       <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)' }}>{val || '—'}</div>
                     </div>
                   ))}
-
-                  <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
-                    <div style={{ fontSize:9, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>Known Allergies</div>
-                    {(() => {
-                      const a = patient.allergies?.trim();
-                      const has = a && a.toLowerCase() !== 'none' && a.toLowerCase() !== 'nil';
-                      return (
-                        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color: has ? 'var(--danger)' : 'var(--success)' }}>
-                          {has ? `⚠ ${a}` : '✓ No known allergies'}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Emergency contact */}
-                  {(patient.nextOfKin || patient.nextOfKinTel) && (
-                    <div style={{ borderTop:'1px solid var(--border)', paddingTop:12, marginTop:4 }}>
-                      <div style={{ fontSize:9, fontWeight:800, color:'var(--danger)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:6 }}>
-                        🚨 Emergency Contact
-                      </div>
-                      {[
-                        ['Name',         patient.nextOfKin],
-                        ['Relationship', patient.nextOfKinRel],
-                        ['Phone',        patient.nextOfKinTel],
-                      ].map(([l, v]) => v ? (
-                        <div key={l} style={{ display:'flex', gap:8, marginBottom:3 }}>
-                          <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', width:80, flexShrink:0 }}>{l}:</span>
-                          <span style={{ fontSize:11, fontWeight:700, color:'var(--t1)' }}>{v}</span>
-                        </div>
-                      ) : null)}
-                      {patient.nextOfKinTel && (
-                        <a href={`tel:${patient.nextOfKinTel}`} style={{
-                          display:'inline-flex', alignItems:'center', gap:5,
-                          marginTop:6, padding:'5px 10px',
-                          background:'var(--danger)', color:'#fff',
-                          borderRadius:6, fontSize:11, fontWeight:700, textDecoration:'none',
-                        }}>
-                          <i className="ti ti-phone" style={{fontSize:12}} /> Call now
-                        </a>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
 
+              {/* Allergies */}
+              <div className="card" style={{ flex:'0 0 160px', minWidth:160, scrollSnapAlign:'start' }}>
+                <div className="card-header"><div className="card-title"><i className="ti ti-alert-triangle" />Allergies</div></div>
+                <div className="card-body">
+                  {(() => {
+                    const a = patient.allergies?.trim();
+                    const has = a && a.toLowerCase() !== 'none' && a.toLowerCase() !== 'nil';
+                    return (
+                      <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color: has ? 'var(--danger)' : 'var(--success)' }}>
+                        {has ? `⚠ ${a}` : '✓ No known allergies'}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Emergency contact */}
+              {(patient.nextOfKin || patient.nextOfKinTel) && (
+                <div className="card" style={{ flex:'0 0 210px', minWidth:210, scrollSnapAlign:'start' }}>
+                  <div className="card-header">
+                    <div className="card-title" style={{ color:'var(--danger)' }}>🚨 Emergency Contact</div>
+                  </div>
+                  <div className="card-body">
+                    {[
+                      ['Name',         patient.nextOfKin],
+                      ['Relationship', patient.nextOfKinRel],
+                      ['Phone',        patient.nextOfKinTel],
+                    ].map(([l, v]) => v ? (
+                      <div key={l} style={{ display:'flex', gap:8, marginBottom:3 }}>
+                        <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', width:80, flexShrink:0 }}>{l}:</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:'var(--t1)' }}>{v}</span>
+                      </div>
+                    ) : null)}
+                    {patient.nextOfKinTel && (
+                      <a href={`tel:${patient.nextOfKinTel}`} style={{
+                        display:'inline-flex', alignItems:'center', gap:5,
+                        marginTop:6, padding:'5px 10px',
+                        background:'var(--danger)', color:'#fff',
+                        borderRadius:6, fontSize:11, fontWeight:700, textDecoration:'none',
+                      }}>
+                        <i className="ti ti-phone" style={{fontSize:12}} /> Call now
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Latest vitals mini */}
               {latestV && (
-                <div className="card">
+                <div className="card" style={{ flex:'0 0 220px', minWidth:220, scrollSnapAlign:'start' }}>
                   <div className="card-header">
                     <div className="card-title"><i className="ti ti-heart-rate-monitor" />Latest Vitals</div>
                     <span style={{ fontSize:10, color:'var(--t3)' }}>{formatTime(latestV.recordedAt)}</span>
@@ -1102,8 +1111,8 @@ export default function PatientProfile() {
               )}
             </div>
 
-            {/* Right: Timeline */}
-            <div className="card" style={{ height:'fit-content' }}>
+            {/* Timeline — full width below the profile strip */}
+            <div className="card">
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-activity" />Visit Timeline</div>
                 <span style={{ fontSize:11, color:'var(--t3)' }}>{timeline.length} events</span>
