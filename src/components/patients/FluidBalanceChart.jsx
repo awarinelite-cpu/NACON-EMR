@@ -156,7 +156,7 @@ export default function FluidBalanceChart({ fluid = [] }) {
               <React.Fragment key={d.key}>
                 <tr>
                   <td colSpan={6} style={{
-                    fontWeight: 800, fontSize: 18, color: 'var(--t1)', textAlign: 'center',
+                    fontWeight: 800, fontSize: 18, color: '#800000', textAlign: 'center',
                     background: 'var(--card-bg2)', padding: '12px 10px',
                   }}>
                     {d.label} — In {d.totalIn}ml, Out {d.totalOut}ml, Balance {d.balance >= 0 ? '+' : ''}{d.balance}ml
