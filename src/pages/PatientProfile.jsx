@@ -1,4 +1,5 @@
 // src/pages/PatientProfile.jsx
+import { useTheme } from '../lib/ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -72,6 +73,7 @@ const newFluidForm = () => {
 };
 
 export default function PatientProfile() {
+  const isDarkTheme = !!(useTheme() || {}).dark;
   const { emrNumber } = useParams();
   const { profile }   = useAuth();
   const navigate      = useNavigate();
@@ -1341,7 +1343,7 @@ export default function PatientProfile() {
               if (!rawIdentity) return null; // only show if identity was set at registration
 
               const isSoldier   = String(rawIdentity).toLowerCase() === 'soldier';
-              const accentColor = isSoldier ? '#1d4ed8' : '#7c3aed';
+              const accentColor = isSoldier ? (isDarkTheme ? '#7db4ff' : '#1d4ed8') : (isDarkTheme ? '#c4a8ff' : '#7c3aed');
               const formLabel   = isSoldier ? 'NHIS Prescription Form' : 'NACON Civilian Prescription Form';
               const formIcon    = isSoldier ? 'ti-shield-filled' : 'ti-user';
 
@@ -1474,15 +1476,15 @@ export default function PatientProfile() {
                 rxBox: { border:'2px solid #000', padding:8, minHeight:140, fontSize:12, whiteSpace:'pre-wrap', marginTop:4 },
                 rxSym: { fontWeight:'bold', fontSize:22, fontFamily:'serif', verticalAlign:'top', marginRight:4 },
               };
-              const inp = { padding:'6px 8px', borderRadius:6, border:'1px solid var(--border)',
-                background:'var(--input-bg,#f4f4f4)', fontSize:12, width:'100%',
-                fontFamily:'inherit', color:'var(--t1)' };
-              const lbl = { fontSize:10, fontWeight:700, textTransform:'uppercase',
-                display:'block', marginBottom:2, color:'var(--t3)' };
+              const inp = { padding:'8px 10px', borderRadius:6, border:'1.5px solid var(--t3)',
+                background:'var(--card-bg)', fontSize:14, width:'100%',
+                fontFamily:'inherit', color:'var(--t1)', colorScheme: isDarkTheme ? 'dark' : 'light' };
+              const lbl = { fontSize:12, fontWeight:800, textTransform:'uppercase',
+                display:'block', marginBottom:4, color:'var(--t2)' };
 
               return (
                 <>
-                <div className="card" style={{ border:`2px solid ${accentColor}22` }}>
+                <div className="card" style={{ border:`2px solid ${accentColor}55` }}>
                   {/* Collapsed header — click to open */}
                   <div className="card-header"
                     style={{ cursor:'pointer', userSelect:'none' }}
@@ -1490,7 +1492,7 @@ export default function PatientProfile() {
                     <div className="card-title" style={{ color: accentColor }}>
                       <i className={`ti ${formIcon}`} style={{ color: accentColor }} />
                       {formLabel}
-                      <span style={{ fontSize:10, fontWeight:400, color:'var(--t3)', marginLeft:8 }}>
+                      <span style={{ fontSize:11, fontWeight:600, color:'var(--t2)', marginLeft:8 }}>
                         — patient info auto-filled
                       </span>
                     </div>
@@ -1508,7 +1510,7 @@ export default function PatientProfile() {
                       <button
                         onClick={e => { e.stopPropagation(); setOfficialRx(officialRx ? null : defaultRx); }}
                         style={{ background: accentColor, border:'none', borderRadius:8,
-                          padding:'4px 12px', cursor:'pointer', color:'#fff',
+                          padding:'4px 12px', cursor:'pointer', color: isDarkTheme ? '#0b1220' : '#fff',
                           fontWeight:700, fontSize:11, display:'flex', alignItems:'center', gap:5 }}>
                         <i className={`ti ${officialRx ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
                         {officialRx ? 'Collapse' : 'Open Form'}
@@ -1542,9 +1544,9 @@ export default function PatientProfile() {
                             <div key={f.k} style={{ gridColumn: f.col===2 ? 'span 2' : undefined }}>
                               <label style={lbl}>{f.label}</label>
                               {f.ta
-                                ? <textarea rows={3} style={{ ...inp, resize:'vertical', background: f.readOnly ? 'var(--card-bg2)' : undefined }}
+                                ? <textarea rows={3} style={{ ...inp, resize:'vertical', background: f.readOnly ? 'var(--card-bg2)' : 'var(--card-bg)' }}
                                     value={officialRx[f.k]||''} onChange={e => setR(f.k, e.target.value)} />
-                                : <input style={{ ...inp, background: f.readOnly ? 'var(--card-bg2)' : undefined }}
+                                : <input style={{ ...inp, background: f.readOnly ? 'var(--card-bg2)' : 'var(--card-bg)' }}
                                     type={f.type||'text'} readOnly={f.readOnly}
                                     value={officialRx[f.k]||''} onChange={e => !f.readOnly && setR(f.k, e.target.value)} />
                               }
@@ -1571,7 +1573,7 @@ export default function PatientProfile() {
                               {f.ta
                                 ? <textarea rows={3} style={{ ...inp, resize:'vertical' }}
                                     value={officialRx[f.k]||''} onChange={e => setR(f.k, e.target.value)} />
-                                : <input style={{ ...inp, background: f.readOnly ? 'var(--card-bg2)' : undefined }}
+                                : <input style={{ ...inp, background: f.readOnly ? 'var(--card-bg2)' : 'var(--card-bg)' }}
                                     type={f.type||'text'} readOnly={f.readOnly}
                                     value={officialRx[f.k]||''} onChange={e => !f.readOnly && setR(f.k, e.target.value)} />
                               }
@@ -1582,7 +1584,7 @@ export default function PatientProfile() {
 
                       {/* ── Print preview ── */}
                       <div style={{ background:'#f8f8f8', border:'1px dashed #ccc', borderRadius:6, padding:10, marginBottom:14 }}>
-                        <div style={{ fontSize:9, color:'#999', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>Print Preview</div>
+                        <div style={{ fontSize:11, color:'#555', fontWeight:700, marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>Print Preview</div>
                         <div ref={officialRxPrintRef}>
                           {isSoldier ? (
                             /* ── NHIS layout ── */
