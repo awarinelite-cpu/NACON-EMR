@@ -2232,6 +2232,7 @@ export default function PatientProfile() {
             visitId={visitId}
             prescriptions={rx}
             patient={patient}
+            readOnly={viewOnly}
           />
         )}
 

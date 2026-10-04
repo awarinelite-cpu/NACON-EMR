@@ -12,6 +12,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { enqueuePendingWrite } from './offlineDB';
 import { flattenGlucoseDocs } from './glycemicGrid';
+import { flattenMarDocs } from './marChart';
 
 // ── OFFLINE-FIRST WRITE HELPER ───────────────
 /**
@@ -997,13 +998,115 @@ export async function recordAdministration(data) {
   return { offline, id: offline ? null : result.id, inventoryResult };
 }
 
+// callback(records, rawDocs):
+//   records — one record per drug administration (chart rows expanded), which is
+//             what MARPage, the medication log and the care summary expect
+//   rawDocs — stored docs as-is (chart rows + older one-drug records), used by
+//             the Drug Course Chart style MAR tab
 export function listenMAR(emrNumber, callback) {
   const q = query(collection(db, COL.MAR), where('emrNumber', '==', emrNumber));
   return onSnapshot(q, snap => {
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     docs.sort((a,b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0));
-    callback(docs);
+    callback(flattenMarDocs(docs), docs);
   });
+}
+
+// ── Drug Course Chart style MAR: one doc per chart row (kind:'row') ──
+export function newMarRowId() {
+  return doc(collection(db, COL.MAR)).id;
+}
+
+function marRowPayload(emrNumber, visitId, r, by, byRole) {
+  return stripUndefined({
+    emrNumber,
+    visitId: visitId || null,
+    kind: 'row',
+    date: r.date || '',
+    time: r.time || '',
+    given: (r.given || []).map(g => ({ key: g.key, rxId: g.rxId, idx: g.idx, name: g.name, dose: g.dose || '', freq: g.freq || '', num: g.num ?? null })),
+    skipped: (r.skipped || []).map(s => ({ key: s.key, rxId: s.rxId, idx: s.idx, name: s.name, dose: s.dose || '', reason: s.reason || '', num: s.num ?? null })),
+    dose: r.dose || 'AP',
+    route: r.route || '',
+    nurse: r.nurse || by,
+    remark: r.remark || '',
+    order: r.order || Date.now(),
+    administeredBy: r.nurse || by,
+    administeredByRole: r.administeredByRole || byRole || null,
+    updatedAt: serverTimestamp(),
+    ...(r.isNew ? { createdAt: serverTimestamp() } : {}),
+  });
+}
+
+// rows: chart rows to save. prevGiven: { [rowId]: [drugKey,...] } — drugs each
+// row already had as "given" when last saved; only newly-given drugs deduct
+// pharmacy stock, so re-saving or editing a row never deducts twice.
+export async function saveMarRows(emrNumber, visitId, rows, prevGiven, by, byRole = null) {
+  if (!rows.length) return { inventory: [] };
+  const batch = writeBatch(db);
+  rows.forEach(r => batch.set(doc(db, COL.MAR, r.id), marRowPayload(emrNumber, visitId, r, by, byRole), { merge: true }));
+  await batch.commit();
+  markSeenIfReportedSickToday(emrNumber, by);
+  logAudit('MAR_RECORD', emrNumber, by, {
+    rows: rows.map(r => ({
+      date: r.date, time: r.time, dose: r.dose, route: r.route, remark: r.remark,
+      given: (r.given || []).map(g => g.name), notGiven: (r.skipped || []).map(s => `${s.name}: ${s.reason}`),
+    })),
+  }, byRole);
+
+  const inventory = [];
+  for (const r of rows) {
+    const before = new Set(prevGiven?.[r.id] || []);
+    for (const g of (r.given || [])) {
+      if (before.has(g.key) || !g.name) continue;
+      try {
+        const doseGiven = (r.dose && r.dose !== 'AP') ? r.dose : g.dose;
+        const res = await deductInventoryByDose(g.name, doseGiven, emrNumber, by, byRole);
+        inventory.push({ drug: g.name, ...res });
+      } catch (err) {
+        console.error('[saveMarRows] inventory deduction failed:', err);
+        inventory.push({ drug: g.name, found: false, error: true });
+      }
+    }
+  }
+  return { inventory };
+}
+
+export async function deleteMarRow(emrNumber, rowId, row, by, byRole = null) {
+  await deleteDoc(doc(db, COL.MAR, rowId));
+  await logAudit('MAR_ROW_DELETED', emrNumber, by, {
+    date: row?.date, time: row?.time, given: (row?.given || []).map(g => g.name),
+    notGiven: (row?.skipped || []).map(s => s.name),
+  }, byRole);
+}
+
+// One-time move of older one-drug-at-a-time records into chart rows. The old
+// docs are kept (flagged migratedToChart), never deleted.
+export async function migrateLegacyMar(emrNumber, visitId, rows, legacyIds, by, byRole = null) {
+  const ops = [
+    ...rows.map(r => ({ ref: doc(db, COL.MAR, r.id), data: marRowPayload(emrNumber, visitId, r, by, byRole) })),
+    ...legacyIds.map(id => ({ ref: doc(db, COL.MAR, id), data: { migratedToChart: true } })),
+  ];
+  for (let i = 0; i < ops.length; i += 400) {
+    const batch = writeBatch(db);
+    ops.slice(i, i + 400).forEach(o => batch.set(o.ref, o.data, { merge: true }));
+    await batch.commit();
+  }
+  await logAudit('MAR_MIGRATED_TO_CHART', emrNumber, by, { records: legacyIds.length }, byRole);
+}
+
+// Edit non-status fields of one prescribed drug (e.g. Route, which the
+// prescription form doesn't capture but the drug chart shows).
+export async function updateDrugFields(prescriptionId, drugIndex, patch, updatedBy, updatedByRole = null) {
+  const ref  = doc(db, COL.PRESCRIPTIONS, prescriptionId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const drugs = [...(snap.data().drugs || [])];
+  if (!drugs[drugIndex]) return;
+  const drugName = drugs[drugIndex].drug;
+  drugs[drugIndex] = stripUndefined({ ...drugs[drugIndex], ...patch });
+  await updateDoc(ref, { drugs });
+  await logAudit('DRUG_FIELDS_UPDATE', prescriptionId, updatedBy, { drug: drugName, ...patch }, updatedByRole);
 }
 
 export async function getMARForDate(emrNumber, dateObj) {

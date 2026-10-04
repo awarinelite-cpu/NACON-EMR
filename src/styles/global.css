@@ -1510,3 +1510,85 @@ html, body { overflow-x: hidden; }
 .glyc-grid td.glyc-abnormal input { color: #ef4444; }
 .glyc-grid-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
 .glyc-grid-status { text-align: center; font-size: 13px; font-weight: 700; color: var(--t3); padding: 10px 12px 14px; }
+
+/* ══════════════════════════════════
+   MAR TAB — Drug Course Chart layout (ported from 68 NARHY ward-chart app)
+══════════════════════════════════ */
+.mar68-table th { text-align: center; white-space: nowrap; }
+.mar68-table td { text-align: center; vertical-align: middle; }
+.mar68-table .mar68-left { text-align: left; }
+.mar68-drugs { min-width: 780px; }
+.mar68-chart { min-width: 760px; }
+.mar68-nurse-rx { margin-left: 6px; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); }
+.mar68-action { display: inline-block; padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 11px; font-weight: 700; }
+.mar68-pills { display: flex; gap: 3px; margin-top: 3px; flex-wrap: wrap; justify-content: center; }
+.mar68-pill { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.mar68-pill.given { background: #16a34a; color: #fff; }
+.mar68-pill.pending { background: var(--border); color: var(--t2); }
+.mar68-select, .mar68-input {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; font-weight: 700;
+  color: var(--t1); background: var(--card-bg2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px;
+}
+.mar68-input { text-align: center; }
+.mar68-sno-btn, .mar68-time-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--t1); cursor: pointer;
+  background: var(--card-bg2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; text-align: left;
+}
+.mar68-sno-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mar68-time-btn.placeholder { color: var(--t3); }
+.mar68-row-btn { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--accent); padding: 4px 6px; }
+.mar68-incomplete td { background: rgba(245,158,11,.10); }
+.mar68-skip { color: #d97706; font-weight: 800; cursor: pointer; }
+.mar68-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px 0; }
+.mar68-hint { font-size: 12px; color: var(--t3); }
+.mar68-status { text-align: center; font-size: 13px; font-weight: 700; color: var(--t3); padding: 10px 12px 14px; }
+.btn-purple { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.btn-purple:hover { background: #6d28d9; border-color: #6d28d9; }
+
+.mar68-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.mar68-modal { background: var(--card-bg); color: var(--t1); border-radius: 12px; width: 100%; max-width: 480px; max-height: 82vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); }
+.mar68-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.mar68-modal-head h3 { margin: 0; font-size: 16px; }
+.mar68-modal-head button, .mar68-popup-head button { background: none; border: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--t2); }
+.mar68-modal-body { padding: 10px 16px; overflow-y: auto; flex: 1; }
+.mar68-modal-foot { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.mar68-pick-row { padding: 8px 2px; border-bottom: 1px solid var(--border); }
+.mar68-pick-row:last-child { border-bottom: none; }
+.mar68-pick-opt { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.mar68-pick-opt input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+.mar68-pick-text { flex: 1; font-size: 15px; }
+.mar68-due-tag { font-size: 11px; font-weight: 700; color: #ef4444; background: var(--danger-bg); padding: 2px 7px; border-radius: 999px; flex-shrink: 0; }
+.mar68-pencil { background: none; border: none; cursor: pointer; font-size: 15px; padding: 2px 4px; line-height: 1; opacity: .75; flex-shrink: 0; }
+.mar68-skip-note { margin: 4px 0 0 26px; font-size: 12px; color: #d97706; cursor: pointer; }
+.mar68-skip-editor { margin: 6px 0 0 26px; }
+.mar68-skip-editor textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 6px; resize: vertical; color: var(--t1); background: var(--card-bg2); border: 1px solid var(--border); border-radius: 6px; }
+.mar68-popup { background: var(--card-bg); color: var(--t1); width: 100%; max-width: 300px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,.25); }
+.mar68-popup-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--t2); }
+.mar68-popup-body { padding: 2px 16px 16px; font-size: 15px; word-break: break-word; }
+
+/* Analog time picker (from the 68 app) */
+.tp-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 16px; }
+.tp-box { background: var(--card-bg); color: var(--t1); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 420px; overflow: hidden; box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+.tp-title { padding: 14px 16px 0; font-size: 13px; font-weight: 600; color: var(--t2); text-transform: uppercase; letter-spacing: .03em; }
+.tp-body { display: flex; }
+.tp-sidebar { background: #1B3266; color: #fff; flex: 0 0 128px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px 10px; }
+.tp-digits { display: flex; align-items: center; gap: 2px; }
+.tp-digit { background: none; border: none; color: rgba(255,255,255,.55); font-size: 38px; font-weight: 600; line-height: 1; cursor: pointer; padding: 4px 2px; border-radius: 6px; font-family: inherit; }
+.tp-digit.active { color: #fff; background: rgba(255,255,255,.12); }
+.tp-colon { color: rgba(255,255,255,.55); font-size: 34px; font-weight: 600; }
+.tp-ampm { display: flex; flex-direction: column; gap: 6px; }
+.tp-ampm-btn { background: none; border: 1px solid rgba(255,255,255,.3); color: rgba(255,255,255,.7); font-size: 12px; font-weight: 600; letter-spacing: .04em; padding: 4px 10px; border-radius: 5px; cursor: pointer; }
+.tp-ampm-btn.active { background: #fff; color: #1B3266; border-color: #fff; }
+.tp-face-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--card-bg); }
+.tp-face { width: 100%; max-width: 250px; touch-action: none; cursor: pointer; user-select: none; }
+.tp-face-bg { fill: var(--card-bg2); }
+.tp-hand { stroke: var(--accent); stroke-width: 2.5; }
+.tp-hand-center { fill: var(--accent); }
+.tp-hand-knob { fill: var(--accent); opacity: .9; }
+.tp-num { font-size: 22px; fill: var(--t1); font-family: inherit; font-weight: 500; pointer-events: none; user-select: none; }
+.tp-num.selected { fill: #fff; font-weight: 700; }
+.tp-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-top: 1px solid var(--border); }
+.tp-footer-right { display: flex; gap: 18px; }
+.tp-link { background: none; border: none; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; padding: 6px 4px; font-family: inherit; }
+.tp-set { font-weight: 800; }
