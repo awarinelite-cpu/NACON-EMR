@@ -1455,3 +1455,9 @@ html, body { overflow-x: hidden; }
 /* Abnormal vitals are always written in red (high OR low) */
 :root { --vital-red: #E01B1B; }
 [data-theme="dark"] { --vital-red: #FF5C5C; }
+
+/* Write Prescription table: roomy cells, inputs fill their column */
+.rx-write-table th, .rx-write-table td { padding: 10px 8px; }
+.rx-write-table td { border-bottom: 1px solid var(--border); }
+.rx-write-table tr:hover td { background: transparent; }
+.rx-write-table .form-input { min-width: 0; }

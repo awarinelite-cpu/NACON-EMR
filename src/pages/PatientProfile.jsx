@@ -1222,61 +1222,64 @@ export default function PatientProfile() {
                 </button>
               </div>
               <div className="card-body">
-                {rxForm.map((row, i) => (
-                  <div key={i} style={{
-                    background:'var(--card-bg2)',
-                    borderRadius:10,
-                    padding:'12px',
-                    marginBottom:10,
-                    border:'1px solid var(--border)',
-                  }}>
-                    {/* Drug number + delete */}
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                      <span style={{ display:'flex', alignItems:'center', gap:6 }}>
-                        <span style={{ fontSize:11, fontWeight:700, color:'var(--accent)' }}>Drug {i + 1}</span>
-                        {row.category === 'MAIN THERAPY' && (
-                          <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'var(--success-bg)', color:'var(--success)' }}>MAIN</span>
-                        )}
-                        {row.category === 'ADJUNCT THERAPY' && (
-                          <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'var(--card-bg2)', color:'var(--info, #0369a1)' }}>ADJUNCT</span>
-                        )}
-                        {row.category === 'COMBINATION THERAPY' && (
-                          <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'#f3e8ff', color:'#7c3aed' }}>COMBO</span>
-                        )}
-                      </span>
-                      {rxForm.length > 1 && (
-                        <button className="btn btn-sm btn-danger btn-icon" onClick={() => setRxForm(r => r.filter((_,j)=>j!==i))}>
-                          <i className="ti ti-trash" />
-                        </button>
-                      )}
-                    </div>
-                    {/* Drug name full width */}
-                    <div className="form-group" style={{ marginBottom:8 }}>
-                      <label className="form-label">Drug name *</label>
-                      <input className="form-input" placeholder="e.g. Artemether 160mg"
-                        value={row.drug} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,drug:e.target.value}:x))} />
-                    </div>
-                    {/* Dose + Frequency side by side */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                      <div className="form-group">
-                        <label className="form-label">Dose</label>
-                        <input className="form-input" placeholder="160mg"
-                          value={row.dose} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,dose:e.target.value}:x))} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Frequency</label>
-                        <input className="form-input" placeholder="OD / BD / TDS"
-                          value={row.frequency} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,frequency:e.target.value}:x))} />
-                      </div>
-                    </div>
-                    {/* Duration full width */}
-                    <div className="form-group">
-                      <label className="form-label">Duration</label>
-                      <input className="form-input" placeholder="e.g. × 3/7 or 5 days"
-                        value={row.duration} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,duration:e.target.value}:x))} />
-                    </div>
-                  </div>
-                ))}
+                {/* Table layout: Drug name | Dosage | Frequency | Duration */}
+                <div className="table-scroll" style={{ marginBottom:12 }}>
+                  <table className="data-table rx-write-table" style={{ width:'100%', tableLayout:'fixed' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width:44 }}>#</th>
+                        <th style={{ width:'36%' }}>Drug name *</th>
+                        <th style={{ width:'18%' }}>Dosage</th>
+                        <th style={{ width:'22%' }}>Frequency</th>
+                        <th style={{ width:'24%' }}>Duration</th>
+                        <th style={{ width:52 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rxForm.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight:700, color:'var(--accent)', verticalAlign:'top', paddingTop:16 }}>{i + 1}</td>
+                          <td style={{ verticalAlign:'top' }}>
+                            <input className="form-input" placeholder="e.g. Artemether 160mg" style={{ width:'100%' }}
+                              value={row.drug} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,drug:e.target.value}:x))} />
+                            {row.category && (
+                              <div style={{ marginTop:4 }}>
+                                {row.category === 'MAIN THERAPY' && (
+                                  <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'var(--success-bg)', color:'var(--success)' }}>MAIN</span>
+                                )}
+                                {row.category === 'ADJUNCT THERAPY' && (
+                                  <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'var(--card-bg2)', color:'var(--info, #0369a1)' }}>ADJUNCT</span>
+                                )}
+                                {row.category === 'COMBINATION THERAPY' && (
+                                  <span style={{ fontSize:9.5, fontWeight:700, padding:'1px 7px', borderRadius:8, background:'#f3e8ff', color:'#7c3aed' }}>COMBO</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ verticalAlign:'top' }}>
+                            <input className="form-input" placeholder="160mg" style={{ width:'100%' }}
+                              value={row.dose} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,dose:e.target.value}:x))} />
+                          </td>
+                          <td style={{ verticalAlign:'top' }}>
+                            <input className="form-input" placeholder="OD / BD / TDS" style={{ width:'100%' }}
+                              value={row.frequency} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,frequency:e.target.value}:x))} />
+                          </td>
+                          <td style={{ verticalAlign:'top' }}>
+                            <input className="form-input" placeholder="e.g. × 3/7 or 5 days" style={{ width:'100%' }}
+                              value={row.duration} onChange={e => setRxForm(r => r.map((x,j)=>j===i?{...x,duration:e.target.value}:x))} />
+                          </td>
+                          <td style={{ verticalAlign:'top', textAlign:'center' }}>
+                            {rxForm.length > 1 && (
+                              <button className="btn btn-sm btn-danger btn-icon" title="Remove drug" onClick={() => setRxForm(r => r.filter((_,j)=>j!==i))}>
+                                <i className="ti ti-trash" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 <button className="btn btn-primary" onClick={saveRx} disabled={saving}>
                   <i className="ti ti-device-floppy" /> Save prescription
                 </button>
