@@ -733,10 +733,10 @@ export default function PatientProfile() {
   })();
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', background:'var(--main-bg)', height:'100%', overflowY:'auto', overscrollBehavior:'none' }}>
+    <div className="pp-root" style={{ display:'flex', flexDirection:'column', background:'var(--main-bg)', height:'100%', overflowY:'auto', overscrollBehavior:'none' }}>
 
       {/* ══ HEADER BAR — always visible ══ */}
-      <div style={{
+      <div className="pp-header" style={{
         background:'var(--card-bg)',
         borderBottom:'1px solid var(--border)',
         padding:'10px 14px 10px 58px',
@@ -896,7 +896,7 @@ export default function PatientProfile() {
       <div ref={collapseRef} className="pp-collapsible">
         {/* Vital Stat Cards — hidden for records staff */}
         {!isRecords && (
-        <div style={{
+        <div className="pp-vitals" style={{
           display:'grid',
           gridTemplateColumns:'repeat(5, 1fr)',
           gap:8, padding:'10px 14px 0',
@@ -946,7 +946,7 @@ export default function PatientProfile() {
 
 
       {/* ══ TABS — always visible, sticky ══ */}
-      <div style={{
+      <div className="pp-tabs" style={{
         display:'flex', overflowX:'auto', gap:0,
         borderBottom:'2px solid var(--border)',
         background:'var(--card-bg)',
@@ -982,7 +982,7 @@ export default function PatientProfile() {
             {/* Patient profile — one compact card, sections scroll sideways if needed */}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-user" />Patient Profile</div></div>
-              <div className="card-body" style={{
+              <div className="card-body pp-profile" style={{
                 display:'flex', alignItems:'stretch', gap:14,
                 overflowX:'auto', paddingBottom:4,
                 scrollSnapType:'x proximity', WebkitOverflowScrolling:'touch',
