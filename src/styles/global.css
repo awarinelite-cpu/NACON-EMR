@@ -1244,3 +1244,27 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   .dash-value-sm { font-size: 46px; }
   .dash-label { font-size: 16px; }
 }
+
+/* ══════════════════════════════════
+   NURSE DASHBOARD — LARGE TOPBAR (title + search)
+   Scoped via .topbar-lg so other pages' topbars are unchanged.
+══════════════════════════════════ */
+.topbar-lg { padding-top: 16px; padding-bottom: 16px; gap: 14px; }
+.topbar-lg .topbar-title { font-size: 30px; font-weight: 800; line-height: 1.2; }
+.topbar-lg .patient-search > div:first-child {
+  padding: 14px 18px !important;
+  gap: 12px !important;
+  border-radius: 14px !important;
+}
+.topbar-lg .patient-search > div:first-child > i { font-size: 26px !important; }
+.topbar-lg .patient-search input { font-size: 21px !important; font-weight: 700 !important; }
+.topbar-lg .patient-search input::placeholder { font-size: 21px; font-weight: 600; }
+
+@media (max-width: 768px) {
+  .topbar-lg { min-height: 96px; }
+  .topbar-lg .topbar-title { font-size: 24px; }
+  .topbar-lg .patient-search > div:first-child { padding: 12px 14px !important; }
+  .topbar-lg .patient-search > div:first-child > i { font-size: 22px !important; }
+  .topbar-lg .patient-search input,
+  .topbar-lg .patient-search input::placeholder { font-size: 18px !important; }
+}
