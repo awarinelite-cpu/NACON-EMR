@@ -172,7 +172,7 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
               aria-label="Search patients"
             />
             {query && (
-              <i className="ti ti-x" style={{ cursor:'pointer', fontSize:13 }}
+              <i className="ti ti-x" style={{ cursor:'pointer', fontSize:18 }}
                 onClick={() => { setQuery(''); setResults([]); }} aria-label="Clear search" />
             )}
           </div>
@@ -199,15 +199,15 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
                     justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0,
                   }}>{getInitials(p)}</div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:11,fontWeight:700,color:'var(--t1)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                    <div style={{fontSize:15,fontWeight:800,color:'var(--t1)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                       {p.surname} {p.firstName}
                     </div>
-                    <div style={{fontSize:10,color:'var(--t3)',fontWeight:500}}>{p.classSet}</div>
+                    <div style={{fontSize:13,color:'var(--t3)',fontWeight:600}}>{p.classSet}</div>
                   </div>
-                  <span className="emr-tag" style={{fontSize:9}}>{p.emrNumber}</span>
+                  <span className="emr-tag" style={{fontSize:12}}>{p.emrNumber}</span>
                 </div>
               ))}
-              <div style={{padding:'6px 10px',fontSize:10,color:'var(--t3)',fontWeight:500,textAlign:'center'}}>
+              <div style={{padding:'8px 10px',fontSize:13,color:'var(--t3)',fontWeight:600,textAlign:'center'}}>
                 Click to open patient profile
               </div>
             </div>
@@ -268,11 +268,11 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:4}}>
             <button onClick={toggleTheme} aria-label="Toggle theme"
-              style={{background:'none',border:'none',cursor:'pointer',color:'var(--sb-text3)',fontSize:16,padding:2}}>
+              style={{background:'none',border:'none',cursor:'pointer',color:'var(--sb-text2)',fontSize:24,padding:3}}>
               <i className={`ti ${theme==='light'?'ti-moon':'ti-sun'}`} />
             </button>
             <button onClick={handleLogout} aria-label="Logout"
-              style={{background:'none',border:'none',cursor:'pointer',color:'var(--sb-text3)',fontSize:16,padding:2}}>
+              style={{background:'none',border:'none',cursor:'pointer',color:'var(--sb-text2)',fontSize:24,padding:3}}>
               <i className="ti ti-logout" />
             </button>
           </div>

@@ -1268,3 +1268,56 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   .topbar-lg .patient-search input,
   .topbar-lg .patient-search input::placeholder { font-size: 18px !important; }
 }
+
+/* ══════════════════════════════════
+   SIDEBAR — LARGE, HIGH-VISIBILITY TEXT
+══════════════════════════════════ */
+.sidebar { width: 300px; }
+.sidebar.collapsed { width: 72px; }
+.sb-brand { padding: 20px 16px; gap: 12px; }
+.sb-icon { width: 48px; height: 48px; border-radius: 12px; }
+.sb-icon i { font-size: 30px; color: #CFE4FA; }
+.sb-name { font-size: 22px; font-weight: 800; color: #FFFFFF; }
+.sb-loc  { font-size: 15px; font-weight: 600; color: #9CC3EA; }
+
+.sb-search { padding: 12px 14px; }
+.sb-search-box { padding: 11px 13px; gap: 10px; border-radius: 12px; border-color: #2F5A8C; }
+.sb-search-box i { font-size: 22px; color: #9CC3EA; }
+.sb-search-box input { font-size: 18px; font-weight: 600; color: #FFFFFF; }
+.sb-search-box input::placeholder { color: #8DB3DB; font-size: 18px; }
+
+.sb-nav { padding: 10px 0; }
+.nav-group { padding: 0 10px; margin-bottom: 10px; }
+.nav-label {
+  font-size: 14px; font-weight: 800; color: #8DB3DB;
+  padding: 8px 10px 6px; letter-spacing: .09em;
+}
+.nav-item {
+  gap: 14px; padding: 13px 14px; border-radius: 12px;
+  font-size: 19px; font-weight: 700; color: #E3EFFC;
+  margin-bottom: 4px;
+}
+.nav-item i { font-size: 27px; color: #9CC3EA; }
+.nav-item:hover { background: var(--sb-bg3); color: #FFFFFF; }
+.nav-item:hover i { color: #FFFFFF; }
+.nav-item.active {
+  background: var(--accent); color: #FFFFFF; font-weight: 800;
+  box-shadow: 0 4px 0 rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.nav-item.active i { color: #FFFFFF; }
+.nav-badge { font-size: 15px; padding: 3px 9px; border-radius: 10px; font-weight: 800; }
+.nb-red  { background: #7F1D1D; color: #FFFFFF; }
+.nb-blue { background: #123A6B; color: #D6E8F8; }
+
+.sb-footer { padding: 14px 16px; }
+.sb-user { gap: 12px; }
+.sb-avatar { width: 44px; height: 44px; font-size: 18px; color: #FFFFFF; }
+.sb-uname { font-size: 18px; font-weight: 800; color: #FFFFFF; }
+.sb-urole { font-size: 15px; font-weight: 600; color: #9CC3EA; }
+
+@media (min-width: 769px) {
+  .app-shell:not(.sidebar-desktop-collapsed) .hamburger-btn { left: 312px; }
+}
+@media (max-width: 768px) {
+  .sidebar { width: 310px; max-width: 88vw; }
+}
