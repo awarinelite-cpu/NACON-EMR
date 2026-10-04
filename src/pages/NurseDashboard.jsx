@@ -49,7 +49,7 @@ export default function NurseDashboard() {
 
         {/* ── Total Registered Patients ── */}
         <div className="dash-card dash-card-wide" onClick={() => navigate('/nurse/patients')}
-          style={{'--c1':'#a78bfa','--c2':'#6d28d9','--c3':'#4c1d95'}}>
+          style={{'--ac':'#7c3aed'}}>
           <div className="dash-label"><i className="ti ti-users" />Total Registered Patients</div>
           <div className="dash-value">{patients.length}</div>
         </div>
@@ -57,17 +57,17 @@ export default function NurseDashboard() {
         {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}
         <div className="dash-grid">
           <div className="dash-card" onClick={() => navigate('/nurse/queue')}
-            style={{'--c1':'#60a5fa','--c2':'#2563eb','--c3':'#1e3a8a'}}>
+            style={{'--ac':'#2563eb'}}>
             <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
             <div className="dash-value">{waiting}</div>
           </div>
           <div className="dash-card" onClick={() => navigate('/nurse/meds')}
-            style={{'--c1':'#f87171','--c2':'#dc2626','--c3':'#7f1d1d'}}>
+            style={{'--ac':'#dc2626'}}>
             <div className="dash-label"><i className="ti ti-pill" />Meds due</div>
             <div className="dash-value">0</div>
           </div>
           <div className="dash-card" onClick={() => navigate('/nurse/seen-today')}
-            style={{'--c1':'#4ade80','--c2':'#16a34a','--c3':'#14532d'}}>
+            style={{'--ac':'#16a34a'}}>
             <div className="dash-label"><i className="ti ti-check" />Seen today</div>
             <div className="dash-value">{sickSeenCount}</div>
           </div>
@@ -76,7 +76,7 @@ export default function NurseDashboard() {
         {/* ── Row 2: Sick Report · On Admission · D/R ── */}
         <div className="dash-grid">
           <div className="dash-card" onClick={() => navigate('/nurse/sick-report')}
-            style={{'--c1':'#fb923c','--c2':'#ea580c','--c3':'#7c2d12'}}>
+            style={{'--ac':'#ea580c'}}>
             <div className="dash-label"><i className="ti ti-stethoscope" />Sick Report</div>
             <div className="dash-value">{sickTotal}</div>
             <div className="dash-sub">
@@ -86,7 +86,7 @@ export default function NurseDashboard() {
           </div>
 
           <div className="dash-card" onClick={() => navigate('/nurse/on-admission')}
-            style={{'--c1':'#c084fc','--c2':'#9333ea','--c3':'#581c87'}}>
+            style={{'--ac':'#9333ea'}}>
             <div className="dash-label"><i className="ti ti-bed" />On Admission</div>
             <div className="dash-split">
               <div>
@@ -102,7 +102,7 @@ export default function NurseDashboard() {
           </div>
 
           <div className="dash-card" onClick={() => navigate('/nurse/discharged-referred')}
-            style={{'--c1':'#34d399','--c2':'#059669','--c3':'#064e3b'}}>
+            style={{'--ac':'#059669'}}>
             <div className="dash-label"><i className="ti ti-logout" />D/R Today</div>
             <div className="dash-split">
               <div>

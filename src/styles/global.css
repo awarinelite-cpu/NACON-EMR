@@ -1186,7 +1186,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 
 
 /* ══════════════════════════════════
-   NURSE DASHBOARD — SOLID 3D CARDS
+   NURSE DASHBOARD — SOLID 3D CARDS (neutral)
 ══════════════════════════════════ */
 .dash-grid {
   display: grid;
@@ -1197,56 +1197,45 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .dash-card {
   position: relative;
   cursor: pointer;
-  color: #fff;
+  color: var(--t1);
   min-height: 170px;
   padding: 22px 22px 20px;
   border-radius: 20px;
-  background: linear-gradient(150deg, var(--c1) 0%, var(--c2) 100%);
-  border: 1px solid rgba(255,255,255,.25);
+  background: var(--card-bg);
+  border: 1px solid var(--border2);
   box-shadow:
-    inset 0 3px 0 rgba(255,255,255,.4),
-    inset 0 -6px 12px rgba(0,0,0,.18),
-    0 9px 0 var(--c3),
-    0 18px 28px rgba(0,0,0,.30);
+    inset 0 2px 0 rgba(255,255,255,.7),
+    inset 0 -4px 8px rgba(0,0,0,.06),
+    0 8px 0 var(--border2),
+    0 16px 26px rgba(0,0,0,.22);
   transition: transform .12s ease, box-shadow .12s ease;
   margin-bottom: 9px;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.dash-card::after {
-  content: ''; position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
-  background: radial-gradient(circle at 20% 0%, rgba(255,255,255,.28), transparent 55%);
-}
 .dash-card:hover { transform: translateY(-3px); }
 .dash-card:active {
-  transform: translateY(7px);
+  transform: translateY(6px);
   box-shadow:
-    inset 0 3px 0 rgba(255,255,255,.3),
-    inset 0 -4px 8px rgba(0,0,0,.2),
-    0 2px 0 var(--c3),
-    0 5px 10px rgba(0,0,0,.3);
+    inset 0 2px 0 rgba(255,255,255,.5),
+    inset 0 -3px 6px rgba(0,0,0,.08),
+    0 2px 0 var(--border2),
+    0 5px 10px rgba(0,0,0,.22);
 }
 .dash-card-wide { min-height: 150px; margin-bottom: 30px; }
 .dash-label {
   display: flex; align-items: center; gap: 10px;
-  font-size: 18px; font-weight: 800;
+  font-size: 18px; font-weight: 800; color: var(--t2);
   text-transform: uppercase; letter-spacing: .05em;
-  text-shadow: 0 2px 3px rgba(0,0,0,.3);
   margin-bottom: 10px;
 }
-.dash-label i { font-size: 30px; }
-.dash-value {
-  font-size: 68px; font-weight: 900; line-height: 1;
-  text-shadow: 0 4px 6px rgba(0,0,0,.35);
-}
-.dash-value-sm {
-  font-size: 54px; font-weight: 900; line-height: 1;
-  text-shadow: 0 4px 6px rgba(0,0,0,.35);
-}
-.dash-caption { font-size: 16px; font-weight: 700; margin-top: 4px; opacity: .95; }
-.dash-sub { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 16px; font-weight: 800; }
+.dash-label i { font-size: 30px; color: var(--ac); }
+.dash-value { font-size: 68px; font-weight: 900; line-height: 1; color: var(--ac); }
+.dash-value-sm { font-size: 54px; font-weight: 900; line-height: 1; color: var(--ac); }
+.dash-caption { font-size: 16px; font-weight: 700; margin-top: 4px; color: var(--t2); }
+.dash-sub { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 16px; font-weight: 800; color: var(--t2); }
 .dash-split { display: flex; align-items: flex-end; gap: 22px; margin-top: 4px; }
-.dash-divider { width: 3px; align-self: stretch; border-radius: 3px; background: rgba(255,255,255,.45); }
+.dash-divider { width: 3px; align-self: stretch; border-radius: 3px; background: var(--border2); }
 
 @media (max-width: 600px) {
   .dash-grid { gap: 18px; }
