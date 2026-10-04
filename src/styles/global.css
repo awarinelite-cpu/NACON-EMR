@@ -1334,7 +1334,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   /* Header: sticky, with extra top room so name/Back/buttons are never clipped */
   .pp-root .pp-header {
     position: sticky; top: 0; z-index: 60;
-    padding-top: 30px !important;
+    padding-top: 52px !important;
     padding-bottom: 14px !important;
     row-gap: 12px !important;
   }
