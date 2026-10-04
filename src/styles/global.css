@@ -1388,3 +1388,25 @@ html, body { overflow-x: hidden; }
   .topbar { padding-top: 20px; padding-bottom: 12px; min-height: 76px; }
   .hamburger-btn { top: 16px; }
 }
+
+/* ══════════════════════════════════
+   APP-WIDE LARGER TEXT + CARDS (desktop) — matches the Patient Profile page
+   Applies to every page's topbar and content area EXCEPT the Nurse Dashboard
+   (.is-nurse-dashboard, which has its own sizing) and the Patient Profile
+   (.pp-root, which is sized explicitly above).
+   Wrappers are left unzoomed on purpose so page heights still match the window.
+══════════════════════════════════ */
+@media (min-width: 769px) {
+  /* topbar, everything after it (page body), and any stand-alone page-content */
+  .main-area:not(.is-nurse-dashboard) .topbar,
+  .main-area:not(.is-nurse-dashboard) .topbar ~ *,
+  .main-area:not(.is-nurse-dashboard) .page-content:not(.topbar ~ *) { zoom: 1.2; }
+
+  /* zoomed content also scales vh lengths — keep tall modals/lists inside the window */
+  .main-area:not(.is-nurse-dashboard) [style*="max-height: 70vh"] { max-height: calc(70vh / 1.2) !important; }
+  .main-area:not(.is-nurse-dashboard) [style*="max-height: 80vh"] { max-height: calc(80vh / 1.2) !important; }
+  .main-area:not(.is-nurse-dashboard) [style*="max-height: 85vh"] { max-height: calc(85vh / 1.2) !important; }
+  .main-area:not(.is-nurse-dashboard) [style*="max-height: 88vh"] { max-height: calc(88vh / 1.2) !important; }
+  .main-area:not(.is-nurse-dashboard) [style*="max-height: 90vh"] { max-height: calc(90vh / 1.2) !important; }
+  .main-area:not(.is-nurse-dashboard) [style*="max-height: 92vh"] { max-height: calc(92vh / 1.2) !important; }
+}

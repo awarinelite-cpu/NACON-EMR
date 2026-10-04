@@ -7,6 +7,9 @@ import { listenTriageQueue } from '../../lib/emr';
 import { startSyncListener }  from '../../lib/syncEngine';
 import OfflineBanner           from '../shared/OfflineBanner';
 
+// Role dashboards keep their own sizing; every other page gets the larger text/cards.
+const DASHBOARD_PATHS = ['/nurse','/doctor','/records','/admin','/pharmacist','/pharmacist/queue','/lab','/lab/requests'];
+
 export default function AppShell() {
   const [stats, setStats]             = useState({ waiting: 0, sickBay: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -116,7 +119,7 @@ export default function AppShell() {
 
       <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} />
 
-      <div className="main-area" ref={mainRef}>
+      <div className={`main-area${DASHBOARD_PATHS.includes(location.pathname) ? ' is-nurse-dashboard' : ''}`} ref={mainRef}>
         <OfflineBanner />
         <Outlet />
       </div>
