@@ -1430,7 +1430,10 @@ export default function PatientProfile() {
                     body{font-family:'Times New Roman',Times,serif;background:#fff;color:#000;padding:28px}
                     .uline{display:inline-block;border-bottom:1px solid #000;min-width:80px;vertical-align:bottom}
                     .rx-box{border:2px solid #000;padding:8px;min-height:180px;font-size:12px;white-space:pre-wrap;margin:6px 0}
-                    @media print{body{padding:10px}}
+                    html,body{height:100%}
+                    body>div{min-height:272mm;display:flex;flex-direction:column}
+                    @page{size:A4 portrait;margin:8mm}
+                    @media print{body{padding:0}}
                   </style></head><body>${el.innerHTML}</body></html>`);
                 w.document.close(); w.focus();
                 setTimeout(() => w.print(), 400);
@@ -1679,7 +1682,7 @@ export default function PatientProfile() {
                                 <span style={{ marginLeft:10 }}><b>DATE:—</b><span style={F.line}>{officialRx.date}</span></span>
                                 <span style={{ marginLeft:8 }}><b>TEL:—</b><span style={F.line}>{officialRx.tel}</span></span>
                               </div>
-                              <div style={F.rxBox}>
+                              <div style={{ ...F.rxBox, flex:1 }}>
                                 <span style={F.rxSym}>R<sub style={{fontSize:13}}>x</sub></span>
                                 <span style={{ fontSize:12, whiteSpace:'pre-wrap' }}>{officialRx.rx}</span>
                               </div>
