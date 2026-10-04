@@ -1410,3 +1410,44 @@ html, body { overflow-x: hidden; }
   .main-area:not(.is-nurse-dashboard) [style*="max-height: 90vh"] { max-height: calc(90vh / 1.2) !important; }
   .main-area:not(.is-nurse-dashboard) [style*="max-height: 92vh"] { max-height: calc(92vh / 1.2) !important; }
 }
+
+/* ══════════════════════════════════
+   ALL CARDS — SOLID, 3D (neutral colour)
+   Solid card fill + light top edge + thick darker bottom edge + soft drop shadow.
+   Applies to every .card / .stat-card / login card and the patient-profile vital cards.
+══════════════════════════════════ */
+:root { --card-hi: rgba(255,255,255,.75); --card-edge: var(--border2); --card-drop: rgba(0,0,0,.16); }
+[data-theme="dark"] { --card-hi: rgba(255,255,255,.08); --card-edge: #050B14; --card-drop: rgba(0,0,0,.5); }
+
+.card,
+.stat-card,
+.login-card,
+.lp-card,
+.pp-vitals > div {
+  background: var(--card-bg);
+  border: 1px solid var(--border2);
+  box-shadow:
+    inset 0 2px 0 var(--card-hi),
+    inset 0 -3px 6px rgba(0,0,0,.05),
+    0 5px 0 var(--card-edge),
+    0 12px 20px var(--card-drop);
+  margin-bottom: 6px; /* room for the 3D bottom edge */
+}
+.card { overflow: hidden; }
+.stat-card {
+  border-radius: var(--radius-lg);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 2px 0 var(--card-hi),
+    0 1px 0 var(--card-edge),
+    0 4px 8px var(--card-drop);
+}
+.stats-grid { gap: 16px; margin-bottom: 20px; }
+.pp-vitals { padding-bottom: 10px !important; }
+.pp-vitals > div { margin-bottom: 0; }
+/* .card sitting inside a flex/grid with its own gap shouldn't add extra space */
+.dash-grid > .card, .stats-grid > .stat-card { margin-bottom: 6px; }
