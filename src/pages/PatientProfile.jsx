@@ -67,6 +67,10 @@ const isAbn = (flag) => flag==='high' || flag==='low';
 const RED = 'var(--vital-red)';
 const bpFlagOf = (v) => (v && v.sbp!=null) ? vitalFlag('sbp', `${v.sbp}/${v.dbp}`) : '';
 
+const todayStr = () => {
+  const d = new Date(), z = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+};
 const newFluidForm = () => {
   const d = new Date(), z = n => String(n).padStart(2,'0');
   return { date:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`, time:`${z(d.getHours())}:${z(d.getMinutes())}`, intakeType:'', intakeFluid:'', intakeAmt:'', outputType:'', outputAmt:'', notes:'' };
@@ -115,7 +119,7 @@ export default function PatientProfile() {
   // Tracks when the last official form was saved; used to exclude already-printed Rx from next form
   const [officialRxSavedAt, setOfficialRxSavedAt] = useState(null);
   const [fluidForm, setFluidForm] = useState(newFluidForm());
-  const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'', unit:'mmol/L' });
+  const [glucForm,  setGlucForm]  = useState({ date:todayStr(), time:'', reading:'', context:'', unit:'mmol/L' });
   const [glucChartUnit, setGlucChartUnit] = useState('mmol/L');
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const [carePlanForm, setCarePlanForm] = useState({
@@ -655,7 +659,7 @@ export default function PatientProfile() {
     try {
       const vid = await ensureVisitId();
       await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown', profile.role);
-      setGlucForm(g => ({ time:'', reading:'', context:'', unit: g.unit }));
+      setGlucForm(g => ({ date:todayStr(), time:'', reading:'', context:'', unit: g.unit }));
       toast.success('Glucose reading added');
     } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
@@ -1909,6 +1913,8 @@ export default function PatientProfile() {
               <div className="card-header"><div className="card-title"><i className="ti ti-activity" />Blood Glucose Reading</div></div>
               <div className="card-body">
                 <div className="form-grid-3" style={{ gap:10 }}>
+                  <div className="form-group"><label className="form-label">Date</label>
+                    <input type="date" className="form-input" value={glucForm.date} onChange={e=>setGlucForm(g=>({...g,date:e.target.value}))} /></div>
                   <div className="form-group"><label className="form-label">Time</label>
                     <input type="time" className="form-input" value={glucForm.time} onChange={e=>setGlucForm(g=>({...g,time:e.target.value}))} /></div>
                   <div className="form-group">

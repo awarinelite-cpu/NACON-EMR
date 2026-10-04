@@ -33,11 +33,16 @@ const statusColor = (mmolVal) =>
   mmolVal < 4 ? '#f59e0b' : mmolVal > 10 ? '#ef4444' : mmolVal > 7 ? '#f97316' : '#10b981';
 
 function dateKeyOf(reading) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(reading.date || '')) return reading.date; // date chosen on the entry form
   const ts = reading.recordedAt?.toDate ? reading.recordedAt.toDate() : new Date(reading.recordedAt || Date.now());
   return ts.toISOString().slice(0, 10); // YYYY-MM-DD, groups by calendar day
 }
 function dateLabelOf(dateKey) {
   return new Date(dateKey + 'T00:00:00').toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+}
+
+function fullDateOf(dateKey) {
+  return new Date(dateKey + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 const CustomTooltip = ({ active, payload, label, unit }) => {
@@ -205,12 +210,12 @@ export default function GlycemicChart({ glucose = [] }) {
       {/* Grouped readings table, most recent day first */}
       <div className="table-scroll">
         <table className="chart-table big-table">
-          <thead><tr><th>Time</th><th>Reading ({unit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
+          <thead><tr><th>Date</th><th>Time</th><th>Reading ({unit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
           <tbody>
             {[...days].reverse().map(d => (
               <React.Fragment key={d.key}>
                 <tr>
-                  <td colSpan={5} style={{
+                  <td colSpan={6} style={{
                     fontWeight: 800, fontSize: 18, color: 'var(--t1)', textAlign: 'center',
                     background: 'var(--card-bg2)', padding: '6px 10px',
                   }}>
@@ -223,11 +228,12 @@ export default function GlycemicChart({ glucose = [] }) {
                   const scls = g.mmolVal < 4 ? 'badge-warn' : g.mmolVal > 10 ? 'badge-danger' : g.mmolVal > 7 ? 'badge-warn' : 'badge-ok';
                   return (
                     <tr key={g.id}>
+                      <td>{fullDateOf(d.key)}</td>
                       <td>{g.time}</td>
                       <td style={{ fontWeight: 700 }}>{displayVal}</td>
                       <td className="text-muted">{g.context}</td>
                       <td><span className={`badge ${scls}`}>{status}</span></td>
-                      <td className="text-muted text-sm">{g.recordedBy}</td>
+                      <td className="text-muted">{g.recordedBy}</td>
                     </tr>
                   );
                 })}
