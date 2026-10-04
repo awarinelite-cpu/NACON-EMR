@@ -1866,7 +1866,7 @@ export default function PatientProfile() {
                   <div className="form-group"><label className="form-label">Route of Intake</label>
                     <select className="form-select" value={fluidForm.intakeType} onChange={e=>setFluidForm(f=>({...f,intakeType:e.target.value}))}>
                       <option value="">SELECT</option>
-                      {['Oral','IV','NG Tube','Blood transfusion','Other'].map(t=><option key={t}>{t}</option>)}
+                      {['Oral','NG/PEG','IV','OTHERS'].map(t=><option key={t}>{t}</option>)}
                     </select></div>
                   <div className="form-group"><label className="form-label">Nature of Fluid</label>
                     <input className="form-input" value={fluidForm.intakeFluid} onChange={e=>setFluidForm(f=>({...f,intakeFluid:e.target.value}))} /></div>
