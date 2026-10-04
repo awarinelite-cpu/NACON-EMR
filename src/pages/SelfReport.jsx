@@ -40,7 +40,7 @@ export default function SelfReport() {
 
   return (
     <div style={{
-      minHeight:'100vh',
+      minHeight:'calc(100vh / 1.0625)',
       background:'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)',
       display:'flex', flexDirection:'column', alignItems:'center',
       justifyContent:'flex-start', padding:'24px 16px 40px',

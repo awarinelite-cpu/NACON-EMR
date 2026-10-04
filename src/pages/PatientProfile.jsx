@@ -200,7 +200,7 @@ export default function PatientProfile() {
   }, [rx, rxForm, savedForms, officialRxSavedAt]);
 
   if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--main-bg)' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'calc(100vh / 1.0625)', background:'var(--main-bg)' }}>
       <i className="ti ti-loader-2" style={{ fontSize:32, animation:'spin 1s linear infinite', color:'var(--accent)' }} />
 
       {/* ══ TIMELINE EVENT DETAIL DRAWER ══ */}

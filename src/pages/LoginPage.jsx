@@ -48,7 +48,7 @@ export default function LoginPage() {
 
         /* ── Full page — NACON building as background ── */
         .lp-root {
-          min-height: 100vh;
+          min-height: calc(100vh / 1.0625);
           width: 100%;
           display: flex;
           align-items: center;

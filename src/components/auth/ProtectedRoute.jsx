@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   if (loading) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center',
-        height:'100vh', background:'var(--main-bg)' }}>
+        height:'calc(100vh / 1.0625)', background:'var(--main-bg)' }}>
         <div style={{ textAlign:'center' }}>
           <i className="ti ti-loader-2" style={{ fontSize:36, color:'var(--accent)',
             display:'block', marginBottom:12, animation:'spin 1s linear infinite' }} />
@@ -30,7 +30,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   if (!profile) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center',
-        height:'100vh', background:'var(--main-bg)' }}>
+        height:'calc(100vh / 1.0625)', background:'var(--main-bg)' }}>
         <div style={{ textAlign:'center' }}>
           <i className="ti ti-loader-2" style={{ fontSize:36, color:'var(--accent)',
             display:'block', marginBottom:12, animation:'spin 1s linear infinite' }} />
