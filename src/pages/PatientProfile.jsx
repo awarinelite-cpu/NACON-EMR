@@ -119,7 +119,7 @@ export default function PatientProfile() {
   // Tracks when the last official form was saved; used to exclude already-printed Rx from next form
   const [officialRxSavedAt, setOfficialRxSavedAt] = useState(null);
   const [fluidForm, setFluidForm] = useState(newFluidForm());
-  const [glucForm,  setGlucForm]  = useState({ date:todayStr(), time:'', reading:'', context:'', unit:'mmol/L' });
+  const [glucForm,  setGlucForm]  = useState({ date:todayStr(), time:'', reading:'', context:'', remark:'', unit:'mmol/L' });
   const [glucChartUnit, setGlucChartUnit] = useState('mmol/L');
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const [carePlanForm, setCarePlanForm] = useState({
@@ -659,7 +659,7 @@ export default function PatientProfile() {
     try {
       const vid = await ensureVisitId();
       await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown', profile.role);
-      setGlucForm(g => ({ date:todayStr(), time:'', reading:'', context:'', unit: g.unit }));
+      setGlucForm(g => ({ date:todayStr(), time:'', reading:'', context:'', remark:'', unit: g.unit }));
       toast.success('Glucose reading added');
     } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
@@ -1944,11 +1944,13 @@ export default function PatientProfile() {
                       </div>
                     </div>
                   </div>
-                  <div className="form-group"><label className="form-label">Context</label>
+                  <div className="form-group"><label className="form-label">Time point</label>
                     <select className="form-select" value={glucForm.context} onChange={e=>setGlucForm(g=>({...g,context:e.target.value}))}>
                       <option value="">Select…</option>
-                      {['Fasting','Pre-breakfast','2 hours post-breakfast','Pre-lunch','2 hours post-lunch','Pre-dinner','2 hours post-dinner'].map(c=><option key={c}>{c}</option>)}
+                      {['FBS','2hrs Post Prandial','Pre-Lunch','2hrs Post Lunch','Pre-Dinner','2hrs Post Dinner'].map(c=><option key={c}>{c}</option>)}
                     </select></div>
+                  <div className="form-group"><label className="form-label">Remark</label>
+                    <input className="form-input" value={glucForm.remark} onChange={e=>setGlucForm(g=>({...g,remark:e.target.value}))} /></div>
                 </div>
                 <button className="btn btn-primary mt-3" onClick={saveGlucose} disabled={saving}>
                   <i className="ti ti-device-floppy" /> Save reading

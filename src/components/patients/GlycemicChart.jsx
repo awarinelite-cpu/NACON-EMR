@@ -1,20 +1,25 @@
 // src/components/patients/GlycemicChart.jsx
-// 7-point glycemic profile: day-grouping, daily avg/min/max summary, and a trend line chart.
+// 6-point glycemic chart: day-grouping, daily avg/min/max summary, and a trend line chart.
 import React, { useMemo, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 
-// Canonical 7-point order (matches the context select in PatientProfile.jsx)
-const CONTEXT_ORDER = [
-  'Fasting', 'Pre-breakfast', '2 hours post-breakfast',
-  'Pre-lunch', '2 hours post-lunch', 'Pre-dinner', '2 hours post-dinner',
+// 6-point glycemic chart (same layout as the 68-drug-course chart app)
+const SLOTS = [
+  { key: 'FBS',                 type: 'fasting', legacy: ['Fasting', 'Pre-breakfast'] },
+  { key: '2hrs Post Prandial',  type: 'post',    legacy: ['2 hours post-breakfast'] },
+  { key: 'Pre-Lunch',           type: 'fasting', legacy: ['Pre-lunch'] },
+  { key: '2hrs Post Lunch',     type: 'post',    legacy: ['2 hours post-lunch'] },
+  { key: 'Pre-Dinner',          type: 'fasting', legacy: ['Pre-dinner'] },
+  { key: '2hrs Post Dinner',    type: 'post',    legacy: ['2 hours post-dinner'] },
 ];
-const CONTEXT_SHORT = {
-  'Fasting': 'Fasting', 'Pre-breakfast': 'Pre-B/fast', '2 hours post-breakfast': 'Post-B/fast',
-  'Pre-lunch': 'Pre-lunch', '2 hours post-lunch': 'Post-lunch',
-  'Pre-dinner': 'Pre-dinner', '2 hours post-dinner': 'Post-dinner',
+const slotIndexOf = (ctx) => SLOTS.findIndex(sl => sl.key === ctx || sl.legacy.includes(ctx));
+// Normal (mg/dL): fasting / pre-meal 70–99, 2hrs post-meal < 140. Outside = flagged red.
+const isAbnormalSlot = (mmolVal, type) => {
+  const mg = mmolVal * 18;
+  return type === 'post' ? (mg < 70 || mg >= 140) : (mg < 70 || mg > 99);
 };
 
 const MGDL_PER_MMOL = 18;
@@ -89,6 +94,7 @@ export default function GlycemicChart({ glucose = [] }) {
         return {
           key, label: dateLabelOf(key), readings,
           avg, min, max, count: readings.length,
+          points: new Set(readings.map(r => slotIndexOf(r.context)).filter(i => i >= 0)).size,
         };
       });
   }, [glucose]);
@@ -101,12 +107,12 @@ export default function GlycemicChart({ glucose = [] }) {
   // ── Chart data: single-day view = 7-point profile; trend view = daily averages ──
   const chartData = useMemo(() => {
     if (activeDay) {
-      // Map each canonical context to its reading for this day (may be missing)
-      return CONTEXT_ORDER.map(ctx => {
-        const r = activeDay.readings.find(x => x.context === ctx);
-        if (!r) return { label: CONTEXT_SHORT[ctx], value: null };
+      // One point per slot of the 6-point chart (may be missing)
+      return SLOTS.map((sl, i) => {
+        const r = activeDay.readings.find(x => slotIndexOf(x.context) === i);
+        if (!r) return { label: sl.key, value: null };
         const value = formatGlucose(convertGlucose(r.mmolVal, 'mmol/L', unit), unit);
-        return { label: CONTEXT_SHORT[ctx], value, status: statusOf(r.mmolVal), color: statusColor(r.mmolVal) };
+        return { label: sl.key, value, status: statusOf(r.mmolVal), color: isAbnormalSlot(r.mmolVal, sl.type) ? '#ef4444' : '#10b981' };
       });
     }
     // Trend: one point per day (daily average)
@@ -126,7 +132,7 @@ export default function GlycemicChart({ glucose = [] }) {
   return (
     <div className="card" style={{ marginBottom: 14 }}>
       <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div className="card-title"><i className="ti ti-chart-line" /> Glycemic Chart</div>
+        <div className="card-title"><i className="ti ti-chart-line" /> 6 Points Glycemic Chart</div>
         <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           {['mmol/L', 'mg/dL'].map(u => (
             <button key={u} type="button" onClick={() => setUnit(u)}
@@ -157,7 +163,7 @@ export default function GlycemicChart({ glucose = [] }) {
               background: selectedDay === d.key ? 'var(--accent)' : 'transparent',
               color: selectedDay === d.key ? '#fff' : 'var(--t2)',
               fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
-            }}>{d.label} ({d.count}/7)</button>
+            }}>{d.label} ({d.points}/6)</button>
         ))}
       </div>
 
@@ -189,7 +195,7 @@ export default function GlycemicChart({ glucose = [] }) {
             { label: activeDay ? `${activeDay.label} Avg` : 'Latest Avg', val: formatGlucose(convertGlucose(summaryDay.avg, 'mmol/L', unit), unit) },
             { label: 'Low', val: formatGlucose(convertGlucose(summaryDay.min, 'mmol/L', unit), unit), warn: summaryDay.min < 4 },
             { label: 'High', val: formatGlucose(convertGlucose(summaryDay.max, 'mmol/L', unit), unit), warn: summaryDay.max > 10 },
-            { label: 'Points', val: `${summaryDay.count}/7` },
+            { label: 'Points', val: `${summaryDay.points}/6` },
           ].map(c => (
             <div key={c.label} style={{
               display: 'flex', alignItems: 'center', gap: 4,
@@ -207,38 +213,38 @@ export default function GlycemicChart({ glucose = [] }) {
         </div>
       </div>
 
-      {/* Grouped readings table, most recent day first */}
+      {/* 6-point chart: one row per day, one column per time point (most recent day first) */}
+      <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--t2)', padding: '0 12px 8px' }}>
+        Normal: Fasting / Pre-meal 70–99 mg/dL &nbsp;•&nbsp; 2hrs Post-meal &lt;140 mg/dL &nbsp;•&nbsp; outside range flagged red
+      </div>
       <div className="table-scroll">
-        <table className="chart-table big-table">
-          <thead><tr><th>Date</th><th>Time</th><th>Reading ({unit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
+        <table className="chart-table big-table" style={{ textAlign: 'center' }}>
+          <thead><tr>
+            <th style={{ textAlign: 'center' }}>Date</th>
+            {SLOTS.map(sl => <th key={sl.key} style={{ textAlign: 'center' }}>{sl.key}</th>)}
+            <th style={{ textAlign: 'center' }}>Remark</th>
+          </tr></thead>
           <tbody>
-            {[...days].reverse().map(d => (
-              <React.Fragment key={d.key}>
-                <tr>
-                  <td colSpan={6} style={{
-                    fontWeight: 800, fontSize: 18, color: 'var(--t1)', textAlign: 'center',
-                    background: 'var(--card-bg2)', padding: '6px 10px',
-                  }}>
-                    {d.label} — avg {formatGlucose(convertGlucose(d.avg, 'mmol/L', unit), unit)} {unit}, {d.count}/7 points
-                  </td>
+            {[...days].reverse().map(d => {
+              const remarks = d.readings.map(r => r.remark).filter(Boolean).join('; ');
+              return (
+                <tr key={d.key}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{fullDateOf(d.key)}</td>
+                  {SLOTS.map((sl, i) => {
+                    const r = d.readings.find(x => slotIndexOf(x.context) === i);
+                    if (!r) return <td key={sl.key} className="text-muted">—</td>;
+                    const bad = isAbnormalSlot(r.mmolVal, sl.type);
+                    return (
+                      <td key={sl.key} style={bad ? { color: '#ef4444', background: 'rgba(239,68,68,.12)' } : undefined}>
+                        {formatGlucose(convertGlucose(r.mmolVal, 'mmol/L', unit), unit)}
+                        {r.time && <div style={{ fontSize: 11, fontWeight: 600, opacity: .75 }}>{r.time}</div>}
+                      </td>
+                    );
+                  })}
+                  <td className="text-muted">{remarks || '—'}</td>
                 </tr>
-                {d.readings.map(g => {
-                  const displayVal = formatGlucose(convertGlucose(g.mmolVal, 'mmol/L', unit), unit);
-                  const status = statusOf(g.mmolVal);
-                  const scls = g.mmolVal < 4 ? 'badge-warn' : g.mmolVal > 10 ? 'badge-danger' : g.mmolVal > 7 ? 'badge-warn' : 'badge-ok';
-                  return (
-                    <tr key={g.id}>
-                      <td>{fullDateOf(d.key)}</td>
-                      <td>{g.time}</td>
-                      <td style={{ fontWeight: 700 }}>{displayVal}</td>
-                      <td className="text-muted">{g.context}</td>
-                      <td><span className={`badge ${scls}`}>{status}</span></td>
-                      <td className="text-muted">{g.recordedBy}</td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
