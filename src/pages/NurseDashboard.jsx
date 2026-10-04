@@ -48,65 +48,71 @@ export default function NurseDashboard() {
       <div className="page-content" style={{ flex:1 }}>
 
         {/* ── Total Registered Patients ── */}
-        <div className="stat-card" onClick={() => navigate('/nurse/patients')} style={{cursor:'pointer', marginBottom:12}}>
-          <div className="stat-label"><i className="ti ti-users" style={{color:'#8b5cf6'}} />Total Registered Patients</div>
-          <div className="stat-value" style={{color:'#8b5cf6'}}>{patients.length}</div>
+        <div className="dash-card dash-card-wide" onClick={() => navigate('/nurse/patients')}
+          style={{'--c1':'#a78bfa','--c2':'#6d28d9','--c3':'#4c1d95'}}>
+          <div className="dash-label"><i className="ti ti-users" />Total Registered Patients</div>
+          <div className="dash-value">{patients.length}</div>
         </div>
 
         {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
-          <div className="stat-card" onClick={() => navigate('/nurse/queue')} style={{cursor:'pointer'}}>
-            <div className="stat-label"><i className="ti ti-clock" style={{color:'var(--accent)'}} />Waiting</div>
-            <div className="stat-value" style={{color:'var(--accent)'}}>{waiting}</div>
+        <div className="dash-grid">
+          <div className="dash-card" onClick={() => navigate('/nurse/queue')}
+            style={{'--c1':'#60a5fa','--c2':'#2563eb','--c3':'#1e3a8a'}}>
+            <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
+            <div className="dash-value">{waiting}</div>
           </div>
-          <div className="stat-card" onClick={() => navigate('/nurse/meds')} style={{cursor:'pointer'}}>
-            <div className="stat-label"><i className="ti ti-pill" style={{color:'var(--danger)'}} />Meds due</div>
-            <div className="stat-value" style={{color:'var(--danger)'}}>0</div>
+          <div className="dash-card" onClick={() => navigate('/nurse/meds')}
+            style={{'--c1':'#f87171','--c2':'#dc2626','--c3':'#7f1d1d'}}>
+            <div className="dash-label"><i className="ti ti-pill" />Meds due</div>
+            <div className="dash-value">0</div>
           </div>
-          <div className="stat-card" onClick={() => navigate('/nurse/seen-today')} style={{cursor:'pointer'}}>
-            <div className="stat-label"><i className="ti ti-check" style={{color:'var(--success)'}} />Seen today</div>
-            <div className="stat-value" style={{color:'var(--success)'}}>{sickSeenCount}</div>
+          <div className="dash-card" onClick={() => navigate('/nurse/seen-today')}
+            style={{'--c1':'#4ade80','--c2':'#16a34a','--c3':'#14532d'}}>
+            <div className="dash-label"><i className="ti ti-check" />Seen today</div>
+            <div className="dash-value">{sickSeenCount}</div>
           </div>
         </div>
 
         {/* ── Row 2: Sick Report · On Admission · D/R ── */}
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
-
-          <div className="stat-card" onClick={() => navigate('/nurse/sick-report')} style={{cursor:'pointer'}}>
-            <div className="stat-label"><i className="ti ti-stethoscope" style={{color:'#f97316'}} />Sick Report</div>
-            <div className="stat-value" style={{color:'#f97316'}}>{sickTotal}</div>
-            <div style={{display:'flex', gap:6, marginTop:4}}>
-              <span style={{fontSize:9,fontWeight:800,color:'#10b981'}}>✓ {sickSeenCount} seen</span>
-              <span style={{fontSize:9,fontWeight:800,color:'#94a3b8'}}>· {notSeen} pending</span>
+        <div className="dash-grid">
+          <div className="dash-card" onClick={() => navigate('/nurse/sick-report')}
+            style={{'--c1':'#fb923c','--c2':'#ea580c','--c3':'#7c2d12'}}>
+            <div className="dash-label"><i className="ti ti-stethoscope" />Sick Report</div>
+            <div className="dash-value">{sickTotal}</div>
+            <div className="dash-sub">
+              <span>✓ {sickSeenCount} seen</span>
+              <span>· {notSeen} pending</span>
             </div>
           </div>
 
-          <div className="stat-card" onClick={() => navigate('/nurse/on-admission')} style={{cursor:'pointer'}}>
-            <div className="stat-label"><i className="ti ti-bed" style={{color:'#a855f7'}} />On Admission</div>
-            <div style={{display:'flex', gap:12, marginTop:4, alignItems:'baseline'}}>
+          <div className="dash-card" onClick={() => navigate('/nurse/on-admission')}
+            style={{'--c1':'#c084fc','--c2':'#9333ea','--c3':'#581c87'}}>
+            <div className="dash-label"><i className="ti ti-bed" />On Admission</div>
+            <div className="dash-split">
               <div>
-                <div style={{fontSize:22,fontWeight:800,color:'#3b82f6',lineHeight:1}}>{maleAdm}</div>
-                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Male</div>
+                <div className="dash-value-sm">{maleAdm}</div>
+                <div className="dash-caption">Male</div>
               </div>
-              <div style={{color:'var(--border)',fontSize:18}}>|</div>
+              <div className="dash-divider" />
               <div>
-                <div style={{fontSize:22,fontWeight:800,color:'#ec4899',lineHeight:1}}>{femaleAdm}</div>
-                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Female</div>
+                <div className="dash-value-sm">{femaleAdm}</div>
+                <div className="dash-caption">Female</div>
               </div>
             </div>
           </div>
 
-          <div className="stat-card" onClick={() => navigate('/nurse/discharged-referred')} style={{cursor:'pointer'}}>
-            <div className="stat-label"><i className="ti ti-logout" style={{color:'#10b981'}} />D/R Today</div>
-            <div style={{display:'flex', gap:12, marginTop:4, alignItems:'baseline'}}>
+          <div className="dash-card" onClick={() => navigate('/nurse/discharged-referred')}
+            style={{'--c1':'#34d399','--c2':'#059669','--c3':'#064e3b'}}>
+            <div className="dash-label"><i className="ti ti-logout" />D/R Today</div>
+            <div className="dash-split">
               <div>
-                <div style={{fontSize:22,fontWeight:800,color:'#10b981',lineHeight:1}}>{dischargedToday}</div>
-                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Discharged</div>
+                <div className="dash-value-sm">{dischargedToday}</div>
+                <div className="dash-caption">Discharged</div>
               </div>
-              <div style={{color:'var(--border)',fontSize:18}}>|</div>
+              <div className="dash-divider" />
               <div>
-                <div style={{fontSize:22,fontWeight:800,color:'#f59e0b',lineHeight:1}}>{referredToday}</div>
-                <div style={{fontSize:10,color:'var(--t3)',fontWeight:600}}>Referred</div>
+                <div className="dash-value-sm">{referredToday}</div>
+                <div className="dash-caption">Referred</div>
               </div>
             </div>
           </div>
