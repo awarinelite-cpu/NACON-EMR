@@ -156,7 +156,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
         ) : (
           <>
             <div className="mar-table-scroll">
-            <table className="data-table mar-drugs-table">
+            <table className="big-table data-table mar-drugs-table">
               <thead>
                 <tr>
                   <th>Drug</th>
@@ -262,7 +262,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
           </div>
         ) : (
           <div className="table-scroll">
-          <table className="data-table">
+          <table className="big-table data-table">
             <thead>
               <tr>
                 <th>Time</th><th>Drug</th><th>Dose</th>
@@ -310,7 +310,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient }) {
             <div className="card-title"><i className="ti ti-calendar-stats" />Full MAR History</div>
           </div>
           <div className="table-scroll">
-          <table className="data-table">
+          <table className="big-table data-table">
             <thead>
               <tr>
                 <th>Date</th><th>Time</th><th>Drug</th>

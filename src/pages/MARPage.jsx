@@ -341,7 +341,7 @@ export default function MARPage() {
                   </div>
                 ) : (
                   <div className="mar-table-scroll">
-                  <table className="data-table mar-drugs-table">
+                  <table className="big-table data-table mar-drugs-table">
                     <thead>
                       <tr>
                         <th>Drug</th>
@@ -455,7 +455,7 @@ export default function MARPage() {
                   </div>
                 ) : (
                   <div className="table-scroll">
-                  <table className="data-table">
+                  <table className="big-table data-table">
                     <thead>
                       <tr>
                         <th>Time</th>
@@ -512,7 +512,7 @@ export default function MARPage() {
                     </div>
                   </div>
                   <div className="table-scroll">
-                  <table className="data-table">
+                  <table className="big-table data-table">
                     <thead>
                       <tr>
                         <th>Date</th>

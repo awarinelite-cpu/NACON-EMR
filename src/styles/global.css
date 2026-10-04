@@ -734,11 +734,11 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   border-bottom: 1px solid var(--border);
 }
 .chart-table tr:last-child td { border-bottom: none; }
-.fluid-table th { font-size: 14px; padding: 12px 14px; }
-.fluid-table td { font-size: 18px; padding: 12px 14px; }
+.fluid-table th, .big-table th { font-size: 14px; padding: 12px 14px; }
+.fluid-table td, .big-table td { font-size: 18px; padding: 12px 14px; }
 @media (max-width: 768px) {
-  .fluid-table th { font-size: 13px; padding: 10px 10px; }
-  .fluid-table td { font-size: 16px; padding: 10px 10px; }
+  .fluid-table th, .big-table th { font-size: 13px; padding: 10px 10px; }
+  .fluid-table td, .big-table td { font-size: 16px; padding: 10px 10px; }
 }
 
 /* ══════════════════════════════════

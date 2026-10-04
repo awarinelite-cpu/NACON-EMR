@@ -1018,12 +1018,12 @@ export default function PatientProfile() {
                   }}>
                     {(patient.surname?.[0]||'')+(patient.firstName?.[0]||'')}
                   </div>
-                  <div style={{ fontWeight:700, fontSize:13, lineHeight:1.2 }}>{patient.surname} {patient.firstName}</div>
-                  <div style={{ fontSize:10, color:'var(--t3)', fontFamily:'var(--mono)' }}>{patient.emrNumber}</div>
-                  <div style={{ fontSize:10, color:'var(--t3)' }}>{patient.classSet}</div>
+                  <div style={{ fontWeight:700, fontSize:17, lineHeight:1.2 }}>{patient.surname} {patient.firstName}</div>
+                  <div style={{ fontSize:14, color:'var(--t3)', fontFamily:'var(--mono)' }}>{patient.emrNumber}</div>
+                  <div style={{ fontSize:14, color:'var(--t3)' }}>{patient.classSet}</div>
                   <span style={{
                     background: statusColor+'22', color: statusColor,
-                    fontSize:9, fontWeight:700, padding:'2px 9px', borderRadius:20,
+                    fontSize:12, fontWeight:700, padding:'2px 9px', borderRadius:20,
                     textTransform:'capitalize',
                   }}>{patient.status}</span>
                 </div>
@@ -1043,8 +1043,8 @@ export default function PatientProfile() {
                     ['Primary Dx',     patient.primaryDiagnosis || '—'],
                   ].map(([label, val]) => (
                     <div key={label} style={{ display:'flex', flexDirection:'column', gap:1 }}>
-                      <div style={{ fontSize:9, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>{label}</div>
-                      <div style={{ fontSize:12, fontWeight:700, color:'var(--t1)' }}>{val || '—'}</div>
+                      <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>{label}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:'var(--t1)' }}>{val || '—'}</div>
                     </div>
                   ))}
                 </div>
@@ -1053,12 +1053,12 @@ export default function PatientProfile() {
 
                 {/* Allergies */}
                 <div style={{ flex:'0 0 140px', minWidth:140, scrollSnapAlign:'start' }}>
-                  <div style={{ fontSize:9, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>Allergies</div>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>Allergies</div>
                   {(() => {
                     const a = patient.allergies?.trim();
                     const has = a && a.toLowerCase() !== 'none' && a.toLowerCase() !== 'nil';
                     return (
-                      <div style={{ fontSize:12, fontWeight:700, color: has ? 'var(--danger)' : 'var(--success)' }}>
+                      <div style={{ fontSize:16, fontWeight:700, color: has ? 'var(--danger)' : 'var(--success)' }}>
                         {has ? `⚠ ${a}` : '✓ No known allergies'}
                       </div>
                     );
@@ -1070,7 +1070,7 @@ export default function PatientProfile() {
                   <>
                     <div style={{ width:1, flexShrink:0, background:'var(--border)' }} />
                     <div style={{ flex:'0 0 200px', minWidth:200, scrollSnapAlign:'start' }}>
-                      <div style={{ fontSize:9, fontWeight:800, color:'var(--danger)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:'var(--danger)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>
                         🚨 Emergency Contact
                       </div>
                       {[
@@ -1079,8 +1079,8 @@ export default function PatientProfile() {
                         ['Phone',        patient.nextOfKinTel],
                       ].map(([l, v]) => v ? (
                         <div key={l} style={{ display:'flex', gap:8, marginBottom:3 }}>
-                          <span style={{ fontSize:10, fontWeight:700, color:'var(--t3)', width:80, flexShrink:0 }}>{l}:</span>
-                          <span style={{ fontSize:11, fontWeight:700, color:'var(--t1)' }}>{v}</span>
+                          <span style={{ fontSize:14, fontWeight:700, color:'var(--t3)', width:80, flexShrink:0 }}>{l}:</span>
+                          <span style={{ fontSize:15, fontWeight:700, color:'var(--t1)' }}>{v}</span>
                         </div>
                       ) : null)}
                       {patient.nextOfKinTel && (
@@ -1088,9 +1088,9 @@ export default function PatientProfile() {
                           display:'inline-flex', alignItems:'center', gap:5,
                           marginTop:4, padding:'5px 10px',
                           background:'var(--danger)', color:'#fff',
-                          borderRadius:6, fontSize:11, fontWeight:700, textDecoration:'none',
+                          borderRadius:6, fontSize:15, fontWeight:700, textDecoration:'none',
                         }}>
-                          <i className="ti ti-phone" style={{fontSize:12}} /> Call now
+                          <i className="ti ti-phone" style={{fontSize:16}} /> Call now
                         </a>
                       )}
                     </div>
@@ -1103,13 +1103,13 @@ export default function PatientProfile() {
             <div className="card">
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-activity" />Visit Timeline</div>
-                <span style={{ fontSize:11, color:'var(--t3)' }}>{timeline.length} events</span>
+                <span style={{ fontSize:15, color:'var(--t3)' }}>{timeline.length} events</span>
               </div>
               {timeline.length === 0 ? (
                 <div style={{ padding:32, textAlign:'center', color:'var(--t3)' }}>
                   <i className="ti ti-clipboard" style={{ fontSize:32, display:'block', marginBottom:8 }} />
                   <div style={{ fontWeight:700 }}>No events yet</div>
-                  <div style={{ fontSize:11, marginTop:4 }}>Start by recording vitals or adding a note</div>
+                  <div style={{ fontSize:15, marginTop:4 }}>Start by recording vitals or adding a note</div>
                 </div>
               ) : (
                 <div className="timeline">
@@ -1118,20 +1118,20 @@ export default function PatientProfile() {
                       <div className="tl-dot" style={{ background: tlColor[item.type] }} />
                       <div className="tl-body">
                         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                          <i className={`ti ${tlIcon[item.type]}`} style={{ color: tlColor[item.type], fontSize:13 }} />
+                          <i className={`ti ${tlIcon[item.type]}`} style={{ color: tlColor[item.type], fontSize:17 }} />
                           <div className="tl-title">{tlTitle[item.type]}</div>
                           {item.type==='rx' && item.data.requiresCountersign && (
-                            <span className="badge badge-warn" style={{ fontSize:9 }}>Nurse Rx</span>
+                            <span className="badge badge-warn" style={{ fontSize:12 }}>Nurse Rx</span>
                           )}
                         </div>
                         <div className="tl-sub">{tlDesc(item)}</div>
-                        <div style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>
+                        <div style={{ fontSize:14, color:'var(--t3)', marginTop:2 }}>
                           {item.type==='note' ? item.data.authorName : item.data.recordedBy || item.data.prescribedBy || item.data.uploadedBy}
                         </div>
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
                         <div className="tl-time">{formatDateTime(item.ts)}</div>
-                        <i className="ti ti-chevron-right" style={{ fontSize:11, color:'var(--t3)' }} />
+                        <i className="ti ti-chevron-right" style={{ fontSize:15, color:'var(--t3)' }} />
                       </div>
                     </div>
                   ))}
@@ -1184,7 +1184,7 @@ export default function PatientProfile() {
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />Vitals History</div></div>
               <div className="table-scroll">
-              <table className="data-table">
+              <table className="data-table big-table">
                 <thead><tr><th>Time</th><th>BP</th><th>HR</th><th>Temp</th><th>RR</th><th>SpO₂</th><th>By</th></tr></thead>
                 <tbody>
                   {vitals.map(v => (
@@ -1230,7 +1230,7 @@ export default function PatientProfile() {
               <div className="card-body">
                 {/* Table layout: Drug name | Dosage | Frequency | Duration */}
                 <div className="table-scroll" style={{ marginBottom:12 }}>
-                  <table className="data-table rx-write-table" style={{ width:'100%', tableLayout:'fixed' }}>
+                  <table className="data-table big-table rx-write-table" style={{ width:'100%', tableLayout:'fixed' }}>
                     <thead>
                       <tr>
                         <th style={{ width:44 }}>#</th>
@@ -2894,11 +2894,11 @@ function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
                       </span>
                       <span style={{ fontSize:10, color:'var(--t3)' }}>{formatTs(result.completedAt)}</span>
                     </div>
-                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:16 }}>
                       <thead>
                         <tr style={{ background:'rgba(0,0,0,.03)' }}>
                           {['Test','Result','Unit','Ref Range','Flag'].map(h => (
-                            <th key={h} style={{ padding:'6px 10px', textAlign:'left', fontSize:9,
+                            <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:13,
                               fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{h}</th>
                           ))}
                         </tr>
@@ -2907,16 +2907,16 @@ function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
                         {Object.entries(result.results||{}).map(([test, r], i) => (
                           <tr key={test} style={{ borderTop:'1px solid var(--border)',
                             background: i%2===0 ? 'transparent' : 'rgba(0,0,0,.015)' }}>
-                            <td style={{ padding:'7px 10px', fontWeight:700 }}>{test}</td>
-                            <td style={{ padding:'7px 10px', fontWeight:800,
+                            <td style={{ padding:'10px 12px', fontWeight:700 }}>{test}</td>
+                            <td style={{ padding:'10px 12px', fontWeight:800,
                               color: r.flag==='high'?'#dc2626':r.flag==='low'?'#d97706':'var(--t1)' }}>
                               {r.value||'—'}
                             </td>
-                            <td style={{ padding:'7px 10px', color:'var(--t3)' }}>{r.unit||'—'}</td>
-                            <td style={{ padding:'7px 10px', color:'var(--t3)' }}>{r.referenceRange||'—'}</td>
-                            <td style={{ padding:'7px 10px' }}>
+                            <td style={{ padding:'10px 12px', color:'var(--t3)' }}>{r.unit||'—'}</td>
+                            <td style={{ padding:'10px 12px', color:'var(--t3)' }}>{r.referenceRange||'—'}</td>
+                            <td style={{ padding:'10px 12px' }}>
                               {r.flag ? (
-                                <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:4,
+                                <span style={{ fontSize:13, fontWeight:700, padding:'2px 8px', borderRadius:4,
                                   background: r.flag==='high'?'#fee2e2':r.flag==='low'?'#ffedd5':'rgba(22,163,74,.1)',
                                   color: FLAG_COLOR_L[r.flag]||'var(--t3)' }}>
                                   {r.flag.toUpperCase()}

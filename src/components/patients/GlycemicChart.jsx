@@ -204,14 +204,14 @@ export default function GlycemicChart({ glucose = [] }) {
 
       {/* Grouped readings table, most recent day first */}
       <div className="table-scroll">
-        <table className="chart-table">
+        <table className="chart-table big-table">
           <thead><tr><th>Time</th><th>Reading ({unit})</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
           <tbody>
             {[...days].reverse().map(d => (
               <React.Fragment key={d.key}>
                 <tr>
                   <td colSpan={5} style={{
-                    fontWeight: 800, fontSize: 11, color: 'var(--t2)',
+                    fontWeight: 800, fontSize: 18, color: 'var(--t1)', textAlign: 'center',
                     background: 'var(--card-bg2)', padding: '6px 10px',
                   }}>
                     {d.label} — avg {formatGlucose(convertGlucose(d.avg, 'mmol/L', unit), unit)} {unit}, {d.count}/7 points

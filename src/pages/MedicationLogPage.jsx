@@ -296,7 +296,7 @@ export default function MedicationLogPage() {
                   </div>
                 ) : (
                   <div className="table-scroll">
-                  <table className="data-table">
+                  <table className="data-table big-table">
                     <thead>
                       <tr>
                         <th>Date</th>
