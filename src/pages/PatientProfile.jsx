@@ -1853,7 +1853,7 @@ export default function PatientProfile() {
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-droplet" />Fluid I/O Entry</div></div>
-              <div className="card-body">
+              <div className="card-body fluid-entry">
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   <div className="form-group"><label className="form-label">Date</label>
                     <input type="date" className="form-input" value={fluidForm.date} onChange={e=>setFluidForm(f=>({...f,date:e.target.value}))} /></div>
@@ -1861,8 +1861,8 @@ export default function PatientProfile() {
                     <input type="time" className="form-input" value={fluidForm.time} onChange={e=>setFluidForm(f=>({...f,time:e.target.value}))} /></div>
                 </div>
 
-                <div style={{ background:'#e8f6ee', borderRadius:14, padding:14, marginTop:10 }}>
-                  <div style={{ fontSize:22, fontWeight:800, marginBottom:8 }}>Intake</div>
+                <div className="fluid-card fluid-card-in">
+                  <div className="fluid-card-title">Intake</div>
                   <div className="form-group"><label className="form-label">Route of Intake</label>
                     <select className="form-select" value={fluidForm.intakeType} onChange={e=>setFluidForm(f=>({...f,intakeType:e.target.value}))}>
                       <option value="">SELECT</option>
@@ -1874,8 +1874,8 @@ export default function PatientProfile() {
                     <input type="number" inputMode="numeric" className="form-input" value={fluidForm.intakeAmt} onChange={e=>setFluidForm(f=>({...f,intakeAmt:e.target.value}))} /></div>
                 </div>
 
-                <div style={{ background:'#fdf0e0', borderRadius:14, padding:14, marginTop:10 }}>
-                  <div style={{ fontSize:22, fontWeight:800, marginBottom:8 }}>Output</div>
+                <div className="fluid-card fluid-card-out">
+                  <div className="fluid-card-title">Output</div>
                   <div className="form-group"><label className="form-label">Type of Output</label>
                     <select className="form-select" value={fluidForm.outputType} onChange={e=>setFluidForm(f=>({...f,outputType:e.target.value}))}>
                       <option value="">SELECT</option>

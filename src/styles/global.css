@@ -1467,3 +1467,19 @@ html, body { overflow-x: hidden; }
 .rx-write-table td { border-bottom: 1px solid var(--border); }
 .rx-write-table tr:hover td { background: transparent; }
 .rx-write-table .form-input { min-width: 0; }
+
+
+/* Fluid I/O entry cards — theme-aware (readable in light and night mode) */
+.fluid-card { border-radius: 14px; padding: 14px; margin-top: 10px; border: 1.5px solid var(--border); }
+.fluid-card-in  { background: var(--success-bg); border-color: var(--success); }
+.fluid-card-out { background: var(--warn-bg);    border-color: var(--warn); }
+.fluid-card-title { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+.fluid-card-in  .fluid-card-title { color: var(--success); }
+.fluid-card-out .fluid-card-title { color: var(--warn); }
+.fluid-entry .form-group, .fluid-card .form-group { margin-bottom: 12px; }
+.fluid-entry .form-label, .fluid-card .form-label { color: var(--t1); font-size: 13px; font-weight: 800; margin-bottom: 6px; display: block; }
+.fluid-entry .form-input, .fluid-entry .form-select, .fluid-card .form-input, .fluid-card .form-select {
+  background: var(--card-bg); color: var(--t1); border: 1.5px solid var(--t3);
+}
+.fluid-entry .form-input:focus, .fluid-entry .form-select:focus { border-color: var(--accent); }
+[data-theme="dark"] .fluid-entry .form-input, [data-theme="dark"] .fluid-entry .form-select { border-color: var(--t2); }
