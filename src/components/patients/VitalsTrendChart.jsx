@@ -176,10 +176,10 @@ export default function VitalsTrendChart({ vitals }) {
         {chartData.length > 0 && (() => {
           const latest = chartData[chartData.length - 1];
           const checks = [
-            { label:'BP',   val: latest.sbp ? `${latest.sbp}/${latest.dbp}` : null, unit:'mmHg', abnormal: latest.sbp > 140 || latest.sbp < 90 },
+            { label:'BP',   val: latest.sbp ? `${latest.sbp}/${latest.dbp}` : null, unit:'mmHg', abnormal: latest.sbp > 139 || latest.sbp < 90 || latest.dbp > 89 || latest.dbp < 60 },
             { label:'HR',   val: latest.hr,   unit:'bpm',  abnormal: latest.hr > 100 || latest.hr < 60  },
             { label:'Temp', val: latest.temp, unit:'°C',   abnormal: latest.temp > 37.5 || latest.temp < 36 },
-            { label:'SpO₂', val: latest.spo2, unit:'%',    abnormal: latest.spo2 < 94   },
+            { label:'SpO₂', val: latest.spo2, unit:'%',    abnormal: latest.spo2 < 95   },
             { label:'RR',   val: latest.rr,   unit:'/min', abnormal: latest.rr > 20 || latest.rr < 12   },
           ].filter(c => c.val);
           return (
@@ -193,7 +193,7 @@ export default function VitalsTrendChart({ vitals }) {
                 }}>
                   {c.abnormal && <i className="ti ti-alert-triangle" style={{ fontSize: 10, color: '#ef4444' }} />}
                   <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)' }}>{c.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: c.abnormal ? '#ef4444' : 'var(--t1)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: c.abnormal ? 'var(--vital-red)' : 'var(--t1)' }}>
                     {c.val} {c.unit}
                   </span>
                 </div>

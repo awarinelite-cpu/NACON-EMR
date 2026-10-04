@@ -391,7 +391,7 @@ function BioCard({ patient }) {
 
 function LatestVitals({ vitals }) {
   const flags = {
-    bp:   (v) => { const [s] = (v||'').split('/'); return +s > 140 ? 'vital-high' : +s < 90 ? 'vital-low' : 'vital-ok'; },
+    bp:   (v) => { const [s, d] = (v||'').split('/'); return (+s > 139 || +d > 89) ? 'vital-high' : (+s < 90 || (d && +d < 60)) ? 'vital-low' : 'vital-ok'; },
     temp: (v) => +v > 37.5 ? 'vital-high' : +v < 36 ? 'vital-low' : 'vital-ok',
     spo2: (v) => +v < 95 ? 'vital-low' : 'vital-ok',
     hr:   (v) => +v > 100 ? 'vital-high' : +v < 60 ? 'vital-low' : 'vital-ok',
@@ -528,7 +528,22 @@ function VitalsHistory({ vitals }) {
           {vitals.map(v => (
             <tr key={v.id}>
               <td style={{ fontFamily:'var(--mono)', fontSize:11 }}>{formatDateTime(v.recordedAt)}</td>
-              <td>{v.bp}</td><td>{v.hr}</td><td>{v.temp}</td><td>{v.rr}</td><td>{v.spo2}</td>
+              {(() => {
+                const [sb, db] = (v.bp || '').split('/');
+                const bad = {
+                  bp:   +sb > 139 || +db > 89 || (sb && +sb < 90) || (db && +db < 60),
+                  hr:   +v.hr > 100 || (v.hr !== '' && v.hr != null && +v.hr < 60),
+                  temp: +v.temp > 37.5 || (v.temp !== '' && v.temp != null && +v.temp < 36),
+                  rr:   +v.rr > 20 || (v.rr !== '' && v.rr != null && +v.rr < 12),
+                  spo2: v.spo2 !== '' && v.spo2 != null && +v.spo2 < 95,
+                };
+                const st = (b) => b ? { color:'var(--vital-red)', fontWeight:800 } : undefined;
+                return (<>
+                  <td style={st(bad.bp)}>{v.bp}</td><td style={st(bad.hr)}>{v.hr}</td>
+                  <td style={st(bad.temp)}>{v.temp}</td><td style={st(bad.rr)}>{v.rr}</td>
+                  <td style={st(bad.spo2)}>{v.spo2}</td>
+                </>);
+              })()}
               <td style={{ fontSize:11, color:'var(--t3)' }}>{v.recordedBy}</td>
             </tr>
           ))}

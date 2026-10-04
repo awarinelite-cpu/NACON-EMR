@@ -31,6 +31,12 @@ const NORMAL_RANGES = {
 };
 
 function isAbnormal(key, value) {
+  if (key === 'bp') {
+    // "120/80": abnormal if either number is out of range
+    const [sb, db] = String(value || '').split('/').map(parseFloat);
+    if (isNaN(sb)) return false;
+    return sb > 139 || sb < 90 || (!isNaN(db) && (db > 89 || db < 60));
+  }
   const range = NORMAL_RANGES[key];
   if (!range || !value) return false;
   const num = parseFloat(value);
@@ -259,15 +265,15 @@ export default function VitalSignsPage() {
                           background: abnormal ? 'var(--danger-bg)' : 'var(--card-bg2)',
                           border: `1px solid ${abnormal ? 'var(--danger)' : 'var(--border)'}`,
                         }}>
-                          <div style={{ fontSize: 10, color: abnormal ? 'var(--danger)' : 'var(--t3)', fontWeight: 700, marginBottom: 2 }}>
+                          <div style={{ fontSize: 10, color: abnormal ? 'var(--vital-red)' : 'var(--t3)', fontWeight: 700, marginBottom: 2 }}>
                             <i className={`ti ${f.icon}`} style={{ marginRight: 4 }} />{f.label}
                           </div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: abnormal ? 'var(--danger)' : 'var(--t1)' }}>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: abnormal ? 'var(--vital-red)' : 'var(--t1)' }}>
                             {latest[f.key]}
-                            <span style={{ fontSize: 11, fontWeight: 500, color: abnormal ? 'var(--danger)' : 'var(--t3)', marginLeft: 3 }}>{f.unit}</span>
+                            <span style={{ fontSize: 11, fontWeight: 500, color: abnormal ? 'var(--vital-red)' : 'var(--t3)', marginLeft: 3 }}>{f.unit}</span>
                           </div>
                           {abnormal && (
-                            <div style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 700, marginTop: 2 }}>⚠ ABNORMAL</div>
+                            <div style={{ fontSize: 9, color: 'var(--vital-red)', fontWeight: 700, marginTop: 2 }}>⚠ ABNORMAL</div>
                           )}
                         </div>
                       );
@@ -316,27 +322,30 @@ export default function VitalSignsPage() {
                             {['temp', 'pulse', 'resp'].map(k => (
                               <td key={k} style={{
                                 fontWeight: 700,
-                                color: isAbnormal(k, v[k]) ? 'var(--danger)' : 'var(--t1)',
+                                color: isAbnormal(k, v[k]) ? 'var(--vital-red)' : 'var(--t1)',
                               }}>
                                 {v[k] || '—'}
                                 {isAbnormal(k, v[k]) && <span style={{ marginLeft: 3 }}>⚠</span>}
                               </td>
                             ))}
-                            <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{v.bp || '—'}</td>
+                            <td style={{ fontFamily: 'var(--mono)', fontSize: 12, ...(isAbnormal('bp', v.bp) ? { color: 'var(--vital-red)', fontWeight: 800 } : {}) }}>
+                              {v.bp || '—'}
+                              {isAbnormal('bp', v.bp) && <span style={{ marginLeft: 3 }}>⚠</span>}
+                            </td>
                             <td style={{
                               fontWeight: 700,
-                              color: isAbnormal('spo2', v.spo2) ? 'var(--danger)' : 'var(--t1)',
+                              color: isAbnormal('spo2', v.spo2) ? 'var(--vital-red)' : 'var(--t1)',
                             }}>
                               {v.spo2 ? `${v.spo2}%` : '—'}
                               {isAbnormal('spo2', v.spo2) && <span style={{ marginLeft: 3 }}>⚠</span>}
                             </td>
                             <td>{v.gcs || '—'}</td>
                             <td style={{
-                              color: isAbnormal('pain', v.pain) ? 'var(--danger)' : 'var(--t1)',
+                              color: isAbnormal('pain', v.pain) ? 'var(--vital-red)' : 'var(--t1)',
                               fontWeight: v.pain ? 700 : 400,
                             }}>{v.pain || '—'}</td>
                             <td style={{
-                              color: isAbnormal('bsl', v.bsl) ? 'var(--danger)' : 'var(--t1)',
+                              color: isAbnormal('bsl', v.bsl) ? 'var(--vital-red)' : 'var(--t1)',
                               fontWeight: v.bsl ? 700 : 400,
                             }}>{v.bsl || '—'}</td>
                             <td style={{ fontSize: 11 }}>

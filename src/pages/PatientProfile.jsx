@@ -46,15 +46,25 @@ const TABS = [
 ];
 
 const vitalFlag = (key, val) => {
+  // BP strings like "156/86" are judged on BOTH numbers
+  if (key==='sbp' && typeof val==='string' && val.includes('/')) {
+    const [sb, db] = val.split('/');
+    const a = vitalFlag('sbp', sb), b = vitalFlag('dbp', db);
+    return a==='high'||b==='high' ? 'high' : a==='low'||b==='low' ? 'low' : (a||b);
+  }
   const v = parseFloat(val);
   if (isNaN(v)) return '';
   if (key==='temp')  return v>37.5?'high':v<36?'low':'ok';
   if (key==='sbp')   return v>139?'high':v<90?'low':'ok';
+  if (key==='dbp')   return v>89?'high':v<60?'low':'ok';
   if (key==='hr')    return v>100?'high':v<60?'low':'ok';
   if (key==='spo2')  return v<95?'high':'ok';
   if (key==='rr')    return v>20?'high':v<12?'low':'ok';
   return 'ok';
 };
+const isAbn = (flag) => flag==='high' || flag==='low';
+const RED = 'var(--vital-red)';
+const bpFlagOf = (v) => (v && v.sbp!=null) ? vitalFlag('sbp', `${v.sbp}/${v.dbp}`) : '';
 
 export default function PatientProfile() {
   const { emrNumber } = useParams();
@@ -296,8 +306,8 @@ export default function PatientProfile() {
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
                       {rows.map(r => {
                         const flag = r.key ? vitalFlag(r.key, r.value) : 'ok';
-                        const clr  = flag==='high'?'var(--danger)':flag==='low'?'var(--warn)':'var(--t1)';
-                        const bg   = flag==='high'?'var(--danger-bg)':flag==='low'?'var(--warn-bg)':'var(--card-bg2)';
+                        const clr  = isAbn(flag) ? RED : 'var(--t1)';
+                        const bg   = isAbn(flag) ? 'var(--danger-bg)' : 'var(--card-bg2)';
                         return (
                           <div key={r.label} style={{ background:bg, borderRadius:10, padding:'12px 14px' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:4 }}>
@@ -706,7 +716,11 @@ export default function PatientProfile() {
 
   const tlDesc = (item) => {
     if (item.type==='note')    return `${item.data.authorRole==='doctor'?"Doctor's note":"Nursing note"} — ${item.data.text?.slice(0,100)}`;
-    if (item.type==='vitals')  return `BP ${item.data.sbp}/${item.data.dbp} · HR ${item.data.hr} · Temp ${item.data.temp}°C · SpO₂ ${item.data.spo2}%`;
+    if (item.type==='vitals')  {
+      const d = item.data;
+      const R = (flag, txt) => isAbn(flag) ? <b style={{ color:RED, fontWeight:800 }}>{txt}</b> : txt;
+      return <>{R(bpFlagOf(d), `BP ${d.sbp}/${d.dbp}`)} · {R(vitalFlag('hr',d.hr), `HR ${d.hr}`)} · {R(vitalFlag('temp',d.temp), `Temp ${d.temp}°C`)} · {R(vitalFlag('spo2',d.spo2), `SpO₂ ${d.spo2}%`)}</>;
+    }
     if (item.type==='rx')      return `Prescription — ${item.data.drugs?.map(d=>d.drug).join(', ')}`;
     if (item.type==='fluid')   return `Fluid — In: ${item.data.intakeAmt}ml Out: ${item.data.outputAmt}ml`;
     if (item.type==='glucose') return `Blood glucose ${item.data.reading} ${item.data.unit || 'mmol/L'} (${item.data.context})`;
@@ -902,13 +916,14 @@ export default function PatientProfile() {
           gap:8, padding:'10px 14px 0',
         }}>
           {[
-            { label:'BP',   value: latestV ? `${latestV.sbp}/${latestV.dbp}` : '—', unit:'mmHg',  icon:'ti-heartbeat',          flag: latestV ? vitalFlag('sbp', latestV.sbp) : '' },
+            { label:'BP',   value: latestV ? `${latestV.sbp}/${latestV.dbp}` : '—', unit:'mmHg',  icon:'ti-heartbeat',          flag: latestV ? bpFlagOf(latestV) : '' },
             { label:'HR',   value: latestV?.hr   || '—', unit:'bpm',   icon:'ti-heart-rate-monitor', flag: latestV ? vitalFlag('hr',  latestV.hr)  : '' },
             { label:'TEMP', value: latestV?.temp  || '—', unit:'°C',    icon:'ti-temperature',        flag: latestV ? vitalFlag('temp',latestV.temp): '' },
             { label:'SPO₂', value: latestV?.spo2  || '—', unit:'%',     icon:'ti-lungs',              flag: latestV ? vitalFlag('spo2',latestV.spo2): '' },
             { label:'MEDS', value: activeMeds,             unit:'active',icon:'ti-pill',               flag: 'ok' },
           ].map(v => {
-            const flagColor = v.flag==='high' ? 'var(--danger)' : v.flag==='low' ? 'var(--warn)' : 'var(--accent)';
+            const abn = isAbn(v.flag);
+            const flagColor = abn ? RED : 'var(--accent)';
             return (
               <div key={v.label} style={{
                 background:'var(--card-bg)',
@@ -922,8 +937,8 @@ export default function PatientProfile() {
                   <i className={`ti ${v.icon}`} style={{ fontSize:15, color: flagColor }} />
                   <span style={{ fontSize:9, fontWeight:700, color:'var(--t3)', letterSpacing:'.05em' }}>{v.label}</span>
                 </div>
-                <div style={{ fontSize:20, fontWeight:700, color:'var(--t1)', lineHeight:1 }}>{v.value}</div>
-                <div style={{ fontSize:9, color:'var(--t3)', fontWeight:500, marginTop:2 }}>{v.unit}</div>
+                <div style={{ fontSize:20, fontWeight:abn?800:700, color: abn ? RED : 'var(--t1)', lineHeight:1 }}>{v.value}</div>
+                <div style={{ fontSize:9, color: abn ? RED : 'var(--t3)', fontWeight: abn?700:500, marginTop:2 }}>{v.unit}</div>
               </div>
             );
           })}
@@ -1169,11 +1184,16 @@ export default function PatientProfile() {
                   {vitals.map(v => (
                     <tr key={v.id}>
                       <td style={{ fontFamily:'var(--mono)', fontSize:11 }}>{formatDateTime(v.recordedAt)}</td>
-                      <td style={{ color: vitalFlag('sbp',v.sbp)==='high'?'var(--danger)':vitalFlag('sbp',v.sbp)==='low'?'var(--warn)':'inherit' }}>{v.sbp}/{v.dbp}</td>
-                      <td>{v.hr}</td>
-                      <td style={{ color: vitalFlag('temp',v.temp)==='high'?'var(--danger)':vitalFlag('temp',v.temp)==='low'?'var(--warn)':'inherit' }}>{v.temp}°C</td>
-                      <td>{v.rr}</td>
-                      <td style={{ color: vitalFlag('spo2',v.spo2)==='high'?'var(--danger)':'inherit' }}>{v.spo2}%</td>
+                      {(() => {
+                        const cell = (flag, txt) => <td style={isAbn(flag) ? { color:RED, fontWeight:800 } : undefined}>{txt}</td>;
+                        return (<>
+                          {cell(bpFlagOf(v), `${v.sbp}/${v.dbp}`)}
+                          {cell(vitalFlag('hr',v.hr), v.hr)}
+                          {cell(vitalFlag('temp',v.temp), `${v.temp}°C`)}
+                          {cell(vitalFlag('rr',v.rr), v.rr)}
+                          {cell(vitalFlag('spo2',v.spo2), `${v.spo2}%`)}
+                        </>);
+                      })()}
                       <td style={{ fontSize:11, color:'var(--t3)' }}>{v.recordedBy}</td>
                     </tr>
                   ))}
@@ -2383,8 +2403,8 @@ export default function PatientProfile() {
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
                       {rows.map(r => {
                         const flag = r.key ? vitalFlag(r.key, r.value) : 'ok';
-                        const clr  = flag==='high'?'var(--danger)':flag==='low'?'var(--warn)':'var(--t1)';
-                        const bg   = flag==='high'?'var(--danger-bg)':flag==='low'?'var(--warn-bg)':'var(--card-bg2)';
+                        const clr  = isAbn(flag) ? RED : 'var(--t1)';
+                        const bg   = isAbn(flag) ? 'var(--danger-bg)' : 'var(--card-bg2)';
                         return (
                           <div key={r.label} style={{ background:bg, borderRadius:10, padding:'12px 14px' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:4 }}>

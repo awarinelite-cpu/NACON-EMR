@@ -640,8 +640,8 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .vital-label { font-size: 10px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; }
 .vital-value { font-size: 21px; font-weight: 700; color: var(--t1); margin: 3px 0 1px; }
 .vital-unit  { font-size: 10px; color: var(--t3); font-weight: 500; }
-.vital-high  { color: var(--danger); }
-.vital-low   { color: var(--warn); }
+.vital-high  { color: var(--vital-red); font-weight: 800; }
+.vital-low   { color: var(--vital-red); font-weight: 800; }
 .vital-ok    { color: var(--success); }
 
 /* Timeline */
@@ -1451,3 +1451,7 @@ html, body { overflow-x: hidden; }
 .pp-vitals > div { margin-bottom: 0; }
 /* .card sitting inside a flex/grid with its own gap shouldn't add extra space */
 .dash-grid > .card, .stats-grid > .stat-card { margin-bottom: 6px; }
+
+/* Abnormal vitals are always written in red (high OR low) */
+:root { --vital-red: #E01B1B; }
+[data-theme="dark"] { --vital-red: #FF5C5C; }
