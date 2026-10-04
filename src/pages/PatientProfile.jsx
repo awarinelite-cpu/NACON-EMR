@@ -66,6 +66,11 @@ const isAbn = (flag) => flag==='high' || flag==='low';
 const RED = 'var(--vital-red)';
 const bpFlagOf = (v) => (v && v.sbp!=null) ? vitalFlag('sbp', `${v.sbp}/${v.dbp}`) : '';
 
+const newFluidForm = () => {
+  const d = new Date(), z = n => String(n).padStart(2,'0');
+  return { date:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`, time:`${z(d.getHours())}:${z(d.getMinutes())}`, intakeType:'', intakeFluid:'', intakeAmt:'', outputType:'', outputAmt:'', notes:'' };
+};
+
 export default function PatientProfile() {
   const { emrNumber } = useParams();
   const { profile }   = useAuth();
@@ -107,7 +112,7 @@ export default function PatientProfile() {
   const [viewSavedForms, setViewSavedForms] = useState(false);  // modal open/close
   // Tracks when the last official form was saved; used to exclude already-printed Rx from next form
   const [officialRxSavedAt, setOfficialRxSavedAt] = useState(null);
-  const [fluidForm, setFluidForm] = useState({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
+  const [fluidForm, setFluidForm] = useState(newFluidForm());
   const [glucForm,  setGlucForm]  = useState({ time:'', reading:'', context:'', unit:'mmol/L' });
   const [glucChartUnit, setGlucChartUnit] = useState('mmol/L');
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
@@ -619,12 +624,13 @@ export default function PatientProfile() {
 
   const saveFluid = async () => {
     if (!fluidForm.time) { toast.error('Enter the time'); return; }
+    if (!fluidForm.intakeAmt && !fluidForm.outputAmt) { toast.error('Enter an intake or output volume'); return; }
     if (!profile) { toast.error('Not logged in'); return; }
     setSaving(true);
     try {
       const vid = await ensureVisitId();
       await addFluidEntry(emrNumber, vid, fluidForm, profile.displayName || profile.email || 'Unknown', profile.role);
-      setFluidForm({ time:'', intakeAmt:'', intakeType:'', outputAmt:'', outputType:'' });
+      setFluidForm(newFluidForm());
       toast.success('Fluid entry added');
     } catch(e) { console.error('saveFluid',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
@@ -1848,26 +1854,42 @@ export default function PatientProfile() {
             {!viewOnly && <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-droplet" />Fluid I/O Entry</div></div>
               <div className="card-body">
-                <div className="form-grid-3" style={{ gap:10 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  <div className="form-group"><label className="form-label">Date</label>
+                    <input type="date" className="form-input" value={fluidForm.date} onChange={e=>setFluidForm(f=>({...f,date:e.target.value}))} /></div>
                   <div className="form-group"><label className="form-label">Time *</label>
                     <input type="time" className="form-input" value={fluidForm.time} onChange={e=>setFluidForm(f=>({...f,time:e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Intake (ml)</label>
-                    <input className="form-input" placeholder="500" value={fluidForm.intakeAmt} onChange={e=>setFluidForm(f=>({...f,intakeAmt:e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Intake type</label>
-                    <select className="form-select" value={fluidForm.intakeType} onChange={e=>setFluidForm(f=>({...f,intakeType:e.target.value}))}>
-                      <option value="">Select…</option>
-                      {['Oral','IV Normal Saline','IV Ringers Lactate','IV Dextrose 5%','Blood transfusion'].map(t=><option key={t}>{t}</option>)}
-                    </select></div>
-                  <div className="form-group"><label className="form-label">Output (ml)</label>
-                    <input className="form-input" placeholder="300" value={fluidForm.outputAmt} onChange={e=>setFluidForm(f=>({...f,outputAmt:e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Output type</label>
-                    <select className="form-select" value={fluidForm.outputType} onChange={e=>setFluidForm(f=>({...f,outputType:e.target.value}))}>
-                      <option value="">Select…</option>
-                      {['Urine','Vomitus','Drainage','Stool'].map(t=><option key={t}>{t}</option>)}
-                    </select></div>
                 </div>
+
+                <div style={{ background:'#e8f6ee', borderRadius:14, padding:14, marginTop:10 }}>
+                  <div style={{ fontSize:22, fontWeight:800, marginBottom:8 }}>Intake</div>
+                  <div className="form-group"><label className="form-label">Route of Intake</label>
+                    <select className="form-select" value={fluidForm.intakeType} onChange={e=>setFluidForm(f=>({...f,intakeType:e.target.value}))}>
+                      <option value="">SELECT</option>
+                      {['Oral','IV','NG Tube','Blood transfusion','Other'].map(t=><option key={t}>{t}</option>)}
+                    </select></div>
+                  <div className="form-group"><label className="form-label">Nature of Fluid</label>
+                    <input className="form-input" value={fluidForm.intakeFluid} onChange={e=>setFluidForm(f=>({...f,intakeFluid:e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Intake Vol. (ml)</label>
+                    <input type="number" inputMode="numeric" className="form-input" value={fluidForm.intakeAmt} onChange={e=>setFluidForm(f=>({...f,intakeAmt:e.target.value}))} /></div>
+                </div>
+
+                <div style={{ background:'#fdf0e0', borderRadius:14, padding:14, marginTop:10 }}>
+                  <div style={{ fontSize:22, fontWeight:800, marginBottom:8 }}>Output</div>
+                  <div className="form-group"><label className="form-label">Type of Output</label>
+                    <select className="form-select" value={fluidForm.outputType} onChange={e=>setFluidForm(f=>({...f,outputType:e.target.value}))}>
+                      <option value="">SELECT</option>
+                      {['Urine','Vomitus','Drainage','Stool','Other'].map(t=><option key={t}>{t}</option>)}
+                    </select></div>
+                  <div className="form-group"><label className="form-label">Output Vol. (ml)</label>
+                    <input type="number" inputMode="numeric" className="form-input" value={fluidForm.outputAmt} onChange={e=>setFluidForm(f=>({...f,outputAmt:e.target.value}))} /></div>
+                </div>
+
+                <div className="form-group" style={{ marginTop:10 }}><label className="form-label">Notes</label>
+                  <input className="form-input" value={fluidForm.notes} onChange={e=>setFluidForm(f=>({...f,notes:e.target.value}))} /></div>
+
                 <button className="btn btn-primary mt-3" onClick={saveFluid} disabled={saving}>
-                  <i className="ti ti-device-floppy" /> Save entry
+                  <i className="ti ti-plus" /> Add Entry
                 </button>
               </div>
             </div>}
