@@ -7,11 +7,16 @@ import {
 } from 'recharts';
 
 function dateKeyOf(entry) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(entry.date || '')) return entry.date; // date chosen on the entry form
   const ts = entry.recordedAt?.toDate ? entry.recordedAt.toDate() : new Date(entry.recordedAt || Date.now());
   return ts.toISOString().slice(0, 10);
 }
 function dateLabelOf(dateKey) {
   return new Date(dateKey + 'T00:00:00').toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+}
+
+function fullDateOf(dateKey) {
+  return new Date(dateKey + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -150,12 +155,12 @@ export default function FluidBalanceChart({ fluid = [] }) {
       {/* Grouped entries table, most recent day first */}
       <div className="table-scroll">
         <table className="chart-table fluid-table">
-          <thead><tr><th>Time</th><th>Intake (ml)</th><th>Type</th><th>Output (ml)</th><th>Type</th><th>By</th></tr></thead>
+          <thead><tr><th>Date</th><th>Time</th><th>Intake (ml)</th><th>Type</th><th>Output (ml)</th><th>Type</th><th>By</th></tr></thead>
           <tbody>
             {[...days].reverse().map(d => (
               <React.Fragment key={d.key}>
                 <tr>
-                  <td colSpan={6} style={{
+                  <td colSpan={7} style={{
                     fontWeight: 800, fontSize: 18, color: '#800000', textAlign: 'center',
                     background: 'var(--card-bg2)', padding: '12px 10px',
                   }}>
@@ -164,6 +169,7 @@ export default function FluidBalanceChart({ fluid = [] }) {
                 </tr>
                 {[...d.entries].sort((a, b) => (a.time || '').localeCompare(b.time || '')).map(f => (
                   <tr key={f.id}>
+                    <td>{fullDateOf(d.key)}</td>
                     <td>{f.time}</td>
                     <td style={{ color: '#0288D1', fontWeight: 700 }}>{f.intakeAmt || '—'}</td>
                     <td className="text-muted">{f.intakeType}</td>
