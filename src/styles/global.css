@@ -1483,3 +1483,30 @@ html, body { overflow-x: hidden; }
 }
 .fluid-entry .form-input:focus, .fluid-entry .form-select:focus { border-color: var(--accent); }
 [data-theme="dark"] .fluid-entry .form-input, [data-theme="dark"] .fluid-entry .form-select { border-color: var(--t2); }
+
+/* ══════════════════════════════════
+   GLYCEMIC GRID (editable table, mirrors 68-drug-course Blood Glucose chart)
+══════════════════════════════════ */
+.glyc-grid-notes { text-align: center; font-size: 13px; font-weight: 700; color: var(--t2); padding: 0 12px 8px; }
+.glyc-toggle-row { display: flex; justify-content: center; gap: 6px; padding: 0 12px 10px; }
+.glyc-toggle-btn {
+  padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--t2);
+}
+.glyc-toggle-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.glyc-grid th { text-align: center; white-space: nowrap; }
+.glyc-grid td { padding: 0; text-align: center; }
+.glyc-grid td input {
+  width: 100%; box-sizing: border-box; border: none; background: transparent;
+  color: var(--t1); font: inherit; font-size: 15px; font-weight: 700;
+  text-align: center; padding: 12px 6px; outline: none; border-radius: 0;
+}
+.glyc-grid td input:focus { background: var(--card-bg2); box-shadow: inset 0 0 0 2px var(--accent); }
+.glyc-grid .glyc-c-date { min-width: 150px; }
+.glyc-grid .glyc-c-time { min-width: 120px; }
+.glyc-grid .glyc-c-val { min-width: 84px; }
+.glyc-grid .glyc-c-remark { min-width: 170px; }
+.glyc-grid td.glyc-abnormal { background: rgba(239,68,68,.12); }
+.glyc-grid td.glyc-abnormal input { color: #ef4444; }
+.glyc-grid-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
+.glyc-grid-status { text-align: center; font-size: 13px; font-weight: 700; color: var(--t3); padding: 10px 12px 14px; }

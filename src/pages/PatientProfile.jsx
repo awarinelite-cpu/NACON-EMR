@@ -9,7 +9,7 @@ import {
   getPatient, listenNotes, listenVitals, listenPrescriptions,
   listenFluidChart, listenGlucoseChart, listenUploads,
   addNote, addVitals, addPrescription, addFluidEntry,
-  addGlucoseReading, uploadPatientFile, createReferral,
+  saveGlucoseRows, deleteGlucoseRow, migrateLegacyGlucose, newGlucoseRowId, uploadPatientFile, createReferral,
   admitPatient, getOrOpenVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
   saveNHISForm, saveNACONForm, listenPatientForms,
@@ -22,6 +22,7 @@ import MARTab from '../components/patients/MARTab';
 import BotRemindersTab from '../components/patients/BotRemindersTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import GlycemicChart from '../components/patients/GlycemicChart';
+import GlycemicGrid from '../components/patients/GlycemicGrid';
 import FluidBalanceChart from '../components/patients/FluidBalanceChart';
 import DischargeSummary from '../components/patients/DischargeSummary';
 import NewsScore, { calculateNEWS2 } from '../components/patients/NewsScore';
@@ -119,7 +120,7 @@ export default function PatientProfile() {
   // Tracks when the last official form was saved; used to exclude already-printed Rx from next form
   const [officialRxSavedAt, setOfficialRxSavedAt] = useState(null);
   const [fluidForm, setFluidForm] = useState(newFluidForm());
-  const [glucForm,  setGlucForm]  = useState({ date:todayStr(), time:'', reading:'', context:'', remark:'', unit:'mmol/L' });
+  const [glucoseRaw, setGlucoseRaw] = useState(null); // stored glucose_charts docs (null until first load)
   const [glucChartUnit, setGlucChartUnit] = useState('mmol/L');
   const [refForm,   setRefForm]   = useState({ to:'', purpose:'', clinicalNotes:'' });
   const [carePlanForm, setCarePlanForm] = useState({
@@ -185,7 +186,7 @@ export default function PatientProfile() {
       listenVitals(emrNumber,          setVitals),
       listenPrescriptions(emrNumber,   setRx),
       listenFluidChart(emrNumber,      setFluid),
-      listenGlucoseChart(emrNumber,    setGlucose),
+      listenGlucoseChart(emrNumber,    (readings, raw) => { setGlucose(readings); setGlucoseRaw(raw); }),
       listenUploads(emrNumber,         setUploads),
       listenPatientForms(emrNumber,    setSavedForms),
       listenPatientLabRequests(emrNumber, setLabRequests),
@@ -652,17 +653,20 @@ export default function PatientProfile() {
   };
   const formatGlucose = (value, unit) => unit === 'mg/dL' ? Math.round(value) : (Math.round(value * 10) / 10).toFixed(1);
 
-  const saveGlucose = async () => {
-    if (!glucForm.reading) { toast.error('Enter glucose reading'); return; }
-    if (!profile) { toast.error('Not logged in'); return; }
-    setSaving(true);
-    try {
-      const vid = await ensureVisitId();
-      await addGlucoseReading(emrNumber, vid, glucForm, profile.displayName || profile.email || 'Unknown', profile.role);
-      setGlucForm(g => ({ date:todayStr(), time:'', reading:'', context:'', remark:'', unit: g.unit }));
-      toast.success('Glucose reading added');
-    } catch(e) { console.error('saveGlucose',e); toast.error('Failed: ' + (e?.message||e)); }
-    setSaving(false);
+  // Glycemic grid persistence (rows are saved as the nurse types — see GlycemicGrid)
+  const glucActor = () => profile?.displayName || profile?.email || 'Unknown';
+  const saveGlucoseGridRows = async (rows) => {
+    if (!profile) throw new Error('Not logged in');
+    const vid = await ensureVisitId();
+    await saveGlucoseRows(emrNumber, vid, rows, glucActor(), profile.role);
+  };
+  const deleteGlucoseGridRow = async (rowId, row) => {
+    if (!profile) throw new Error('Not logged in');
+    await deleteGlucoseRow(emrNumber, rowId, row, glucActor(), profile.role);
+  };
+  const migrateGlucoseGrid = async (rows, legacyIds) => {
+    if (!profile) return;
+    await migrateLegacyGlucose(emrNumber, visitId || null, rows, legacyIds, glucActor(), profile.role);
   };
 
   const handleUpload = async (e) => {
@@ -1912,56 +1916,16 @@ export default function PatientProfile() {
         {/* ── GLUCOSE TAB ── */}
         {activeTab==='glucose' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {!viewOnly && <div className="card">
-              <div className="card-header"><div className="card-title"><i className="ti ti-activity" />Blood Glucose Reading</div></div>
-              <div className="card-body">
-                <div className="form-grid-3" style={{ gap:10 }}>
-                  <div className="form-group"><label className="form-label">Date</label>
-                    <input type="date" className="form-input" value={glucForm.date} onChange={e=>setGlucForm(g=>({...g,date:e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Time</label>
-                    <input type="time" className="form-input" value={glucForm.time} onChange={e=>setGlucForm(g=>({...g,time:e.target.value}))} /></div>
-                  <div className="form-group">
-                    <label className="form-label">Blood glucose ({glucForm.unit}) *</label>
-                    <div style={{ display:'flex', gap:6 }}>
-                      <input className="form-input" style={{ flex:1 }}
-                        placeholder={glucForm.unit === 'mg/dL' ? '97' : '5.4'}
-                        value={glucForm.reading} onChange={e=>setGlucForm(g=>({...g,reading:e.target.value}))} />
-                      <div style={{ display:'flex', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', flexShrink:0 }}>
-                        {['mmol/L','mg/dL'].map(u => (
-                          <button key={u} type="button"
-                            onClick={() => setGlucForm(g => {
-                              const val = parseFloat(g.reading);
-                              const converted = !isNaN(val) ? formatGlucose(convertGlucose(val, g.unit, u), u) : g.reading;
-                              return { ...g, unit: u, reading: converted };
-                            })}
-                            style={{
-                              padding:'0 10px', fontSize:11, fontWeight:700, cursor:'pointer',
-                              border:'none', background: glucForm.unit === u ? 'var(--accent)' : 'transparent',
-                              color: glucForm.unit === u ? '#fff' : 'var(--t2)',
-                            }}
-                          >{u}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="form-group"><label className="form-label">Time point</label>
-                    <select className="form-select" value={glucForm.context} onChange={e=>setGlucForm(g=>({...g,context:e.target.value}))}>
-                      <option value="">Select…</option>
-                      {['FBS','2hrs Post Prandial','Pre-Lunch','2hrs Post Lunch','Pre-Dinner','2hrs Post Dinner'].map(c=><option key={c}>{c}</option>)}
-                    </select></div>
-                  <div className="form-group"><label className="form-label">Remark</label>
-                    <input className="form-input" value={glucForm.remark} onChange={e=>setGlucForm(g=>({...g,remark:e.target.value}))} /></div>
-                </div>
-                <button className="btn btn-primary mt-3" onClick={saveGlucose} disabled={saving}>
-                  <i className="ti ti-device-floppy" /> Save reading
-                </button>
-              </div>
-            </div>}
-            {glucose.length === 0 ? (
-              <div className="card"><div className="card-body" style={{textAlign:'center',color:'var(--t3)',padding:16}}>No readings yet</div></div>
-            ) : (
-              <GlycemicChart glucose={glucose} />
-            )}
+            <GlycemicGrid
+              emrNumber={emrNumber}
+              rawDocs={glucoseRaw}
+              readOnly={viewOnly}
+              newId={newGlucoseRowId}
+              onSaveRows={saveGlucoseGridRows}
+              onDeleteRow={deleteGlucoseGridRow}
+              onMigrate={migrateGlucoseGrid}
+            />
+            {glucose.length > 0 && <GlycemicChart glucose={glucose} />}
           </div>
         )}
 

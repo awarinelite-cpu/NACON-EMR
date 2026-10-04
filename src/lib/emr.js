@@ -6,11 +6,12 @@ import {
   doc, collection, getDocs, getDoc, setDoc,
   addDoc, updateDoc, deleteDoc, query, where,
   orderBy, onSnapshot, runTransaction,
-  serverTimestamp, Timestamp,
+  serverTimestamp, Timestamp, writeBatch,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { enqueuePendingWrite } from './offlineDB';
+import { flattenGlucoseDocs } from './glycemicGrid';
 
 // ── OFFLINE-FIRST WRITE HELPER ───────────────
 /**
@@ -682,13 +683,72 @@ export async function addGlucoseReading(emrNumber, visitId, entry, recordedBy, r
   return ref.id;
 }
 
+// callback(readings, rawDocs):
+//   readings — flat per-reading list (grid rows expanded) used by the timeline,
+//              summaries and trend chart
+//   rawDocs  — the stored docs as-is (grid rows + any older one-reading docs),
+//              used by the editable glycemic grid
 export function listenGlucoseChart(emrNumber, callback) {
   const q = query(collection(db, COL.GLUCOSE), where('emrNumber', '==', emrNumber));
   return onSnapshot(q, snap => {
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     docs.sort((a,b) => (a.recordedAt?.seconds||0) - (b.recordedAt?.seconds||0));
-    callback(docs);
+    callback(flattenGlucoseDocs(docs), docs);
   });
+}
+
+// Editable glycemic grid: one doc per table row (kind:'row') in glucose_charts.
+export function newGlucoseRowId() {
+  return doc(collection(db, COL.GLUCOSE)).id;
+}
+
+function glucoseRowPayload(emrNumber, visitId, r, recordedBy) {
+  return stripUndefined({
+    emrNumber,
+    visitId: visitId || null,
+    kind: 'row',
+    chartType: r.chartType,
+    date: r.date || '',
+    time: r.time || '',
+    cells: (r.cells || []).map(c => (c == null ? '' : String(c))),
+    remark: r.remark || '',
+    order: r.order || Date.now(),
+    recordedBy,
+    updatedAt: serverTimestamp(),
+    ...(r.isNew ? { recordedAt: serverTimestamp() } : {}),
+  });
+}
+
+export async function saveGlucoseRows(emrNumber, visitId, rows, recordedBy, recordedByRole = null) {
+  if (!rows.length) return;
+  const batch = writeBatch(db);
+  rows.forEach(r => batch.set(doc(db, COL.GLUCOSE, r.id), glucoseRowPayload(emrNumber, visitId, r, recordedBy), { merge: true }));
+  await batch.commit();
+  await markSeenIfReportedSickToday(emrNumber, recordedBy);
+  await logAudit('GLUCOSE_ENTRY', emrNumber, recordedBy, {
+    rows: rows.map(r => ({ chartType: r.chartType, date: r.date, time: r.time, cells: r.cells, remark: r.remark })),
+  }, recordedByRole);
+}
+
+export async function deleteGlucoseRow(emrNumber, rowId, row, performedBy, performedByRole = null) {
+  await deleteDoc(doc(db, COL.GLUCOSE, rowId));
+  await logAudit('GLUCOSE_ROW_DELETED', emrNumber, performedBy,
+    { chartType: row?.chartType, date: row?.date, time: row?.time, cells: row?.cells, remark: row?.remark }, performedByRole);
+}
+
+// One-time move of older one-reading docs into grid rows. The old docs are
+// kept (flagged migratedToGrid) rather than deleted.
+export async function migrateLegacyGlucose(emrNumber, visitId, rows, legacyIds, performedBy, performedByRole = null) {
+  const ops = [
+    ...rows.map(r => ({ ref: doc(db, COL.GLUCOSE, r.id), data: glucoseRowPayload(emrNumber, visitId, r, performedBy), merge: true })),
+    ...legacyIds.map(id => ({ ref: doc(db, COL.GLUCOSE, id), data: { migratedToGrid: true }, merge: true })),
+  ];
+  for (let i = 0; i < ops.length; i += 400) {
+    const batch = writeBatch(db);
+    ops.slice(i, i + 400).forEach(o => batch.set(o.ref, o.data, { merge: o.merge }));
+    await batch.commit();
+  }
+  await logAudit('GLUCOSE_MIGRATED_TO_GRID', emrNumber, performedBy, { readings: legacyIds.length, rows: rows.length }, performedByRole);
 }
 
 // ─────────────────────────────────────────────

@@ -1,5 +1,6 @@
 // src/components/patients/GlycemicChart.jsx
-// 6-point glycemic chart: day-grouping, daily avg/min/max summary, and a trend line chart.
+// Glycemic trend: day-grouping, daily avg/min/max summary, and a trend line chart.
+// (The editable 6-point table lives in GlycemicGrid.jsx.)
 import React, { useMemo, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -132,7 +133,7 @@ export default function GlycemicChart({ glucose = [] }) {
   return (
     <div className="card" style={{ marginBottom: 14 }}>
       <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div className="card-title"><i className="ti ti-chart-line" /> 6 Points Glycemic Chart</div>
+        <div className="card-title"><i className="ti ti-chart-line" /> Glycemic Trend</div>
         <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           {['mmol/L', 'mg/dL'].map(u => (
             <button key={u} type="button" onClick={() => setUnit(u)}
@@ -213,41 +214,6 @@ export default function GlycemicChart({ glucose = [] }) {
         </div>
       </div>
 
-      {/* 6-point chart: one row per day, one column per time point (most recent day first) */}
-      <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--t2)', padding: '0 12px 8px' }}>
-        Normal: Fasting / Pre-meal 70–99 mg/dL &nbsp;•&nbsp; 2hrs Post-meal &lt;140 mg/dL &nbsp;•&nbsp; outside range flagged red
-      </div>
-      <div className="table-scroll">
-        <table className="chart-table big-table" style={{ textAlign: 'center' }}>
-          <thead><tr>
-            <th style={{ textAlign: 'center' }}>Date</th>
-            {SLOTS.map(sl => <th key={sl.key} style={{ textAlign: 'center' }}>{sl.key}</th>)}
-            <th style={{ textAlign: 'center' }}>Remark</th>
-          </tr></thead>
-          <tbody>
-            {[...days].reverse().map(d => {
-              const remarks = d.readings.map(r => r.remark).filter(Boolean).join('; ');
-              return (
-                <tr key={d.key}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{fullDateOf(d.key)}</td>
-                  {SLOTS.map((sl, i) => {
-                    const r = d.readings.find(x => slotIndexOf(x.context) === i);
-                    if (!r) return <td key={sl.key} className="text-muted">—</td>;
-                    const bad = isAbnormalSlot(r.mmolVal, sl.type);
-                    return (
-                      <td key={sl.key} style={bad ? { color: '#ef4444', background: 'rgba(239,68,68,.12)' } : undefined}>
-                        {formatGlucose(convertGlucose(r.mmolVal, 'mmol/L', unit), unit)}
-                        {r.time && <div style={{ fontSize: 11, fontWeight: 600, opacity: .75 }}>{r.time}</div>}
-                      </td>
-                    );
-                  })}
-                  <td className="text-muted">{remarks || '—'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
