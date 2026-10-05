@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../lib/AuthContext';
 import {
   listenMAR, saveMarRows, deleteMarRow, migrateLegacyMar, newMarRowId,
-  updateDrugStatus, updateDrugFields, addPrescriptionWithStock,
+  updateDrugStatus, updateDrugFields, addPrescriptionWithStock, confirmRxStock,
 } from '../../lib/emr';
 import {
   ROUTE_OPTIONS, REMARK_OPTIONS, ACTION_OPTIONS, actionColor, actionOfStatus, statusOfAction,
@@ -335,9 +335,11 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
     if (hit && !window.confirm(`ALLERGY WARNING: patient is allergic to "${hit}".\n\nAdd ${n.name.trim()} anyway?`)) return;
     setDrugBusy(true);
     try {
-      const { inventory } = await addPrescriptionWithStock(emrNumber, cb.current.visitId || null, [{
+      const checked = await confirmRxStock([{
         drug: n.name.trim(), dose: n.dose.trim(), route: n.route, frequency: n.frequency.trim(), duration: n.duration.trim(), status: 'active',
-      }], actor(), profile?.role);
+      }]);
+      if (!checked) { setDrugBusy(false); return; }   // cancelled at the stock prompt
+      const { inventory } = await addPrescriptionWithStock(emrNumber, cb.current.visitId || null, checked, actor(), profile?.role);
       toast.success(`${n.name.trim()} added`);
       stockToasts(inventory);
       setNewDrug(null);
@@ -346,7 +348,8 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
   }
   function stockToasts(inventory) {
     (inventory || []).forEach(i => {
-      if (i.found) toast(`Stock updated: ${i.qtyDeducted} unit${i.qtyDeducted !== 1 ? 's' : ''} of ${i.drug} taken out${i.low ? ' (stock is low)' : ''}`, { icon: i.low ? '⚠️' : '📦', duration: 5000 });
+      if (i.found) toast(`Stock updated: ${i.qtyDeducted} unit${i.qtyDeducted !== 1 ? 's' : ''} of ${i.itemName || i.drug} taken out${i.short ? ` (only ${i.qtyDeducted - i.short} were in stock)` : ''}${i.low ? ' (stock is low)' : ''}`, { icon: (i.low || i.short) ? '⚠️' : '📦', duration: 5000 });
+      else if (i.unavailable) toast(`Stock not updated: that strength of "${i.drug}" is not in inventory.`, { icon: '⚠️', duration: 7000 });
       else if (i.ambiguous) toast(`Stock not updated: "${i.drug}" matches several inventory items (${i.ambiguous.join(', ')}). Adjust stock manually.`, { icon: '⚠️', duration: 7000 });
       else toast(`Stock not updated: no pharmacy inventory item matches "${i.drug}".`, { icon: '⚠️', duration: 7000 });
     });

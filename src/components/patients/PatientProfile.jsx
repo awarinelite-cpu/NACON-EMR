@@ -5,7 +5,7 @@ import { useAuth } from '../../lib/AuthContext';
 import {
   getPatient, listenNotes, listenVitals, listenPrescriptions,
   listenFluidChart, listenGlucoseChart, listenUploads,
-  addNote, addVitals, addPrescription, addFluidEntry,
+  addNote, addVitals, addPrescription, confirmRxStock, addFluidEntry,
   addGlucoseReading, uploadPatientFile, createReferral,
   dischargePatient, emrToFolderNumber, formatDateTime,
   ROLES,
@@ -675,9 +675,11 @@ function RxForm({ emr, profile, role, onSaved }) {
       return;
     }
 
+    const checked = await confirmRxStock(valid);   // asks if a strength isn't stocked; null = cancelled
+    if (!checked) return;
     setSaving(true);
     try {
-      await addPrescription(emr, null, valid, profile?.displayName, role);
+      await addPrescription(emr, null, checked, profile?.displayName, role);
       setDrugs([{ name:'', dose:'', frequency:'', duration:'', qty:'' }]);
       onSaved?.();
     } catch(e) { toast.error('Failed to save prescription'); }

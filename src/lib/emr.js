@@ -606,46 +606,141 @@ export async function acknowledgeAlert(alertId, acknowledgedBy, acknowledgedByRo
  * Returns { id, inventory } where inventory is one result per drug line.
  */
 export async function addPrescriptionWithStock(emrNumber, visitId, rxData, prescribedBy, role) {
-  const ref = await addDoc(collection(db, COL.PRESCRIPTIONS), {
+  const lines = [...(rxData || [])];
+  const rxRef = doc(collection(db, COL.PRESCRIPTIONS));
+  const baseDoc = {
     emrNumber,
     visitId: visitId || null,
-    drugs: rxData,
     prescribedBy,
     prescribedByRole: role,
     requiresCountersign: role === ROLES.NURSE,
     countersigned: false,
     dispensed: false,          // awaits pharmacist dispensing
-    createdAt: serverTimestamp(),
+  };
+
+  // 1. Work out which inventory item each drug line comes out of, and how many units.
+  const inventory = [];
+  const plan = [];
+  let invDocs = null;
+  try { invDocs = (await getDocs(collection(db, COL.INVENTORY))).docs; }
+  catch (err) { console.error('[addPrescription] could not read inventory:', err); }
+  lines.forEach((d, i) => {
+    const name = d?.drug || d?.name;
+    if (!name) return;
+    const doses = courseDoseCount(d.frequency, d.duration);
+    if (!invDocs) { inventory.push({ drug: name, doses, found: false, error: true }); return; }
+    const r = resolveRxStock(invDocs, name, d.dose, d.inventoryItemId);
+    if (r.match) {
+      const itemName = r.match.data().name;
+      const { qty, doseAware } = unitsForDose(itemName, d.dose);
+      plan.push({ i, name, doses, id: r.match.id, itemName, qty: qty * doses, doseAware });
+    } else {
+      inventory.push({
+        drug: name, doses, found: false,
+        ambiguous: r.ambiguous || null,
+        unavailable: !!r.unavailable,
+      });
+    }
   });
+
+  // 2. Save the prescription and take the stock out in ONE transaction, so the
+  //    "inventoryDeducted" flag can never be missing when stock was deducted
+  //    (no double deduction later), and two users can't overwrite each other's
+  //    stock counts.
+  let saved = false;
+  if (plan.length) {
+    const ids = [...new Set(plan.map(p => p.id))];
+    let outcome = null;
+    try {
+      await runTransaction(db, async (txn) => {
+        const snaps = {};
+        for (const id of ids) snaps[id] = await txn.get(doc(db, COL.INVENTORY, id));
+        const running = {};
+        ids.forEach(id => { running[id] = snaps[id].exists() ? (snaps[id].data().quantity || 0) : 0; });
+        const outDrugs = [...lines];
+        const out = [];
+        const nowIso = new Date().toISOString();
+        for (const p of plan) {
+          const snap = snaps[p.id];
+          if (!snap.exists()) { out.push({ drug: p.name, doses: p.doses, found: false }); continue; }
+          const before = running[p.id];
+          const after = Math.max(0, before - p.qty);
+          running[p.id] = after;
+          outDrugs[p.i] = stripUndefined({
+            ...lines[p.i],
+            inventoryDeducted: true, inventoryQty: p.qty,
+            inventoryItemId: p.id, inventoryItemName: p.itemName, inventoryDeductedAt: nowIso,
+          });
+          out.push({
+            drug: p.name, doses: p.doses, found: true, itemId: p.id, itemName: p.itemName,
+            qtyDeducted: p.qty, remaining: after, doseAware: p.doseAware,
+            short: Math.max(0, p.qty - before),
+            low: after <= (snap.data().reorderAt || 10),
+          });
+        }
+        ids.forEach(id => {
+          if (snaps[id].exists()) txn.update(doc(db, COL.INVENTORY, id), { quantity: running[id], updatedAt: serverTimestamp() });
+        });
+        txn.set(rxRef, { ...baseDoc, drugs: outDrugs, createdAt: serverTimestamp() });
+        outcome = out;
+      });
+      saved = true;
+      inventory.push(...outcome);
+      outcome.filter(o => o.found).forEach(o => {
+        logAudit('INVENTORY_DISPENSE', o.itemId, prescribedBy, {
+          drug: o.drug, qtyDeducted: o.qtyDeducted, doses: o.doses, emrNumber, remaining: o.remaining, source: 'prescribing',
+        }, role);
+      });
+    } catch (err) {
+      console.error('[addPrescription] stock transaction failed:', err);
+      // The commit may have gone through even though we saw an error — if so, don't save twice.
+      let existing = null;
+      try { const ex = await getDoc(rxRef); if (ex.exists()) existing = ex.data(); } catch (_) { /* offline */ }
+      if (existing) {
+        saved = true;
+        (existing.drugs || []).forEach(d => {
+          if (d?.inventoryDeducted) inventory.push({ drug: d.drug || d.name, found: true, itemName: d.inventoryItemName, qtyDeducted: d.inventoryQty });
+        });
+      } else {
+        // Couldn't deduct (e.g. offline). Save the prescription unflagged: stock is then taken
+        // out at dispense / MAR exactly as before.
+        plan.forEach(p => inventory.push({ drug: p.name, doses: p.doses, found: false, error: err?.code || true }));
+      }
+    }
+  }
+  if (!saved) await setDoc(rxRef, { ...baseDoc, drugs: lines, createdAt: serverTimestamp() });
 
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
   await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE }, role);
+  return { id: rxRef.id, inventory };
+}
 
-  const inventory = [];
-  const drugs = [...(rxData || [])];
-  let changed = false;
-  for (let i = 0; i < drugs.length; i++) {
-    const d = drugs[i];
+/**
+ * Call BEFORE saving a prescription. If a drug is prescribed at a strength the
+ * pharmacy doesn't stock (e.g. amlodipine 5mg when only 10mg is in inventory),
+ * tell the user and ask. OK = take it from the nearest stocked strength;
+ * Cancel = returns null so the caller saves nothing. Returns the drug lines
+ * (with `inventoryItemId` set where a substitute was accepted).
+ */
+export async function confirmRxStock(rxData) {
+  const drugs = (rxData || []).map(d => ({ ...d }));
+  let invDocs;
+  try { invDocs = (await getDocs(collection(db, COL.INVENTORY))).docs; }
+  catch (_) { return drugs; }   // can't check (offline) — carry on
+  for (const d of drugs) {
     const name = d?.drug || d?.name;
     if (!name) continue;
-    try {
-      const doses = courseDoseCount(d.frequency, d.duration);
-      const res = await deductInventoryByDose(name, d.dose, emrNumber, prescribedBy, role, doses);
-      inventory.push({ drug: name, doses, ...res });
-      if (res.found) {
-        drugs[i] = stripUndefined({ ...d, inventoryDeducted: true, inventoryQty: res.qtyDeducted, inventoryDeductedAt: new Date().toISOString() });
-        changed = true;
-      }
-    } catch (err) {
-      console.error('[addPrescription] inventory deduction failed:', err);
-      inventory.push({ drug: name, found: false, error: err?.code || true });
-    }
+    const r = resolveRxStock(invDocs, name, d.dose, d.inventoryItemId);
+    if (!r.unavailable) continue;
+    const alt = r.unavailable.alternatives[0];
+    const a = alt.data();
+    const ok = window.confirm(
+      `${name} is not available in pharmacy stock.\n\nAvailable: ${a.name} (${a.quantity || 0} in stock).\n\nOK = take it from ${a.name}\nCancel = go back and change the prescription`
+    );
+    if (!ok) return null;
+    d.inventoryItemId = alt.id;
   }
-  if (changed) {
-    try { await updateDoc(ref, { drugs }); }
-    catch (err) { console.error('[addPrescription] could not flag deducted drugs:', err); }
-  }
-  return { id: ref.id, inventory };
+  return drugs;
 }
 
 export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, role) {
@@ -1456,6 +1551,83 @@ function parseDoseAmount(text) {
   return null;
 }
 
+// ── Strength-aware stock matching (used when prescribing) ─────────────────
+const ROUTE_RE = /\b(iv|im|sc|subcut|po|oral|pr|top(?:ical)?)\b/i;
+function routeOf(name) {
+  const m = String(name || '').match(ROUTE_RE);
+  if (!m) return null;
+  const r = m[1].toLowerCase();
+  return r === 'oral' ? 'po' : r === 'subcut' ? 'sc' : r.startsWith('top') ? 'top' : r;
+}
+function sameStrength(a, b) {
+  return !!a && !!b && a.kind === b.kind && Math.abs(a.amount - b.amount) < 1e-6;
+}
+
+/**
+ * Finds the inventory item a prescribed drug line comes out of, matching on
+ * STRENGTH as well as name: amlodipine 5mg only ever takes from the 5mg item,
+ * never the 10mg one. Returns one of
+ *   { match }                         – the item to deduct from
+ *   { ambiguous: [names] }            – can't tell which item (don't deduct)
+ *   { unavailable: { alternatives } } – that strength isn't stocked but other
+ *                                       strengths of the drug are (nearest first)
+ *   {}                                – nothing in inventory matches
+ */
+function resolveRxStock(invDocs, drugName, dose, forcedId) {
+  if (forcedId) {
+    const forced = invDocs.find(d => d.id === forcedId);
+    if (forced) return { match: forced };
+  }
+  const rxLower = String(drugName || '').toLowerCase().trim();
+  if (!rxLower) return {};
+  const exact = invDocs.find(d => d.data().name?.toLowerCase().trim() === rxLower);
+  if (exact) return { match: exact };
+
+  const base = normalizeDrugName(drugName);
+  let cands = base ? invDocs.filter(d => normalizeDrugName(d.data().name) === base) : [];
+  const rxRoute = routeOf(drugName);
+  if (rxRoute) {
+    const sameRoute = cands.filter(d => routeOf(d.data().name) === rxRoute);
+    if (sameRoute.length) cands = sameRoute;
+  }
+  if (!cands.length) return findInventoryMatch(invDocs, drugName);   // looser name tiers
+
+  const names = list => list.map(d => d.data().name);
+  const rxStrength = parseDoseAmount(drugName);
+  if (rxStrength) {
+    const eq = cands.filter(d => sameStrength(parseDoseAmount(d.data().name), rxStrength));
+    if (eq.length === 1) return { match: eq[0] };
+    if (eq.length > 1) return { ambiguous: names(eq) };
+    const noStrength = cands.filter(d => !parseDoseAmount(d.data().name));
+    if (noStrength.length === 1) return { match: noStrength[0] };
+    const alternatives = cands
+      .filter(d => { const s = parseDoseAmount(d.data().name); return s && s.kind === rxStrength.kind; })
+      .sort((a, b) => Math.abs(parseDoseAmount(a.data().name).amount - rxStrength.amount)
+                    - Math.abs(parseDoseAmount(b.data().name).amount - rxStrength.amount));
+    if (alternatives.length) return { unavailable: { alternatives } };
+    return cands.length === 1 ? { match: cands[0] } : { ambiguous: names(cands) };
+  }
+
+  // No strength in the drug name — a single product is the match; otherwise use the dose.
+  if (cands.length === 1) return { match: cands[0] };
+  const doseStrength = parseDoseAmount(dose);
+  if (doseStrength) {
+    const eq = cands.filter(d => sameStrength(parseDoseAmount(d.data().name), doseStrength));
+    if (eq.length === 1) return { match: eq[0] };
+  }
+  return { ambiguous: names(cands) };
+}
+
+// Units of an inventory item in one dose, from the item's strength (e.g. 500mg dose of a 250mg tab = 2).
+function unitsForDose(itemName, doseGiven) {
+  const perUnit = parseDoseAmount(itemName);
+  const given   = parseDoseAmount(doseGiven);
+  if (perUnit && given && perUnit.kind === given.kind && perUnit.amount > 0) {
+    return { qty: Math.max(1, Math.round(given.amount / perUnit.amount)), doseAware: true };
+  }
+  return { qty: 1, doseAware: false };
+}
+
 /**
  * Dose-aware inventory deduction — used for MAR administration.
  * Reads the per-unit strength from the inventory item's name
@@ -1473,17 +1645,8 @@ export async function deductInventoryByDose(drugName, doseGiven, emrNumber, disp
   }
 
   const itemData = match.data();
-  const perUnit  = parseDoseAmount(itemData.name);
-  const given    = parseDoseAmount(doseGiven);
-
-  let qty = 1;
-  let doseAware = false;
-  if (perUnit && given && perUnit.kind === given.kind && perUnit.amount > 0) {
-    qty = Math.max(1, Math.round(given.amount / perUnit.amount));
-    doseAware = true;
-  }
-
-  qty = qty * Math.max(1, Number(doses) || 1);   // doses in the course (1 for a single MAR dose)
+  const { qty: unitQty, doseAware } = unitsForDose(itemData.name, doseGiven);
+  const qty = unitQty * Math.max(1, Number(doses) || 1);   // doses in the course (1 for a single MAR dose)
 
   const current = itemData.quantity || 0;
   const newQty  = Math.max(0, current - qty);

@@ -8,7 +8,7 @@ import AIDrugInsightPanel from '../components/patients/AIDrugInsightPanel';
 import {
   getPatient, listenNotes, listenVitals, listenPrescriptions,
   listenFluidChart, listenGlucoseChart, listenUploads,
-  addNote, addVitals, addPrescription, addPrescriptionWithStock, addFluidEntry,
+  addNote, addVitals, addPrescription, addPrescriptionWithStock, confirmRxStock, addFluidEntry,
   saveGlucoseRows, deleteGlucoseRow, migrateLegacyGlucose, newGlucoseRowId, uploadPatientFile, createReferral,
   admitPatient, getOrOpenVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
@@ -521,13 +521,20 @@ export default function PatientProfile() {
   // Tell the nurse/doctor what happened to pharmacy stock when a prescription was saved
   const showStockToasts = (inventory) => {
     (inventory || []).forEach(i => {
-      if (i.found) toast(`Stock updated: ${i.qtyDeducted} unit${i.qtyDeducted !== 1 ? 's' : ''} of ${i.drug} taken out${i.low ? ' (stock is low)' : ''}`, { icon: i.low ? '⚠️' : '📦', duration: 5000 });
+      if (i.found) toast(`Stock updated: ${i.qtyDeducted} unit${i.qtyDeducted !== 1 ? 's' : ''} of ${i.itemName || i.drug} taken out${i.short ? ` (only ${i.qtyDeducted - i.short} were in stock)` : ''}${i.low ? ' (stock is low)' : ''}`, { icon: (i.low || i.short) ? '⚠️' : '📦', duration: 5000 });
+      else if (i.unavailable) toast(`Stock not updated: that strength of "${i.drug}" is not in inventory.`, { icon: '⚠️', duration: 7000 });
       else if (i.ambiguous) toast(`Stock not updated: "${i.drug}" matches several inventory items (${i.ambiguous.join(', ')}). Adjust stock manually.`, { icon: '⚠️', duration: 7000 });
       else toast(`Stock not updated: no pharmacy inventory item matches "${i.drug}".`, { icon: '⚠️', duration: 7000 });
     });
   };
 
-  const doSaveNote = async (giveThisDrugs) => {
+  const doSaveNote = async (giveThisDrugsIn) => {
+    // Check pharmacy stock BEFORE anything is saved; Cancel aborts the whole save.
+    let giveThisDrugs = giveThisDrugsIn;
+    if (giveThisDrugsIn.length) {
+      giveThisDrugs = await confirmRxStock(giveThisDrugsIn);
+      if (!giveThisDrugs) return;
+    }
     setSaving(true);
     try {
       const vid = await ensureVisitId();
@@ -628,7 +635,9 @@ export default function PatientProfile() {
     await doSaveRx(valid);
   };
 
-  const doSaveRx = async (drugs) => {
+  const doSaveRx = async (drugsIn) => {
+    const drugs = await confirmRxStock(drugsIn);   // asks if a strength isn't stocked; null = cancelled
+    if (!drugs) return;
     setSaving(true);
     try {
       const vid = await ensureVisitId();
