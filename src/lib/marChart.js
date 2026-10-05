@@ -77,11 +77,46 @@ export function courseDoseCount(frequency, duration) {
     const ev = String(frequency || '').toLowerCase().match(/every\s+(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
     if (ev) hours = parseFloat(ev[1]);
   }
-  const d = String(duration || '').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|days?|d|weeks?|wks?|w|months?|mo)\b/);
-  if (!hours || !d) return 1;
-  const n = parseFloat(d[1]); const u = d[2];
-  const spanH = /^h/.test(u) ? n : /^d/.test(u) ? n * 24 : /^w/.test(u) ? n * 168 : n * 720;
+  // Accepts "7 days", "x 7 days", "for 5 days", and the Nigerian clinical shorthand
+  // "× 3/7" (3 days), "2/52" (2 weeks), "3/12" (3 months).
+  const dur = String(duration || '').trim().toLowerCase().replace(/^(?:x|\u00d7|for)\s*/, '');
+  let spanH = null;
+  const frac = dur.match(/^(\d+(?:\.\d+)?)\s*\/\s*(7|52|12)\b/);
+  if (frac) {
+    spanH = parseFloat(frac[1]) * (frac[2] === '7' ? 24 : frac[2] === '52' ? 168 : 720);
+  } else {
+    const d = dur.match(/^(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|days?|d|weeks?|wks?|w|months?|mo)\b/);
+    if (d) {
+      const n = parseFloat(d[1]); const u = d[2];
+      spanH = /^h/.test(u) ? n : /^d/.test(u) ? n * 24 : /^w/.test(u) ? n * 168 : n * 720;
+    }
+  }
+  if (!hours || spanH == null) return 1;
   return Math.min(1000, Math.max(1, Math.round(spanH / hours)));
+}
+
+// Splits a drug typed as one free-text line ("Amoxicillin 500mg TDS x 7 days")
+// into { drug, dose, frequency, duration }. `drug` keeps the strength so it can be
+// matched to the right pharmacy item. Anything it can't read is left blank, and the
+// stock maths then falls back to one dose.
+const _escRe = (k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const FREQ_LINE_RE = new RegExp(
+  '(?:^|\\s)(' + [...Object.keys(INTERVAL_HOURS), ...Object.keys(FREQ_SYNONYMS)]
+    .sort((a, b) => b.length - a.length).map(_escRe).join('|') +
+  '|every\\s+\\d+(?:\\.\\d+)?\\s*(?:hours?|hrs?|h))(?=\\s|$)', 'i');
+export function parseRxLine(line) {
+  let t = String(line || '').replace(/\s+/g, ' ').trim();
+  if (!t) return null;
+  let duration = '';
+  const dm = t.match(/(?:^|\s)(?:(?:x|\u00d7|for)\s*)?(\d+(?:\.\d+)?\s*\/\s*(?:7|52|12)|\d+(?:\.\d+)?\s*(?:hours?|hrs?|days?|weeks?|wks?|months?))\s*$/i);
+  if (dm) { duration = dm[1].trim(); t = t.slice(0, dm.index).trim(); }
+  let frequency = '';
+  const fm = t.match(FREQ_LINE_RE);
+  if (fm) { frequency = fm[1].trim(); t = (t.slice(0, fm.index) + ' ' + t.slice(fm.index + fm[0].length)).replace(/\s+/g, ' ').trim(); }
+  t = t.replace(/\b(?:stat|prn|sos)\b/ig, ' ').replace(/\s+/g, ' ').trim().replace(/[\s,;:\-\u2013]+$/, '');
+  if (!t) return null;
+  const sm = t.match(/([\d.]+)\s*(?:mcg|micrograms?|mg|milligrams?|g|grams?|ml|millilit(?:er|re)s?|iu|units?)\b/i);
+  return { drug: t, dose: sm ? sm[0] : '', frequency, duration };
 }
 
 const WEEKLY_WORD_MULTIPLIERS = { once: 1, twice: 2, thrice: 3, four: 4, five: 5, six: 6, seven: 7 };

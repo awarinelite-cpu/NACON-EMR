@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 import AIDrugInsightPanel from '../components/patients/AIDrugInsightPanel';
+import { parseRxLine } from '../lib/marChart';
 import {
   getPatient, listenNotes, listenVitals, listenPrescriptions,
   listenFluidChart, listenGlucoseChart, listenUploads,
@@ -1466,9 +1467,33 @@ export default function PatientProfile() {
 
               // Save handler
               const doSaveOfficial = async () => {
+                // Drugs typed straight into the Rx box (or still sitting in the unsaved write-prescription
+                // rows) are not on any saved prescription yet. Lines that came from saved prescriptions were
+                // already taken out of stock when those were written, so they are skipped here.
+                const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim();
+                const savedSet = new Set(savedRxLines.map(norm));
+                const draftByLine = {};
+                rxForm.filter(r => r.drug.trim()).forEach(r => { draftByLine[norm([r.drug, r.dose, r.frequency, r.duration].filter(Boolean).join('  '))] = r; });
+                const typedDrugs = String(officialRx?.rx || '').split('\n').map(norm).filter(l => l && !savedSet.has(l))
+                  .map(l => {
+                    const r = draftByLine[l];
+                    const d = r ? { drug: r.drug.trim(), dose: (r.dose || '').trim(), frequency: (r.frequency || '').trim(), duration: (r.duration || '').trim() } : parseRxLine(l);
+                    return d ? { ...d, status: 'active' } : null;
+                  }).filter(Boolean);
+                let rxToSave = null;
+                if (typedDrugs.length) {
+                  if (!window.confirm(`These drugs on the form are not on a saved prescription yet:\n\n${typedDrugs.map(d => '• ' + [d.drug, d.frequency, d.duration].filter(Boolean).join(' ')).join('\n')}\n\nSave them as a prescription and take them out of pharmacy stock?`)) return;
+                  rxToSave = await confirmRxStock(typedDrugs);   // asks if a strength isn't stocked
+                  if (!rxToSave) return;
+                }
                 setOfficialRxSaving(true);
                 const savedBy = profile?.displayName || profile?.email || 'Unknown';
                 try {
+                  if (rxToSave) {
+                    const vid = await ensureVisitId();
+                    const { inventory } = await addPrescriptionWithStock(emrNumber, vid, rxToSave, savedBy, profile?.role || 'nurse');
+                    showStockToasts(inventory);
+                  }
                   if (isSoldier) {
                     await saveNHISForm({ ...officialRx, emrNumber }, savedBy, profile?.role);
                   } else {
