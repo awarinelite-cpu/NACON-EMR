@@ -5,6 +5,12 @@ import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
 import { listenPatients, listenTriageQueue, listenSickReportsToday, listenSeenToday } from '../lib/emr';
 
+// "Nr Elite" / "Dr Ario" — title + the signed-in user's name (falls back to the email name if no display name is set)
+const whoAmI = (profile, title) => {
+  const name = (profile?.displayName || profile?.email?.split('@')[0] || '').trim();
+  return name ? `${title} ${name}` : '';
+};
+
 export default function NurseDashboard() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
@@ -42,7 +48,7 @@ export default function NurseDashboard() {
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar topbar-lg">
-        <div className="topbar-title">Dashboard — Nurse {profile?.displayName}</div>
+        <div className="topbar-title">Dashboard<span className="dash-title-name">{whoAmI(profile, 'Nr')}</span></div>
         <PatientSearch placeholder="Search EMR, name or SET…" />
       </div>
       <div className="page-content dash-page" style={{ flex:1 }}>

@@ -5,6 +5,12 @@ import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
 import { listenPatients, listenTriageQueue, formatTs } from '../lib/emr';
 
+// "Nr Elite" / "Dr Ario" — title + the signed-in user's name (falls back to the email name if no display name is set)
+const whoAmI = (profile, title) => {
+  const name = (profile?.displayName || profile?.email?.split('@')[0] || '').trim();
+  return name ? `${title} ${name}` : '';
+};
+
 export default function DoctorDashboard() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
@@ -37,7 +43,7 @@ export default function DoctorDashboard() {
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
-        <div className="topbar-title">Dashboard — Dr. {profile?.displayName}</div>
+        <div className="topbar-title">Dashboard<span className="dash-title-name">{whoAmI(profile, 'Dr')}</span></div>
         <PatientSearch />
         <button className="btn btn-primary" onClick={() => navigate('/doctor/patients')}>
           <i className="ti ti-stethoscope" /> New consultation

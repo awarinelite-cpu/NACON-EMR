@@ -1740,3 +1740,11 @@ html, body { overflow-x: hidden; }
 .mar-split, .mar-detail-panel { min-height: 0; }
 .mar-detail-panel { -webkit-overflow-scrolling: touch; }
 .mar-detail-panel > * { flex-shrink: 0; }
+
+/* Dashboard title: "Dashboard" then the user's title + name ("Nr Elite" / "Dr Ario"):
+   on its own line on phones, inline after a dot on wider screens. */
+.dash-title-name:not(:empty)::before { content: ' · '; }
+@media (max-width: 768px) {
+  .dash-title-name { display: block; }
+  .dash-title-name:not(:empty)::before { content: none; }
+}
