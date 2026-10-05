@@ -1435,7 +1435,8 @@ export default function PatientProfile() {
                     .uline{display:inline-block;border-bottom:1px solid #000;min-width:80px;vertical-align:bottom}
                     .rx-box{border:2px solid #000;padding:8px;min-height:180px;font-size:12px;white-space:pre-wrap;margin:6px 0}
                     html,body{height:100%}
-                    body>div{min-height:272mm;display:flex;flex-direction:column}
+                    body>div{zoom:1.45;max-width:none!important;margin:0!important;min-height:calc(272mm / 1.45);display:flex;flex-direction:column}
+                    .rx-text{font-size:14px!important;line-height:1.5}
                     @page{size:A4 portrait;margin:8mm}
                     @media print{body{padding:0}}
                   </style></head><body>${el.innerHTML}</body></html>`);
@@ -1630,7 +1631,7 @@ export default function PatientProfile() {
                               </div>
                               <div style={{ display:'flex', gap:4, alignItems:'flex-start' }}>
                                 <span style={F.rxSym}>Rx</span>
-                                <div style={{ ...F.rxBox, flex:1 }}>{officialRx.rx}</div>
+                                <div className="rx-text" style={{ ...F.rxBox, flex:1 }}>{officialRx.rx}</div>
                               </div>
                               <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:11 }}>
                                 <div><b>Prescriber's Name: </b><span style={F.line}>{officialRx.prescriberName}</span></div>
@@ -1688,7 +1689,7 @@ export default function PatientProfile() {
                               </div>
                               <div style={{ ...F.rxBox, flex:1 }}>
                                 <span style={F.rxSym}>R<sub style={{fontSize:13}}>x</sub></span>
-                                <span style={{ fontSize:12, whiteSpace:'pre-wrap' }}>{officialRx.rx}</span>
+                                <span className="rx-text" style={{ fontSize:12, whiteSpace:'pre-wrap' }}>{officialRx.rx}</span>
                               </div>
                               <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:11 }}>
                                 <div><b>PRESCRIBER'S NAME </b><span style={F.line}>{officialRx.prescriberName}</span></div>
