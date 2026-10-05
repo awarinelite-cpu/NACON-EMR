@@ -493,6 +493,11 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 }
 .mar-drugs-table { min-width: 760px; }
 
+/* Cards inside a shared outer card (Medication Log): no second border/shadow/gap */
+.mar-embedded > div { gap: 0 !important; }
+.mar-embedded .card { border: none; box-shadow: none; border-radius: 0; background: transparent; margin: 0; }
+.mar-embedded > div > div:not(.card) { margin: 10px 12px 0; }
+
 /* Generic version of the same pattern for any other data table (Pharmacy
    Inventory, User Management, etc.) */
 .table-scroll {

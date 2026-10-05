@@ -138,51 +138,45 @@ export default function MedicationLogPage() {
             </div>
           ) : (
             <>
-              {/* Patient header */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '14px 18px', background: 'var(--card-bg)',
-                borderRadius: 12, border: '1px solid var(--border)',
-              }}>
-                <button
-                  className="btn btn-sm"
-                  onClick={() => setSelected(null)}
-                  style={{ flexShrink: 0 }}
-                  title="Back to patient list"
-                >
-                  <i className="ti ti-arrow-left" />
-                </button>
-                <div style={{
-                  width: 44, height: 44, borderRadius: '50%',
-                  background: 'var(--accent-bg)', color: 'var(--accent)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, fontWeight: 700, flexShrink: 0,
-                }}>{getInitials(selected)}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.surname} {selected.firstName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t3)', display: 'flex', gap: 10, marginTop: 2 }}>
-                    <span style={{ fontFamily: 'var(--mono)' }}>{selected.emrNumber}</span>
-                    <span>·</span>
-                    <span>{selected.classSet}</span>
-                    {selected.knownAllergies && <>
+              {/* Patient header + medication charts: ONE card */}
+              <div className="card mar-embedded" style={{ overflow: 'hidden' }}>
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                  {/* Back (top-left corner) and Profile (top-right corner), so the name below gets the full width */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => setSelected(null)}
+                      title="Back to patient list"
+                    >
+                      <i className="ti ti-arrow-left" />
+                    </button>
+                    <button className="btn btn-sm" onClick={() => navigate(`/patient/${selected.emrNumber}`)}>
+                      <i className="ti ti-external-link" /> Profile
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.surname} {selected.firstName}</div>
+                    <div style={{ fontSize: 11, color: 'var(--t3)', display: 'flex', flexWrap: 'wrap', gap: '2px 10px', marginTop: 2 }}>
+                      <span style={{ fontFamily: 'var(--mono)' }}>{selected.emrNumber}</span>
                       <span>·</span>
-                      <span style={{ color: 'var(--danger)', fontWeight: 700 }}>⚠ {selected.knownAllergies}</span>
-                    </>}
+                      <span>{selected.classSet}</span>
+                      {selected.knownAllergies && <>
+                        <span>·</span>
+                        <span style={{ color: 'var(--danger)', fontWeight: 700 }}>⚠ {selected.knownAllergies}</span>
+                      </>}
+                    </div>
                   </div>
                 </div>
-                <button className="btn btn-sm" onClick={() => navigate(`/patient/${selected.emrNumber}`)}>
-                  <i className="ti ti-external-link" /> Profile
-                </button>
-              </div>
 
-              {/* Same MAR chart as the patient profile MAR tab */}
-              <MARTab
-                key={selected.emrNumber}
-                emrNumber={selected.emrNumber}
-                visitId={null}
-                prescriptions={rxList}
-                patient={selected}
-              />
+                {/* Same MAR chart as the patient profile MAR tab */}
+                <MARTab
+                  key={selected.emrNumber}
+                  emrNumber={selected.emrNumber}
+                  visitId={null}
+                  prescriptions={rxList}
+                  patient={selected}
+                />
+              </div>
             </>
           )}
         </div>
