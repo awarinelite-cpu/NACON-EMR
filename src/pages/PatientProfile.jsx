@@ -1259,15 +1259,15 @@ export default function PatientProfile() {
               </div>
               <div className="card-body">
                 {/* Table layout: Drug name | Dosage | Frequency | Duration */}
-                <div className="table-scroll" style={{ marginBottom:12 }}>
-                  <table className="data-table big-table rx-write-table" style={{ width:'100%', tableLayout:'fixed' }}>
+                <div className="table-scroll" style={{ marginBottom:12, maxHeight:'none' }}>
+                  <table className="data-table big-table rx-write-table" style={{ width:790, minWidth:790, tableLayout:'fixed' }}>
                     <thead>
                       <tr>
                         <th style={{ width:44 }}>#</th>
-                        <th style={{ width:'36%' }}>Drug name *</th>
-                        <th style={{ width:'18%' }}>Dosage</th>
-                        <th style={{ width:'22%' }}>Frequency</th>
-                        <th style={{ width:'24%' }}>Duration</th>
+                        <th style={{ width:250 }}>Drug name *</th>
+                        <th style={{ width:120 }}>Dosage</th>
+                        <th style={{ width:160 }}>Frequency</th>
+                        <th style={{ width:170 }}>Duration</th>
                         <th style={{ width:52 }}></th>
                       </tr>
                     </thead>
