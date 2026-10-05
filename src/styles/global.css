@@ -1140,6 +1140,17 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     display: table;
     overflow-x: visible;
   }
+  /* Phone: the medication table slides left/right inside its box, but an
+     up/down swipe now scrolls the whole PAGE. (Before, the box had its own
+     58vh vertical scroll too, so with 47+ drugs a finger on the table was
+     captured by the box and the page felt stuck.) */
+  .mar-table-scroll {
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+  }
   /* Same reasoning for any other table using the generic .table-scroll
      wrapper (Pharmacy Inventory, User Management, etc.) — keep the table
      itself a normal table with the wrapper owning the horizontal scroll,
