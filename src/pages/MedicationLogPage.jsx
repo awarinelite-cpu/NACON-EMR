@@ -2,16 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import {
-  listenPatients, listenPrescriptions, listenMAR,
-  formatTs, formatTime,
-} from '../lib/emr';
-
-const STATUS_CFG = {
-  given:   { label: 'Given',   color: 'var(--success)', bg: 'var(--success-bg)' },
-  held:    { label: 'Held',    color: 'var(--warn)',    bg: 'var(--warn-bg)'    },
-  refused: { label: 'Refused', color: 'var(--danger)',  bg: 'var(--danger-bg)'  },
-};
+import { listenPatients, listenPrescriptions } from '../lib/emr';
+import MARTab from '../components/patients/MARTab';
 
 export default function MedicationLogPage() {
   const { profile } = useAuth();
@@ -20,11 +12,8 @@ export default function MedicationLogPage() {
   const [patients,    setPatients]    = useState([]);
   const [selected,    setSelected]    = useState(null);
   const [rxList,      setRxList]      = useState([]);
-  const [marList,     setMarList]     = useState([]);
   const [search,      setSearch]      = useState('');
-  const [dateFilter,  setDateFilter]  = useState('today');
   const [rxUnsub,     setRxUnsub]     = useState(null);
-  const [marUnsub,    setMarUnsub]    = useState(null);
 
   useEffect(() => {
     const unsub = listenPatients(pts =>
@@ -34,14 +23,11 @@ export default function MedicationLogPage() {
   }, []);
 
   useEffect(() => {
-    if (rxUnsub)  rxUnsub();
-    if (marUnsub) marUnsub();
-    if (!selected) { setRxList([]); setMarList([]); return; }
+    if (rxUnsub) rxUnsub();
+    if (!selected) { setRxList([]); return; }
     const u1 = listenPrescriptions(selected.emrNumber, setRxList);
-    const u2 = listenMAR(selected.emrNumber, setMarList);
     setRxUnsub(() => u1);
-    setMarUnsub(() => u2);
-    return () => { u1(); u2(); };
+    return () => { u1(); };
   }, [selected?.emrNumber]);
 
   const filtered = patients.filter(p => {
@@ -57,40 +43,6 @@ export default function MedicationLogPage() {
 
   const getInitials = p => ((p.surname?.[0] || '') + (p.firstName?.[0] || '')).toUpperCase();
 
-  // All drugs across prescriptions
-  const allDrugs = rxList.flatMap(rx =>
-    (rx.drugs || []).map(d => ({
-      ...d, rxId: rx.id,
-      prescribedBy: rx.prescribedBy,
-      prescribedByRole: rx.prescribedByRole,
-      rxCreatedAt: rx.createdAt,
-      requiresCountersign: rx.requiresCountersign,
-    }))
-  );
-
-  // Filter MAR by date
-  const filteredMAR = marList.filter(m => {
-    const ts = m.createdAt?.toDate?.();
-    if (!ts) return false;
-    if (dateFilter === 'today') {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      return ts >= today;
-    }
-    if (dateFilter === 'week') {
-      const week = new Date(); week.setDate(week.getDate() - 7);
-      return ts >= week;
-    }
-    return true; // all
-  });
-
-  // Group MAR by drug name
-  const marByDrug = {};
-  filteredMAR.forEach(m => {
-    const key = m.drug;
-    if (!marByDrug[key]) marByDrug[key] = [];
-    marByDrug[key].push(m);
-  });
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
 
@@ -100,20 +52,6 @@ export default function MedicationLogPage() {
           <i className="ti ti-pill" style={{ marginRight: 6, color: 'var(--accent)' }} />
           Medication Log
         </div>
-        {selected && (
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['today', 'week', 'all'].map(f => (
-              <button
-                key={f}
-                className={`btn btn-sm${dateFilter === f ? ' btn-primary' : ''}`}
-                onClick={() => setDateFilter(f)}
-                style={{ textTransform: 'capitalize' }}
-              >
-                {f === 'today' ? 'Today' : f === 'week' ? 'This Week' : 'All Time'}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -237,112 +175,14 @@ export default function MedicationLogPage() {
                 </button>
               </div>
 
-              {/* Summary stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                {[
-                  { label: 'Total Records', value: filteredMAR.length, icon: 'ti-list', color: 'var(--accent)' },
-                  { label: 'Given', value: filteredMAR.filter(m => m.status === 'given').length, icon: 'ti-circle-check', color: 'var(--success)' },
-                  { label: 'Held / Refused', value: filteredMAR.filter(m => m.status !== 'given').length, icon: 'ti-circle-x', color: 'var(--danger)' },
-                ].map(s => (
-                  <div key={s.label} className="card" style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <i className={`ti ${s.icon}`} style={{ fontSize: 22, color: s.color }} />
-                      <div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600 }}>{s.label}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Active prescriptions summary */}
-              {allDrugs.length > 0 && (
-                <div className="card">
-                  <div className="card-header">
-                    <div className="card-title"><i className="ti ti-prescription" /> Current Prescriptions</div>
-                    <span style={{ fontSize: 11, color: 'var(--t3)' }}>{allDrugs.length} drug{allDrugs.length !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '8px 16px 14px' }}>
-                    {allDrugs.map((d, i) => (
-                      <span key={i} style={{
-                        fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-                        background: 'var(--accent-bg)', color: 'var(--accent)',
-                        border: '1px solid var(--border)',
-                      }}>
-                        {d.drug} {d.dose && `· ${d.dose}`}
-                        {d.requiresCountersign && (
-                          <span style={{ marginLeft: 6, fontSize: 9, background: 'var(--warn-bg)', color: 'var(--warn)', padding: '1px 5px', borderRadius: 8 }}>
-                            Nurse Rx
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Medication log table */}
-              <div className="card">
-                <div className="card-header">
-                  <div className="card-title"><i className="ti ti-history" /> Administration Log</div>
-                  <span style={{ fontSize: 11, color: 'var(--t3)' }}>{filteredMAR.length} entr{filteredMAR.length !== 1 ? 'ies' : 'y'}</span>
-                </div>
-                {filteredMAR.length === 0 ? (
-                  <div style={{ padding: 32, textAlign: 'center', color: 'var(--t3)' }}>
-                    <i className="ti ti-pill-off" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
-                    <div style={{ fontWeight: 700 }}>No records for this period</div>
-                    <div style={{ fontSize: 11, marginTop: 4 }}>Change the date filter or administer via MAR</div>
-                  </div>
-                ) : (
-                  <div className="table-scroll">
-                  <table className="data-table big-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Drug</th>
-                        <th>Dose</th>
-                        <th>Route</th>
-                        <th>Status</th>
-                        <th>Given by</th>
-                        <th>Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...filteredMAR].reverse().map(m => (
-                        <tr key={m.id}>
-                          <td style={{ fontSize: 11, color: 'var(--t3)' }}>{formatTs(m.createdAt)}</td>
-                          <td style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700 }}>{m.administeredAt}</td>
-                          <td style={{ fontWeight: 700 }}>{m.drug}</td>
-                          <td style={{ color: 'var(--t2)' }}>{m.dose || '—'}</td>
-                          <td>
-                            <span style={{
-                              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                              background: 'var(--card-bg2)', color: 'var(--t2)',
-                            }}>{m.route}</span>
-                          </td>
-                          <td>
-                            <span style={{
-                              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                              background: STATUS_CFG[m.status]?.bg || 'var(--card-bg2)',
-                              color: STATUS_CFG[m.status]?.color || 'var(--t2)',
-                            }}>
-                              {STATUS_CFG[m.status]?.label || m.status}
-                            </span>
-                          </td>
-                          <td style={{ fontSize: 11 }}>
-                            <div>{m.administeredBy}</div>
-                            <div style={{ color: 'var(--t3)', textTransform: 'capitalize', fontSize: 10 }}>{m.administeredByRole}</div>
-                          </td>
-                          <td style={{ fontSize: 11, color: 'var(--t3)' }}>{m.notes || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-                )}
-              </div>
+              {/* Same MAR chart as the patient profile MAR tab */}
+              <MARTab
+                key={selected.emrNumber}
+                emrNumber={selected.emrNumber}
+                visitId={null}
+                prescriptions={rxList}
+                patient={selected}
+              />
             </>
           )}
         </div>
