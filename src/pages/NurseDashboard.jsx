@@ -45,7 +45,7 @@ export default function NurseDashboard() {
         <div className="topbar-title">Dashboard — Nurse {profile?.displayName}</div>
         <PatientSearch placeholder="Search EMR, name or SET…" />
       </div>
-      <div className="page-content" style={{ flex:1 }}>
+      <div className="page-content dash-page" style={{ flex:1 }}>
 
         {/* ── Total Registered Patients ── */}
         <div className="dash-card dash-card-wide" onClick={() => navigate('/nurse/patients')}
