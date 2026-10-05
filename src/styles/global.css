@@ -1592,3 +1592,42 @@ html, body { overflow-x: hidden; }
 .tp-footer-right { display: flex; gap: 18px; }
 .tp-link { background: none; border: none; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; padding: 6px 4px; font-family: inherit; }
 .tp-set { font-weight: 800; }
+
+/* ══════════════════════════════════
+   VISIBLE BORDERS + ROUNDED EDGES
+   Glycemic grid and MAR tables (Active Medications + Drug Course chart).
+   Uses border-collapse: separate so border-radius works. Corner radii are
+   set on the corner cells (not overflow:hidden on the table) so the sticky
+   header inside the scroll wrappers keeps working.
+══════════════════════════════════ */
+.glyc-grid,
+.mar68-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1.5px solid var(--border2);
+  border-radius: 12px;
+}
+.glyc-grid th,
+.glyc-grid td,
+.mar68-table th,
+.mar68-table td {
+  border-right: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+}
+.glyc-grid th:last-child,
+.glyc-grid td:last-child,
+.mar68-table th:last-child,
+.mar68-table td:last-child { border-right: none; }
+.glyc-grid tbody tr:last-child td,
+.mar68-table tbody tr:last-child td { border-bottom: none; }
+.glyc-grid thead tr:first-child th:first-child,
+.mar68-table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.glyc-grid thead tr:first-child th:last-child,
+.mar68-table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+.glyc-grid tbody tr:last-child td:first-child,
+.mar68-table tbody tr:last-child td:first-child { border-bottom-left-radius: 10px; }
+.glyc-grid tbody tr:last-child td:last-child,
+.mar68-table tbody tr:last-child td:last-child { border-bottom-right-radius: 10px; }
+/* Small gap so the rounded border isn't clipped by the scroll wrappers */
+.table-scroll:has(.glyc-grid),
+.mar-table-scroll:has(.mar68-table) { padding: 2px; box-sizing: border-box; }
