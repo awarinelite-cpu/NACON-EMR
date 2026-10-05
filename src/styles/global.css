@@ -1151,6 +1151,16 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     overscroll-behavior-x: contain;
     touch-action: pan-x pan-y;
   }
+  /* The generic mobile rule above turns every .data-table / .chart-table into its OWN
+     horizontal scroller. Inside .mar-table-scroll that made two nested scrollers (the
+     table and its wrapper) fighting over the same swipe, which is what froze the drug
+     course chart and administration chart. Only the wrapper scrolls now. */
+  .mar-table-scroll .data-table,
+  .mar-table-scroll .chart-table {
+    display: table;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
   /* Same reasoning for any other table using the generic .table-scroll
      wrapper (Pharmacy Inventory, User Management, etc.) — keep the table
      itself a normal table with the wrapper owning the horizontal scroll,

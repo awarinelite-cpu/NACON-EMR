@@ -54,11 +54,11 @@ export default function MedicationLogPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="mar-split" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* LEFT */}
         {!selected && (
-        <div style={{
+        <div className="mar-patient-list" style={{
           width: 260, flexShrink: 0,
           borderRight: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column',
@@ -79,7 +79,7 @@ export default function MedicationLogPage() {
               />
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="mar-patient-list-scroll" style={{ flex: 1, overflowY: 'auto' }}>
             {filtered.length === 0 && (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--t3)', fontSize: 12, fontWeight: 700 }}>
                 No active patients
@@ -129,7 +129,7 @@ export default function MedicationLogPage() {
         )}
 
         {/* RIGHT */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="mar-detail-panel" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!selected ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', gap: 12 }}>
               <i className="ti ti-pill" style={{ fontSize: 48, opacity: .3 }} />
