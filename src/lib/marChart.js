@@ -36,6 +36,7 @@ export function buildDrugList(prescriptions) {
   const list = [];
   rxs.forEach(rx => {
     (rx.drugs || []).forEach((d, idx) => {
+      if (d.removedFromMar) return;   // removed from the MAR (kept in the prescription record)
       list.push({
         key: drugKey(rx.id, idx), num: list.length + 1, rxId: rx.id, idx,
         name: d.drug || '', dose: d.dose || '', route: d.route || '',

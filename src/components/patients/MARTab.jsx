@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../lib/AuthContext';
 import {
   listenMAR, saveMarRows, deleteMarRow, migrateLegacyMar, newMarRowId,
-  updateDrugStatus, updateDrugFields,
+  updateDrugStatus, updateDrugFields, addPrescription,
 } from '../../lib/emr';
 import {
   ROUTE_OPTIONS, REMARK_OPTIONS, ACTION_OPTIONS, actionColor, actionOfStatus, statusOfAction,
@@ -54,6 +54,9 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
   const [rowsState, setRowsState] = useState(null);       // null until first load
   const [drugsEdit, setDrugsEdit] = useState(false);
   const [chartEdit, setChartEdit] = useState(false);
+  const [drugRowEdit, setDrugRowEdit] = useState(null);   // { key, name, dose, route, frequency, duration }
+  const [newDrug, setNewDrug] = useState(null);           // draft row for a drug being added
+  const [drugBusy, setDrugBusy] = useState(false);
   const [editingRows, setEditingRows] = useState({});     // row key -> true
   const [saveStatus, setSaveStatus] = useState('');
   const [statusSaving, setStatusSaving] = useState(null);
@@ -290,6 +293,60 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
     setStatusSaving(null);
   }
 
+  const blankDrug = () => ({ name: '', dose: '', route: '', frequency: '', duration: '' });
+  function startDrugRowEdit(d) {
+    setNewDrug(null);
+    setDrugRowEdit({ key: d.key, name: d.name, dose: d.dose, route: d.route, frequency: d.frequency, duration: d.duration });
+  }
+  async function saveDrugRowEdit(d) {
+    const e = drugRowEdit; if (!e) return;
+    if (!e.name.trim()) { toast.error('Drug name is required'); return; }
+    setDrugBusy(true);
+    try {
+      await updateDrugFields(d.rxId, d.idx, {
+        drug: e.name.trim(), dose: e.dose.trim(), route: e.route, frequency: e.frequency.trim(), duration: e.duration.trim(),
+      }, actor(), profile?.role);
+      toast.success(`${e.name.trim()} updated`);
+      setDrugRowEdit(null);
+    } catch (err) { console.error('[MARTab] edit drug failed:', err); toast.error('Failed to update drug'); }
+    setDrugBusy(false);
+  }
+  // Removing a drug hides it from the MAR and marks it Discontinued rather than
+  // deleting it, so charted doses that point at it keep their meaning and the
+  // prescription history stays intact.
+  async function removeDrug(d) {
+    if (!window.confirm(`Remove ${d.name || 'this drug'} from the MAR?\n\nIt will be hidden here and marked Discontinued in the prescription record.`)) return;
+    setDrugBusy(true);
+    try {
+      await updateDrugFields(d.rxId, d.idx, {
+        removedFromMar: true, status: statusOfAction('Discontinued'),
+        removedBy: actor(), removedAt: new Date().toISOString(),
+      }, actor(), profile?.role);
+      toast.success(`${d.name} removed`);
+    } catch (err) { console.error('[MARTab] remove drug failed:', err); toast.error('Failed to remove drug'); }
+    setDrugBusy(false);
+  }
+  async function saveNewDrug() {
+    const n = newDrug; if (!n) return;
+    if (!n.name.trim()) { toast.error('Drug name is required'); return; }
+    const allergies = (patient?.knownAllergies || '').toLowerCase().split(/[,;/\n]|\band\b/).map(x => x.trim()).filter(x => x.length >= 3);
+    const hit = allergies.find(a => n.name.toLowerCase().includes(a));
+    if (hit && !window.confirm(`ALLERGY WARNING: patient is allergic to "${hit}".\n\nAdd ${n.name.trim()} anyway?`)) return;
+    setDrugBusy(true);
+    try {
+      await addPrescription(emrNumber, cb.current.visitId || null, [{
+        drug: n.name.trim(), dose: n.dose.trim(), route: n.route, frequency: n.frequency.trim(), duration: n.duration.trim(), status: 'active',
+      }], actor(), profile?.role);
+      toast.success(`${n.name.trim()} added`);
+      setNewDrug(null);
+    } catch (err) { console.error('[MARTab] add drug failed:', err); toast.error('Failed to add drug'); }
+    setDrugBusy(false);
+  }
+  function finishDrugsEdit() {
+    if (drugRowEdit || (newDrug && newDrug.name.trim())) { toast.error('Tap ✓ to save the row you are editing, or ✕ to cancel it'); return; }
+    setNewDrug(null); setDrugRowEdit(null); setDrugsEdit(false);
+  }
+
   const chartRowsForDue = rows.filter(r => r.date && r.time);
   const dueOf = (d) => dueLabelFor(d, chartRowsForDue, now);
   const dueStyle = (due) => (due.overdue ? { color: '#ef4444', fontWeight: 800 } : due.skippedPending ? { color: '#d97706', fontWeight: 800 } : undefined);
@@ -316,9 +373,17 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
       <div className="card">
         <div className="card-header">
           <div className="card-title"><i className="ti ti-pill" />Drugs Course Chart — Drugs</div>
-          <span style={{ fontSize: 11, color: 'var(--t3)' }}>{drugs.length} drug{drugs.length !== 1 ? 's' : ''}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!readOnly && (!drugsEdit
+              ? <button type="button" className="btn btn-sm btn-purple" onClick={() => setDrugsEdit(true)}>Edit</button>
+              : (<>
+                <button type="button" className="btn btn-sm btn-success" onClick={finishDrugsEdit}>Save</button>
+                <button type="button" className="btn btn-sm btn-success" disabled={drugBusy} onClick={() => { setDrugRowEdit(null); setNewDrug(blankDrug()); }}>+ Add Row</button>
+              </>))}
+            <span style={{ fontSize: 11, color: 'var(--t3)' }}>{drugs.length} drug{drugs.length !== 1 ? 's' : ''}</span>
+          </div>
         </div>
-        {drugs.length === 0 ? (
+        {drugs.length === 0 && !newDrug ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--t3)' }}>
             <i className="ti ti-pill-off" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
             <div style={{ fontWeight: 700 }}>No prescriptions yet</div>
@@ -330,6 +395,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
               <table className="chart-table mar68-table mar68-drugs">
                 <thead>
                   <tr>
+                    {drugsEdit && !readOnly && <th style={{ width: 84 }}></th>}
                     <th style={{ width: 44 }}>No.</th><th className="mar68-left">Drug Name</th><th>Dose</th>
                     <th>Route</th><th>Frequency</th><th>Action</th><th>Duration</th><th>Due</th>
                   </tr>
@@ -341,25 +407,45 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
                     const weeklyN = parseWeeklyFrequency(d.frequency);
                     const weeklyGiven = weeklyN ? weeklyDosesGivenThisWeek(chartRowsForDue, d.key, now) : 0;
                     const givenCount = seq ? administrationTimesFor(chartRowsForDue, d.key).length : 0;
-                    const busy = statusSaving === d.key;
+                    const busy = statusSaving === d.key || drugBusy;
+                    const ed = drugsEdit && !readOnly && drugRowEdit && drugRowEdit.key === d.key ? drugRowEdit : null;
+                    const setEd = (patch) => setDrugRowEdit(cur => ({ ...cur, ...patch }));
                     return (
                       <tr key={d.key}>
+                        {drugsEdit && !readOnly && (
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {ed ? (<>
+                              <button type="button" className="mar68-row-btn" title="Save this row" disabled={busy} onClick={() => saveDrugRowEdit(d)}>✓</button>
+                              <button type="button" className="mar68-row-btn" title="Cancel" onClick={() => setDrugRowEdit(null)}>✕</button>
+                            </>) : (<>
+                              <button type="button" className="mar68-row-btn" title="Edit this drug" disabled={busy} onClick={() => startDrugRowEdit(d)}>🖊️</button>
+                              <button type="button" className="mar68-row-btn" title="Remove this drug" disabled={busy} onClick={() => removeDrug(d)}>🗑️</button>
+                            </>)}
+                          </td>
+                        )}
                         <td>{d.num}</td>
                         <td className="mar68-left" style={drugTone(d, due)}>
-                          {d.name || '—'}
-                          {d.requiresCountersign && !d.countersigned && <span className="mar68-nurse-rx">Nurse Rx</span>}
+                          {ed ? <input type="text" className="mar68-input" style={{ textAlign: 'left' }} value={ed.name} onChange={e => setEd({ name: e.target.value })} />
+                            : (<>
+                              {d.name || '—'}
+                              {d.requiresCountersign && !d.countersigned && <span className="mar68-nurse-rx">Nurse Rx</span>}
+                            </>)}
                         </td>
-                        <td style={drugTone(d, due)}>{d.dose || '—'}</td>
+                        <td style={drugTone(d, due)}>{ed ? <input type="text" className="mar68-input" value={ed.dose} onChange={e => setEd({ dose: e.target.value })} /> : (d.dose || '—')}</td>
                         <td style={drugTone(d, due)}>
-                          {drugsEdit && !readOnly ? (
+                          {ed ? (
+                            <select className="mar68-select" value={ed.route} onChange={e => setEd({ route: e.target.value })}>
+                              {ROUTE_OPTIONS.map(o => <option key={o} value={o}>{o || '—'}</option>)}
+                            </select>
+                          ) : drugsEdit && !readOnly ? (
                             <select className="mar68-select" value={d.route} disabled={busy} onChange={e => changeRoute(d, e.target.value)}>
                               {ROUTE_OPTIONS.map(o => <option key={o} value={o}>{o || '—'}</option>)}
                             </select>
                           ) : (d.route || '—')}
                         </td>
                         <td style={drugTone(d, due)}>
-                          {d.frequency || '—'}
-                          {seq && (
+                          {ed ? <input type="text" className="mar68-input" value={ed.frequency} onChange={e => setEd({ frequency: e.target.value })} /> : (d.frequency || '—')}
+                          {!ed && seq && (
                             <div className="mar68-pills">
                               {seq.map((hr, i) => <span key={i} className={'mar68-pill ' + (i < givenCount ? 'given' : 'pending')}>{hr}h{i < givenCount ? ' ✓' : ''}</span>)}
                             </div>
@@ -381,20 +467,37 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
                             <span className="mar68-action" style={{ background: actionColor(d.action) }}>{d.action}</span>
                           )}
                         </td>
-                        <td style={drugTone(d, due)}>{d.duration || '—'}</td>
+                        <td style={drugTone(d, due)}>{ed ? <input type="text" className="mar68-input" value={ed.duration} onChange={e => setEd({ duration: e.target.value })} /> : (d.duration || '—')}</td>
                         <td style={dueStyle(due)} title={due.skippedPending ? 'Last due dose was documented as not given' : undefined}>{due.text}</td>
                       </tr>
                     );
                   })}
+                  {newDrug && drugsEdit && !readOnly && (
+                    <tr className="mar68-incomplete">
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button type="button" className="mar68-row-btn" title="Add this drug" disabled={drugBusy} onClick={saveNewDrug}>✓</button>
+                        <button type="button" className="mar68-row-btn" title="Cancel" onClick={() => setNewDrug(null)}>✕</button>
+                      </td>
+                      <td>{drugs.length + 1}</td>
+                      <td className="mar68-left"><input type="text" className="mar68-input" style={{ textAlign: 'left' }} placeholder="Drug name" autoFocus value={newDrug.name} onChange={e => setNewDrug(n => ({ ...n, name: e.target.value }))} /></td>
+                      <td><input type="text" className="mar68-input" placeholder="e.g. 500 mg" value={newDrug.dose} onChange={e => setNewDrug(n => ({ ...n, dose: e.target.value }))} /></td>
+                      <td>
+                        <select className="mar68-select" value={newDrug.route} onChange={e => setNewDrug(n => ({ ...n, route: e.target.value }))}>
+                          {ROUTE_OPTIONS.map(o => <option key={o} value={o}>{o || '—'}</option>)}
+                        </select>
+                      </td>
+                      <td><input type="text" className="mar68-input" placeholder="e.g. twice daily" value={newDrug.frequency} onChange={e => setNewDrug(n => ({ ...n, frequency: e.target.value }))} /></td>
+                      <td><span className="mar68-action" style={{ background: actionColor('Ongoing') }}>Ongoing</span></td>
+                      <td><input type="text" className="mar68-input" placeholder="e.g. 5 days" value={newDrug.duration} onChange={e => setNewDrug(n => ({ ...n, duration: e.target.value }))} /></td>
+                      <td>—</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
             {!readOnly && (
               <div className="mar68-actions">
-                {!drugsEdit
-                  ? <button type="button" className="btn btn-purple" onClick={() => setDrugsEdit(true)}>Edit</button>
-                  : <button type="button" className="btn btn-success" onClick={() => setDrugsEdit(false)}>Save</button>}
-                <span className="mar68-hint">Add or change prescribed drugs in the Prescription tab.</span>
+                <span className="mar68-hint">{drugsEdit ? 'Tap 🖊️ to edit a drug, 🗑️ to remove it, or + Add Row for a new drug.' : 'Tap Edit to change, add or remove drugs.'}</span>
               </div>
             )}
           </>
