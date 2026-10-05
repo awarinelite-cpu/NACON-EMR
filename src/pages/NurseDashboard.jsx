@@ -43,7 +43,7 @@ export default function NurseDashboard() {
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar topbar-lg">
         <div className="topbar-title">Dashboard — Nurse {profile?.displayName}</div>
-        <PatientSearch />
+        <PatientSearch placeholder="Search EMR, name or SET…" />
       </div>
       <div className="page-content" style={{ flex:1 }}>
 

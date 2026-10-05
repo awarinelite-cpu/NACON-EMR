@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import AlertsBell from './AlertsBell';
 import { listenTriageQueue } from '../../lib/emr';
 import { startSyncListener }  from '../../lib/syncEngine';
 import OfflineBanner           from '../shared/OfflineBanner';
@@ -106,10 +105,6 @@ export default function AppShell() {
       >
         <i className={`ti ${navVisible ? 'ti-x' : 'ti-menu-2'}`} />
       </button>
-
-      <div style={{ position: 'fixed', top: 10, right: 12, zIndex: 210 }}>
-        <AlertsBell />
-      </div>
 
       {/* Backdrop — closes sidebar on click outside (dims on mobile, invisible click-catcher on desktop) */}
       <div

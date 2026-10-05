@@ -1293,12 +1293,12 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
 .topbar-lg .patient-search input::placeholder { font-size: 21px; font-weight: 600; }
 
 @media (max-width: 768px) {
-  .topbar-lg { min-height: 96px; }
+  .topbar-lg { min-height: 96px; padding-right: 20px; }   /* keeps the search box clear of the screen edge */
   .topbar-lg .topbar-title { font-size: 24px; }
-  .topbar-lg .patient-search > div:first-child { padding: 12px 14px !important; }
-  .topbar-lg .patient-search > div:first-child > i { font-size: 22px !important; }
+  .topbar-lg .patient-search > div:first-child { padding: 10px 12px !important; gap: 8px !important; }
+  .topbar-lg .patient-search > div:first-child > i { font-size: 18px !important; }
   .topbar-lg .patient-search input,
-  .topbar-lg .patient-search input::placeholder { font-size: 18px !important; }
+  .topbar-lg .patient-search input::placeholder { font-size: 14px !important; }
 }
 
 /* ══════════════════════════════════
