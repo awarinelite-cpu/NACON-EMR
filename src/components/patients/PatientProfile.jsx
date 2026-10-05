@@ -1053,7 +1053,7 @@ function FluidHistory({ fluids }) {
         </div>
       </div>
       <div className="table-scroll">
-      <table className="chart-table">
+      <table className="chart-table bordered-table">
         <thead><tr><th>Time</th><th>Intake (ml)</th><th>Type</th><th>Output (ml)</th><th>Type</th><th>By</th></tr></thead>
         <tbody>
           {fluids.map(f => (
@@ -1124,7 +1124,7 @@ function GlucoseHistory({ glucoses }) {
     <div className="card">
       <div className="card-header"><div className="card-title"><i className="ti ti-history" />Glucose Chart</div></div>
       <div className="table-scroll">
-      <table className="chart-table">
+      <table className="chart-table bordered-table">
         <thead><tr><th>Time</th><th>Reading (mmol/L)</th><th>Context</th><th>Status</th><th>By</th></tr></thead>
         <tbody>
           {glucoses.map(g => (

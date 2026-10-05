@@ -1631,3 +1631,36 @@ html, body { overflow-x: hidden; }
 /* Small gap so the rounded border isn't clipped by the scroll wrappers */
 .table-scroll:has(.glyc-grid),
 .mar-table-scroll:has(.mar68-table) { padding: 2px; box-sizing: border-box; }
+
+/* Same bordered + rounded treatment for the Fluid Balance (intake/output)
+   tables and the Glucose Chart table on the patient profile. */
+.fluid-table,
+.bordered-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1.5px solid var(--border2);
+  border-radius: 12px;
+}
+.fluid-table th,
+.fluid-table td,
+.bordered-table th,
+.bordered-table td {
+  border-right: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+}
+.fluid-table th:last-child,
+.fluid-table td:last-child,
+.bordered-table th:last-child,
+.bordered-table td:last-child { border-right: none; }
+.fluid-table tbody tr:last-child td,
+.bordered-table tbody tr:last-child td { border-bottom: none; }
+.fluid-table thead tr:first-child th:first-child,
+.bordered-table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.fluid-table thead tr:first-child th:last-child,
+.bordered-table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+.fluid-table tbody tr:last-child td:first-child,
+.bordered-table tbody tr:last-child td:first-child { border-bottom-left-radius: 10px; }
+.fluid-table tbody tr:last-child td:last-child,
+.bordered-table tbody tr:last-child td:last-child { border-bottom-right-radius: 10px; }
+.table-scroll:has(.fluid-table),
+.table-scroll:has(.bordered-table) { padding: 2px; box-sizing: border-box; }
