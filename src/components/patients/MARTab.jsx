@@ -514,10 +514,10 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
             )}
           </>
         )}
-      </div>
 
-      {/* ── Administration chart ── */}
-      <div className="card">
+
+        {/* ── Administration chart (same card as the drugs chart) ── */}
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 6 }}>
         <div className="card-header">
           <div className="card-title"><i className="ti ti-clipboard-list" />Drug Administration Chart</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -595,6 +595,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
           </table>
         </div>
         {saveStatus && <div className="mar68-status">{saveStatus}</div>}
+        </div>
       </div>
 
       {timePickerRow !== -1 && (
