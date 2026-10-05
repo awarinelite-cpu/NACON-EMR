@@ -54,26 +54,7 @@ export default function NurseDashboard() {
           <div className="dash-value">{patients.length}</div>
         </div>
 
-        {/* ── Row 1: Waiting · Meds Due · Seen Today ── */}
-        <div className="dash-grid">
-          <div className="dash-card" onClick={() => navigate('/nurse/queue')}
-            style={{'--ac':'#2563eb'}}>
-            <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
-            <div className="dash-value">{waiting}</div>
-          </div>
-          <div className="dash-card" onClick={() => navigate('/nurse/meds')}
-            style={{'--ac':'#dc2626'}}>
-            <div className="dash-label"><i className="ti ti-pill" />Meds due</div>
-            <div className="dash-value">0</div>
-          </div>
-          <div className="dash-card" onClick={() => navigate('/nurse/seen-today')}
-            style={{'--ac':'#16a34a'}}>
-            <div className="dash-label"><i className="ti ti-check" />Seen today</div>
-            <div className="dash-value">{sickSeenCount}</div>
-          </div>
-        </div>
-
-        {/* ── Row 2: Sick Report · On Admission · D/R ── */}
+        {/* ── Row 1: Sick Report · Seen Today · On Admission ── */}
         <div className="dash-grid">
           <div className="dash-card" onClick={() => navigate('/nurse/sick-report')}
             style={{'--ac':'#ea580c'}}>
@@ -83,6 +64,12 @@ export default function NurseDashboard() {
               <span>✓ {sickSeenCount} seen</span>
               <span>· {notSeen} pending</span>
             </div>
+          </div>
+
+          <div className="dash-card" onClick={() => navigate('/nurse/seen-today')}
+            style={{'--ac':'#16a34a'}}>
+            <div className="dash-label"><i className="ti ti-check" />Seen today</div>
+            <div className="dash-value">{sickSeenCount}</div>
           </div>
 
           <div className="dash-card" onClick={() => navigate('/nurse/on-admission')}
@@ -100,7 +87,10 @@ export default function NurseDashboard() {
               </div>
             </div>
           </div>
+        </div>
 
+        {/* ── Row 2: D/R Today · Waiting · Meds Due ── */}
+        <div className="dash-grid">
           <div className="dash-card" onClick={() => navigate('/nurse/discharged-referred')}
             style={{'--ac':'#059669'}}>
             <div className="dash-label"><i className="ti ti-logout" />D/R Today</div>
@@ -115,6 +105,18 @@ export default function NurseDashboard() {
                 <div className="dash-caption">Referred</div>
               </div>
             </div>
+          </div>
+
+          <div className="dash-card" onClick={() => navigate('/nurse/queue')}
+            style={{'--ac':'#2563eb'}}>
+            <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
+            <div className="dash-value">{waiting}</div>
+          </div>
+
+          <div className="dash-card" onClick={() => navigate('/nurse/meds')}
+            style={{'--ac':'#dc2626'}}>
+            <div className="dash-label"><i className="ti ti-pill" />Meds due</div>
+            <div className="dash-value">0</div>
           </div>
         </div>
 
