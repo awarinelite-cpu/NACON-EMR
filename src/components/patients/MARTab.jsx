@@ -405,7 +405,16 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
       <div className="card">
         <div className="card-header">
           <div className="card-title"><i className="ti ti-clipboard-list" />Drug Administration Chart</div>
-          <span style={{ fontSize: 11, color: 'var(--t3)' }}>{rows.filter(r => r.given.length || r.skipped.length).length} entries</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!readOnly && (!chartEdit
+              ? <button type="button" className="btn btn-sm btn-purple" onClick={enterChartEdit}>Edit</button>
+              : (<>
+                <button type="button" className="btn btn-sm btn-success" onClick={exitChartEdit}>Save</button>
+                <button type="button" className="btn btn-sm btn-success" onClick={addRow}>+ Add Row</button>
+                <button type="button" className="btn btn-sm btn-secondary" onClick={removeRow}>− Remove Row</button>
+              </>))}
+            <span style={{ fontSize: 11, color: 'var(--t3)' }}>{rows.filter(r => r.given.length || r.skipped.length).length} entries</span>
+          </div>
         </div>
         <div className="mar-table-scroll">
           <table className="chart-table mar68-table mar68-chart">
@@ -470,17 +479,6 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
             </tbody>
           </table>
         </div>
-        {!readOnly && (
-          <div className="mar68-actions">
-            {!chartEdit
-              ? <button type="button" className="btn btn-purple" onClick={enterChartEdit}>Edit</button>
-              : (<>
-                <button type="button" className="btn btn-success" onClick={exitChartEdit}>Save</button>
-                <button type="button" className="btn btn-success" onClick={addRow}>+ Add Row</button>
-                <button type="button" className="btn btn-secondary" onClick={removeRow}>− Remove Row</button>
-              </>)}
-          </div>
-        )}
         {saveStatus && <div className="mar68-status">{saveStatus}</div>}
       </div>
 
