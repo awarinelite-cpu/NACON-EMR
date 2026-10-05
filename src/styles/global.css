@@ -1705,3 +1705,13 @@ html, body { overflow-x: hidden; }
 }
 .sidebar > * { flex-shrink: 0; }
 .sb-nav { flex: 1 0 auto; overflow: visible; }   /* grows on tall screens so the footer stays at the bottom */
+
+/* ══════════════════════════════════
+   MAR / MEDICATION LOG — DESKTOP & LANDSCAPE SCROLL
+   The detail panel is a scrolling flex column. Without this, a card with overflow:hidden is
+   allowed to shrink to the panel's height and chops off its own tables instead of letting the
+   panel scroll. Children keep their full height; the panel scrolls.
+══════════════════════════════════ */
+.mar-split, .mar-detail-panel { min-height: 0; }
+.mar-detail-panel { -webkit-overflow-scrolling: touch; }
+.mar-detail-panel > * { flex-shrink: 0; }

@@ -139,7 +139,7 @@ export default function MedicationLogPage() {
           ) : (
             <>
               {/* Patient header + medication charts: ONE card */}
-              <div className="card mar-embedded" style={{ overflow: 'hidden' }}>
+              <div className="card mar-embedded" style={{ overflow: 'hidden', flexShrink: 0 }}>
                 <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
                   {/* Back (top-left corner) and Profile (top-right corner), so the name below gets the full width */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
