@@ -1690,3 +1690,18 @@ html, body { overflow-x: hidden; }
 .bordered-table tbody tr:last-child td:last-child { border-bottom-right-radius: 10px; }
 .table-scroll:has(.fluid-table),
 .table-scroll:has(.bordered-table) { padding: 2px; box-sizing: border-box; }
+
+/* ══════════════════════════════════
+   SIDEBAR — ONE SCROLLING COLUMN
+   The whole sidebar (brand, search, menu, user/footer) scrolls together. Before, only the menu
+   list scrolled, in whatever little space was left between the fixed header and footer — in
+   landscape or on short screens that left a sliver and made items unreachable.
+══════════════════════════════════ */
+.sidebar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.sidebar > * { flex-shrink: 0; }
+.sb-nav { flex: 1 0 auto; overflow: visible; }   /* grows on tall screens so the footer stays at the bottom */
