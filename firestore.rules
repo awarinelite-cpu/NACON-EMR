@@ -106,6 +106,10 @@ service cloud.firestore {
       allow read:  if isAnyStaff();
       allow write: if isAdmin()
         || (isAuth() && isActive() && getRole() in ['subadmin', 'pharmacist']);
+      // Doctors/nurses may only change the stock count (prescribing and MAR
+      // charting take drugs out of stock) — never names, prices or anything else.
+      allow update: if isClinical()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity', 'updatedAt']);
     }
 
     // Self-reports (QR sick reports from students) — public create, staff read

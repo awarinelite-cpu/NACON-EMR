@@ -80,6 +80,7 @@ export default function MARPage() {
         dose:         form.dose || activeDrug.dose,
         route:        form.route,
         scheduledFreq:activeDrug.frequency,
+        stockAlreadyDeducted: !!activeDrug.inventoryDeducted,   // taken out of stock when prescribed
         status:       form.status,
         administeredAt: form.time,
         notes:        form.notes,

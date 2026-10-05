@@ -8,7 +8,7 @@ import AIDrugInsightPanel from '../components/patients/AIDrugInsightPanel';
 import {
   getPatient, listenNotes, listenVitals, listenPrescriptions,
   listenFluidChart, listenGlucoseChart, listenUploads,
-  addNote, addVitals, addPrescription, addFluidEntry,
+  addNote, addVitals, addPrescription, addPrescriptionWithStock, addFluidEntry,
   saveGlucoseRows, deleteGlucoseRow, migrateLegacyGlucose, newGlucoseRowId, uploadPatientFile, createReferral,
   admitPatient, getOrOpenVisit, formatTs, formatTime,
   formatDateTime, ROLES, reportSick,
@@ -518,13 +518,23 @@ export default function PatientProfile() {
     await doSaveNote(giveThisDrugs);
   };
 
+  // Tell the nurse/doctor what happened to pharmacy stock when a prescription was saved
+  const showStockToasts = (inventory) => {
+    (inventory || []).forEach(i => {
+      if (i.found) toast(`Stock updated: ${i.qtyDeducted} unit${i.qtyDeducted !== 1 ? 's' : ''} of ${i.drug} taken out${i.low ? ' (stock is low)' : ''}`, { icon: i.low ? '⚠️' : '📦', duration: 5000 });
+      else if (i.ambiguous) toast(`Stock not updated: "${i.drug}" matches several inventory items (${i.ambiguous.join(', ')}). Adjust stock manually.`, { icon: '⚠️', duration: 7000 });
+      else toast(`Stock not updated: no pharmacy inventory item matches "${i.drug}".`, { icon: '⚠️', duration: 7000 });
+    });
+  };
+
   const doSaveNote = async (giveThisDrugs) => {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
       await addNote(emrNumber, vid, { text: noteText, type: isDoctor?'doctor':'nurse' }, profile.displayName || profile.email || 'Unknown', profile.role);
       if (giveThisDrugs.length) {
-        await addPrescription(emrNumber, vid, giveThisDrugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
+        const rxRes = await addPrescriptionWithStock(emrNumber, vid, giveThisDrugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
+        showStockToasts(rxRes.inventory);
       }
       setNoteText('');
       setPendingGiveThis([]);
@@ -622,7 +632,8 @@ export default function PatientProfile() {
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addPrescription(emrNumber, vid, drugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
+      const { inventory } = await addPrescriptionWithStock(emrNumber, vid, drugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
+      showStockToasts(inventory);
       setRxForm([{ drug:'', dose:'', frequency:'', duration:'' }]);
       toast.success(isNurse ? 'Rx saved — countersign required' : 'Prescription saved');
     } catch(e) { console.error('saveRx',e); toast.error('Failed: ' + (e?.message||e)); }

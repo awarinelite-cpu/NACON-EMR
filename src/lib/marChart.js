@@ -42,6 +42,7 @@ export function buildDrugList(prescriptions) {
         name: d.drug || '', dose: d.dose || '', route: d.route || '',
         frequency: d.frequency || '', duration: d.duration || '',
         status: d.status || 'active', action: actionOfStatus(d.status),
+        inventoryDeducted: !!d.inventoryDeducted,
         prescribedBy: rx.prescribedBy, prescribedByRole: rx.prescribedByRole,
         requiresCountersign: rx.requiresCountersign, countersigned: rx.countersigned,
         startedAt: tsDate(rx.createdAt),
@@ -65,6 +66,22 @@ const FREQ_SYNONYMS = {
 export function normalizeFrequency(freq) {
   const k = (freq || '').trim().toUpperCase().replace(/\s+/g, ' ');
   return FREQ_SYNONYMS[k] || k;
+}
+
+// Number of doses in a prescribed course (frequency x duration), used to work
+// out how much pharmacy stock a prescription uses. Falls back to 1 dose when the
+// frequency or duration can't be read (e.g. "-", "as needed", no duration).
+export function courseDoseCount(frequency, duration) {
+  let hours = INTERVAL_HOURS[normalizeFrequency(frequency)];
+  if (!hours) {
+    const ev = String(frequency || '').toLowerCase().match(/every\s+(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+    if (ev) hours = parseFloat(ev[1]);
+  }
+  const d = String(duration || '').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|days?|d|weeks?|wks?|w|months?|mo)\b/);
+  if (!hours || !d) return 1;
+  const n = parseFloat(d[1]); const u = d[2];
+  const spanH = /^h/.test(u) ? n : /^d/.test(u) ? n * 24 : /^w/.test(u) ? n * 168 : n * 720;
+  return Math.min(1000, Math.max(1, Math.round(spanH / hours)));
 }
 
 const WEEKLY_WORD_MULTIPLIERS = { once: 1, twice: 2, thrice: 3, four: 4, five: 5, six: 6, seven: 7 };

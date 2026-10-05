@@ -12,7 +12,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { enqueuePendingWrite } from './offlineDB';
 import { flattenGlucoseDocs } from './glycemicGrid';
-import { flattenMarDocs } from './marChart';
+import { flattenMarDocs, courseDoseCount } from './marChart';
 
 // ── OFFLINE-FIRST WRITE HELPER ───────────────
 /**
@@ -595,7 +595,17 @@ export async function acknowledgeAlert(alertId, acknowledgedBy, acknowledgedByRo
 // ─────────────────────────────────────────────
 // PRESCRIPTIONS
 // ─────────────────────────────────────────────
-export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, role) {
+/**
+ * Save a prescription AND take the prescribed drugs out of pharmacy stock.
+ * Quantity per drug line = units for one dose (dose-aware, from the inventory
+ * item's strength) x number of doses in the course (frequency x duration;
+ * 1 dose if those can't be read). Drugs that were taken out of stock are
+ * flagged `inventoryDeducted` so dispensing and MAR charting never deduct the
+ * same drug a second time. Drugs with no matching inventory item are left
+ * unflagged and keep the old behaviour (deduct later at dispense/MAR).
+ * Returns { id, inventory } where inventory is one result per drug line.
+ */
+export async function addPrescriptionWithStock(emrNumber, visitId, rxData, prescribedBy, role) {
   const ref = await addDoc(collection(db, COL.PRESCRIPTIONS), {
     emrNumber,
     visitId: visitId || null,
@@ -610,7 +620,37 @@ export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, 
 
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
   await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE }, role);
-  return ref.id;
+
+  const inventory = [];
+  const drugs = [...(rxData || [])];
+  let changed = false;
+  for (let i = 0; i < drugs.length; i++) {
+    const d = drugs[i];
+    const name = d?.drug || d?.name;
+    if (!name) continue;
+    try {
+      const doses = courseDoseCount(d.frequency, d.duration);
+      const res = await deductInventoryByDose(name, d.dose, emrNumber, prescribedBy, role, doses);
+      inventory.push({ drug: name, doses, ...res });
+      if (res.found) {
+        drugs[i] = stripUndefined({ ...d, inventoryDeducted: true, inventoryQty: res.qtyDeducted, inventoryDeductedAt: new Date().toISOString() });
+        changed = true;
+      }
+    } catch (err) {
+      console.error('[addPrescription] inventory deduction failed:', err);
+      inventory.push({ drug: name, found: false, error: err?.code || true });
+    }
+  }
+  if (changed) {
+    try { await updateDoc(ref, { drugs }); }
+    catch (err) { console.error('[addPrescription] could not flag deducted drugs:', err); }
+  }
+  return { id: ref.id, inventory };
+}
+
+export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, role) {
+  const { id } = await addPrescriptionWithStock(emrNumber, visitId, rxData, prescribedBy, role);
+  return id;
 }
 
 export function listenPrescriptions(emrNumber, callback) {
@@ -980,7 +1020,7 @@ export async function recordAdministration(data) {
   // caller so the nurse can be told stock wasn't touched, instead of it
   // failing silently.
   let inventoryResult = null;
-  if (!offline && String(safeData.status).toLowerCase() === 'given' && safeData.drug) {
+  if (!offline && String(safeData.status).toLowerCase() === 'given' && safeData.drug && !data.stockAlreadyDeducted) {
     try {
       inventoryResult = await deductInventoryByDose(
         safeData.drug,
@@ -1041,7 +1081,7 @@ function marRowPayload(emrNumber, visitId, r, by, byRole) {
 // rows: chart rows to save. prevGiven: { [rowId]: [drugKey,...] } — drugs each
 // row already had as "given" when last saved; only newly-given drugs deduct
 // pharmacy stock, so re-saving or editing a row never deducts twice.
-export async function saveMarRows(emrNumber, visitId, rows, prevGiven, by, byRole = null) {
+export async function saveMarRows(emrNumber, visitId, rows, prevGiven, by, byRole = null, skipStockKeys = null) {
   if (!rows.length) return { inventory: [] };
   const batch = writeBatch(db);
   rows.forEach(r => batch.set(doc(db, COL.MAR, r.id), marRowPayload(emrNumber, visitId, r, by, byRole), { merge: true }));
@@ -1059,6 +1099,7 @@ export async function saveMarRows(emrNumber, visitId, rows, prevGiven, by, byRol
     const before = new Set(prevGiven?.[r.id] || []);
     for (const g of (r.given || [])) {
       if (before.has(g.key) || !g.name) continue;
+      if (skipStockKeys && skipStockKeys.has(g.key)) continue;   // already deducted when prescribed
       try {
         const doseGiven = (r.dose && r.dose !== 'AP') ? r.dose : g.dose;
         const res = await deductInventoryByDose(g.name, doseGiven, emrNumber, by, byRole);
@@ -1424,7 +1465,7 @@ function parseDoseAmount(text) {
  * Falls back to deducting 1 unit if either amount can't be parsed or
  * the units are incompatible (e.g. mg vs ml).
  */
-export async function deductInventoryByDose(drugName, doseGiven, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
+export async function deductInventoryByDose(drugName, doseGiven, emrNumber, dispensedBy, dispensedByRole = ROLES.PHARMACIST, doses = 1) {
   const snap = await getDocs(collection(db, COL.INVENTORY));
   const { match, ambiguous } = findInventoryMatch(snap.docs, drugName);
   if (!match) {
@@ -1442,13 +1483,15 @@ export async function deductInventoryByDose(drugName, doseGiven, emrNumber, disp
     doseAware = true;
   }
 
+  qty = qty * Math.max(1, Number(doses) || 1);   // doses in the course (1 for a single MAR dose)
+
   const current = itemData.quantity || 0;
   const newQty  = Math.max(0, current - qty);
   await updateDoc(doc(db, COL.INVENTORY, match.id), {
     quantity: newQty, updatedAt: serverTimestamp(),
   });
   await logAudit('INVENTORY_DISPENSE', match.id, dispensedBy, {
-    drug: drugName, doseGiven, qtyDeducted: qty, doseAware, emrNumber, remaining: newQty,
+    drug: drugName, doseGiven, doses, qtyDeducted: qty, doseAware, emrNumber, remaining: newQty,
   }, dispensedByRole);
   return { found: true, remaining: newQty, low: newQty <= (itemData.reorderAt || 10), qtyDeducted: qty, doseAware };
 }
@@ -1815,7 +1858,8 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy, 
   for (const drug of rxData.drugs || []) {
     // Support both drug.name (from Rx form) and drug.drug (legacy)
     const drugName = drug.name || drug.drug;
-    if (drugName) await deductInventory(drugName, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy, dispensedByRole);
+    // Already taken out of stock when the prescription was written, so don't deduct twice
+    if (drugName && !drug.inventoryDeducted) await deductInventory(drugName, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy, dispensedByRole);
   }
 
   // Add to dispense log
