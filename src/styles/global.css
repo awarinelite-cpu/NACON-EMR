@@ -2085,11 +2085,10 @@ html, body { overflow-x: hidden; }
   font-size: 22px; font-weight: 800; line-height: 1.4; letter-spacing: .02em;
   color: var(--t1); text-transform: uppercase; margin-bottom: 10px;
 }
-/* Mobile: heading is 15px, split before "TO 0600HRS" */
+/* Mobile: heading is 15px and wraps into two balanced lines */
 @media (max-width: 768px) {
   .duty-heading-wrap { container-type: inline-size; }
-  .duty-heading { font-size: 15px; line-height: 1.5; letter-spacing: 0; }
-  .duty-heading .duty-heading-line { white-space: normal; }
+  .duty-heading { font-size: 15px; line-height: 1.5; letter-spacing: 0; text-wrap: balance; white-space: normal; }
 }
 @media (min-width: 769px) {
   .duty-heading-wrap { container-type: inline-size; }
