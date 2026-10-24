@@ -33,14 +33,17 @@ function emit(state) {
 export async function flushPendingWrites() {
   if (_isSyncing) return { synced: 0, failed: 0 };
   _isSyncing = true;
-  emit({ syncing: true, synced: 0, failed: 0 });
 
-  const pending = await getPendingWrites();
+  // Look first and stay silent when there is nothing to send. Announcing a
+  // sync every 45s even with an empty queue flashed the "Syncing…" banner in
+  // and out, shoving the whole page down and up (the "screen shake").
+  let pending = [];
+  try { pending = await getPendingWrites(); } catch (_) { pending = []; }
   if (!pending.length) {
     _isSyncing = false;
-    emit({ syncing: false, synced: 0, failed: 0 });
     return { synced: 0, failed: 0 };
   }
+  emit({ syncing: true, synced: 0, failed: 0 });
 
   let synced = 0;
   let failed = 0;
