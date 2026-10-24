@@ -80,7 +80,7 @@ export default function NurseDutyReportPage() {
       </div>
 
       <div className="page-content" style={{ flex:1, display:'flex', flexDirection:'column', gap:14 }}>
-        <div className="card">
+        <div className="card" style={{ flexShrink:0 }}>
           <div className="card-body">
             <div className="form-group duty-heading-wrap">
               <label className="duty-heading">
@@ -90,17 +90,22 @@ export default function NurseDutyReportPage() {
                 placeholder="Write the duty report here…"
                 value={body} onChange={e => setBody(e.target.value)} />
             </div>
-            <ShiftPatientCards start={shiftStart} end={shiftEnd} />
-            <div style={{ display:'flex', gap:8, marginTop:12 }}>
-              <button className="btn btn-primary" onClick={save} disabled={saving}>
-                <i className="ti ti-device-floppy" /> {saving ? 'Saving…' : editingId ? 'Update report' : 'Save report'}
-              </button>
-              {editingId && <button className="btn" onClick={reset}>Cancel</button>}
-            </div>
           </div>
         </div>
 
-        <div className="card">
+        {/* Patients seen this shift — standalone, never clipped by the report card */}
+        <div style={{ flexShrink:0 }}>
+          <ShiftPatientCards start={shiftStart} end={shiftEnd} />
+        </div>
+
+        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+          <button className="btn btn-primary" onClick={save} disabled={saving}>
+            <i className="ti ti-device-floppy" /> {saving ? 'Saving…' : editingId ? 'Update report' : 'Save report'}
+          </button>
+          {editingId && <button className="btn" onClick={reset}>Cancel</button>}
+        </div>
+
+        <div className="card" style={{ flexShrink:0 }}>
           <div className="card-header">
             <div className="card-title"><i className="ti ti-history" />Previous reports ({reports.length})</div>
           </div>
