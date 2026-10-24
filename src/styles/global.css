@@ -1754,7 +1754,14 @@ html, body { overflow-x: hidden; }
 
 /* Tighter gap between the hamburger button and the page title (All Patients) */
 @media (max-width: 768px) {
-  .topbar.topbar-tight { padding-left: 52px; }
+  .topbar.topbar-tight { padding-left: 52px; padding-right: 20px; gap: 8px; flex-wrap: nowrap; }
+  /* Title only as wide as its text; search takes the rest — same look as the nurse dashboard */
+  .topbar.topbar-tight .topbar-title { width: auto; flex: 0 0 auto; }
+  .topbar.topbar-tight .patient-search { flex: 1 1 0; min-width: 0; }
+  .topbar.topbar-tight .patient-search > div:first-child { padding: 10px 12px !important; gap: 8px !important; border-radius: 14px !important; }
+  .topbar.topbar-tight .patient-search > div:first-child > i { font-size: 18px !important; }
+  .topbar.topbar-tight .patient-search input,
+  .topbar.topbar-tight .patient-search input::placeholder { font-size: 13px !important; min-width: 0; }
 }
 
 /* App footnote — sits at the very bottom of every page */

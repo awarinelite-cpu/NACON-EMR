@@ -71,7 +71,7 @@ export default function AllPatients({ role, filter }) {
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar topbar-tight">
         <div className="topbar-title">{titles[role] || 'All Patients'}</div>
-        {['doctor','nurse','records'].includes(role) && <PatientSearch />}
+        {['doctor','nurse','records'].includes(role) && <PatientSearch placeholder="Search EMR, name or SET…" />}
         {role === 'records' && (
           <button className="btn btn-primary" onClick={() => navigate('/records/register')}>
             <i className="ti ti-user-plus" /> Register new
