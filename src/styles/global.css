@@ -2017,3 +2017,19 @@ html, body { overflow-x: hidden; }
   .ph-root .page-content .card > div[style*="padding-left: 48px"],
   .ph-root .page-content .card > div > div[style*="padding-left: 48px"] { padding-left: 0 !important; }
 }
+
+/* ══════════════════════════════════
+   PHONES: data tables slide left/right only. They no longer have their own
+   up/down scroll box, so an up/down swipe anywhere (even on a table) scrolls
+   the WHOLE page — heading, content and footnote together.
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  .table-scroll {
+    max-height: none !important;
+    overflow-x: auto;
+    overflow-y: visible !important;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+  }
+  .table-scroll thead th { position: static; }
+}
