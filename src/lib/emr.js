@@ -2349,7 +2349,16 @@ export function listenShiftActivity(start, end, callback) {
   const store = {};
   const emit = () => {
     const out = [];
-    const add = (type, docs, tsOf) => (docs || []).forEach(d => { if (d.emrNumber) out.push({ ts: tsOf(d), type, data: d }); });
+    // A write still waiting for the server has no timestamp yet (null) — treat it as "just now".
+    // Only the start is bounded in the query, because a pending server timestamp
+    // would fail an upper bound until the server confirms it; the end is checked here.
+    const add = (type, docs, tsOf) => (docs || []).forEach(d => {
+      if (!d.emrNumber) return;
+      const raw = tsOf(d);
+      const ms = msOf(raw);
+      if (ms > end.getTime()) return;
+      out.push({ ts: ms ? raw : Timestamp.now(), type, data: d });
+    });
     add('note',    (store.note || []).filter(n => n.type !== 'duty_report'), d => d.createdAt);
     add('vitals',  store.vitals,  d => d.recordedAt);
     add('fluid',   store.fluid,   d => d.recordedAt);
@@ -2375,21 +2384,23 @@ export function listenShiftActivity(start, end, callback) {
 
   const subs = [];
   const watch = (key, col, field, bounds) => {
-    const q = query(collection(db, col), where(field, '>=', bounds[0]), where(field, '<=', bounds[1]));
+    const q = bounds.length > 1
+      ? query(collection(db, col), where(field, '>=', bounds[0]), where(field, '<=', bounds[1]))
+      : query(collection(db, col), where(field, '>=', bounds[0]));
     subs.push(onSnapshot(q, snap => { store[key] = toDocs(snap); emit(); },
       err => { console.error('listenShiftActivity', key, err); store[key] = []; emit(); }));
   };
-  watch('note',   COL.NOTES,         'createdAt',   [s, e]);
-  watch('vitals', COL.VITALS,        'recordedAt',  [s, e]);
-  watch('fluid',  COL.FLUIDS,        'recordedAt',  [s, e]);
-  watch('rx',     COL.PRESCRIPTIONS, 'createdAt',   [s, e]);
-  watch('lab',    COL.LAB_RESULTS,   'completedAt', [s, e]);
-  watch('upload', COL.UPLOADS,       'uploadedAt',  [s, e]);
-  watch('admit',     COL.VISITS,    'admittedAt',   [s, e]);
-  watch('discharge', COL.VISITS,    'dischargedAt', [s, e]);
-  watch('referral',  COL.REFERRALS, 'createdAt',    [s, e]);
-  watch('patientStatus', COL.PATIENTS, 'updatedAt', [s, e]);
-  watch('glucoseSaved', COL.GLUCOSE, 'recordedAt',  [s, e]);
+  watch('note',   COL.NOTES,         'createdAt',   [s]);
+  watch('vitals', COL.VITALS,        'recordedAt',  [s]);
+  watch('fluid',  COL.FLUIDS,        'recordedAt',  [s]);
+  watch('rx',     COL.PRESCRIPTIONS, 'createdAt',   [s]);
+  watch('lab',    COL.LAB_RESULTS,   'completedAt', [s]);
+  watch('upload', COL.UPLOADS,       'uploadedAt',  [s]);
+  watch('admit',     COL.VISITS,    'admittedAt',   [s]);
+  watch('discharge', COL.VISITS,    'dischargedAt', [s]);
+  watch('referral',  COL.REFERRALS, 'createdAt',    [s]);
+  watch('patientStatus', COL.PATIENTS, 'updatedAt', [s]);
+  watch('glucoseSaved', COL.GLUCOSE, 'recordedAt',  [s]);
   watch('glucoseDate',  COL.GLUCOSE, 'date',        [iso(start), iso(end)]);
   return () => subs.forEach(u => u());
 }
