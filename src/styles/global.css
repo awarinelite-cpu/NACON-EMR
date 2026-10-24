@@ -1780,7 +1780,10 @@ html, body { overflow-x: hidden; }
    exactly like portrait. Landscape phones are wider than 768px, so they were
    getting the desktop layout (fixed header, page body scrolling on its own).
 ══════════════════════════════════ */
-@media (min-width: 769px) and (max-height: 500px) {
+/* Matches short landscape screens AND any touch device (phone/tablet) held sideways,
+   so it still applies if the browser reports a wider/taller viewport than the real screen. */
+@media (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
   .main-area {
     display: block !important;
     overflow-y: auto !important;
