@@ -1913,3 +1913,14 @@ html, body { overflow-x: hidden; }
   box-shadow: 0 2px 8px rgba(30,41,90,.08), 0 3px 0 var(--border);
 }
 .trend-toggle i { font-size: 20px; color: var(--accent); }
+
+/* Vitals history — visible borders on every cell */
+.vitals-history {
+  border-collapse: collapse;
+  border: 1.5px solid var(--border2, var(--border));
+}
+.vitals-history th,
+.vitals-history td {
+  border: 1px solid var(--border2, var(--border));
+}
+.vitals-history thead th { background: var(--card-bg2, var(--card-bg)); }
