@@ -1868,15 +1868,6 @@ html, body { overflow-x: hidden; }
   .pp-root .pp-vitals > div > div:nth-child(1) span { font-size: 8px !important; letter-spacing: 0 !important; }
   .pp-root .pp-vitals > div > div:nth-child(2) { font-size: clamp(13px, 4.4vw, 20px) !important; white-space: nowrap; }
   .pp-root .pp-vitals > div > div:nth-child(3) { font-size: 8px !important; }
-
-  /* Visit tab: Patient Profile + Visit Timeline cards span the full phone width */
-  .pp-root .card.pp-wide {
-    margin-left: -14px;
-    margin-right: -14px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-  }
 }
 
 /* ══════════════════════════════════
@@ -1947,3 +1938,37 @@ html, body { overflow-x: hidden; }
   border: 1px solid var(--border2, var(--border));
 }
 .vitals-history thead th { background: var(--card-bg2, var(--card-bg)); }
+
+
+/* ══════════════════════════════════
+   PHONES: every page's cards run edge to edge — square corners, no side
+   borders — by cancelling the page gutter. Cards nested in other cards,
+   cards in multi-column grids and pop-up dialogs (they carry an inline
+   max-width) keep their normal look.
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  .page-content .card:not(.card .card):not([style*="grid-template-columns"] > .card):not([style*="max-width"]) {
+    margin-left: -10px;
+    margin-right: -10px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  /* Vital Signs page body (16px gutter on desktop → 10px on phones) */
+  .vs-body { padding: 10px !important; }
+  .vs-body .card:not(.card .card):not([style*="grid-template-columns"] > .card):not([style*="max-width"]) {
+    margin-left: -10px;
+    margin-right: -10px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  /* Patient profile tabs (14px gutter) — includes the "New Reading" card */
+  .pp-root .pp-content .card:not(.card .card):not([style*="grid-template-columns"] > .card):not([style*="max-width"]) {
+    margin-left: -14px;
+    margin-right: -14px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}

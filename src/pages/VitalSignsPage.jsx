@@ -200,7 +200,7 @@ export default function VitalSignsPage() {
         )}
 
         {/* RIGHT */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="vs-body" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!selected ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', gap: 12 }}>
               <i className="ti ti-activity" style={{ fontSize: 48, opacity: .3 }} />

@@ -1110,7 +1110,7 @@ export default function PatientProfile() {
       </div>
 
       {/* ══ TAB CONTENT ══ */}
-      <div style={{ padding:'14px' }}>
+      <div className="pp-content" style={{ padding:'14px' }}>
 
         {/* ── VISIT TAB ── */}
         {activeTab==='visit' && (
