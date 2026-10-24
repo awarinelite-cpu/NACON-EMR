@@ -2148,3 +2148,11 @@ html, body { overflow-x: hidden; }
   }
   .table-scroll { max-height: none !important; overflow-x: auto; overflow-y: visible !important; }
 }
+
+/* Footnote stays below the fold: each page is at least one screen tall, so the
+   footnote only shows after scrolling to the very bottom. Nothing is sticky. */
+.main-area > div:not(.offline-banner) { min-height: 100%; }
+@media (min-width: 769px) {
+  .pp-root .pp-header { position: static !important; top: auto !important; }
+  .main-area .pp-root, .main-area .pp-root * { scroll-margin-top: 0; }
+}
