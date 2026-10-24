@@ -22,6 +22,7 @@ const NAV = {
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/nurse' },
       { icon: 'ti-urgent',           label: 'Triage',         path: '/triage',           badge: 'p1' },
       { icon: 'ti-notes-medical',    label: 'Nursing Notes',  path: '/nurse/notes' },
+      { icon: 'ti-report-medical',   label: 'Nurses Report',  path: '/nurse/duty-report' },
       { icon: 'ti-users',            label: 'All Patients',   path: '/nurse/patients' },
       { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
     ]},

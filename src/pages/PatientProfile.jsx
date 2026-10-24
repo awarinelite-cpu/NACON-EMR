@@ -37,7 +37,6 @@ const TABS = [
   { id:'vitals',   label:'Vitals',          icon:'❤️',  roles: ['doctor','nurse','admin','subadmin'] },
   { id:'rx',       label:'Prescription',    icon:'💊',  roles: ['doctor','nurse'] },
   { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
-  { id:'nursereport', label:'Nurses Report', icon:'📝', roles: ['nurse'] },
   { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
   { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },
   { id:'doctor',   label:"Consult", icon:'🩺',  roles: ['doctor'] },
@@ -1088,10 +1087,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.filter(t => t.roles.includes(profile?.role?.toLowerCase())).map(t => (
-          <button key={t.id} className={`pp-tab${activeTab===t.id ? ' pp-tab-active' : ''}`} onClick={() => {
-            if (t.id === 'nursereport') { navigate('/nurse/duty-report'); return; }   // opens the Nurses Report page
-            setActiveTab(t.id); setViewOnly(['visit','reminders','referral'].includes(t.id));
-          }} style={{
+          <button key={t.id} className={`pp-tab${activeTab===t.id ? ' pp-tab-active' : ''}`} onClick={() => { setActiveTab(t.id); setViewOnly(['visit','reminders','referral'].includes(t.id)); }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',
