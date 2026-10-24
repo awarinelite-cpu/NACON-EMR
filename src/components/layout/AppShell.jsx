@@ -120,7 +120,8 @@ export default function AppShell() {
         <OfflineBanner />
         <Outlet />
         <footer className="app-footnote">
-          NACON MRS EMR · Nigerian Army College of Nursing, Yaba, Lagos · © {new Date().getFullYear()}
+          <div>NACON MRS EMR · Nigerian Army College of Nursing, Yaba, Lagos · © {new Date().getFullYear()}</div>
+          <div style={{ marginTop: 4, fontWeight: 700 }}>Donated by SET 47 · Class of Excellence 2025</div>
         </footer>
       </div>
     </div>
