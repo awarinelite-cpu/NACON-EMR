@@ -6,13 +6,22 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 import { addDutyReport, updateDutyReport, listenDutyReports, formatTs } from '../lib/emr';
 
-const DEFAULT_HEADING =
-  'MRS DUTY REPORT FROM 1600HRS MONDAY 12/10/26 TO 0600HRS TUESDAY 13/10/26';
+const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+const fmtDate = (d) =>
+  `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
+
+// Shift runs 1600hrs -> 0600hrs next day. Before 0600 we are still in the shift that began yesterday.
+const makeHeading = () => {
+  const now   = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 6 ? 1 : 0));
+  const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  return `MRS DUTY REPORT FROM 1600HRS ${DAYS[start.getDay()]} ${fmtDate(start)} TO 0600HRS ${DAYS[end.getDay()]} ${fmtDate(end)}`;
+};
 
 export default function NurseDutyReportPage() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
-  const [heading,   setHeading]   = useState(DEFAULT_HEADING);
+  const [heading,   setHeading]   = useState(makeHeading);
   const [body,      setBody]      = useState('');
   const [reports,   setReports]   = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -21,7 +30,7 @@ export default function NurseDutyReportPage() {
 
   useEffect(() => listenDutyReports(setReports), []);
 
-  const reset = () => { setHeading(DEFAULT_HEADING); setBody(''); setEditingId(null); };
+  const reset = () => { setHeading(makeHeading()); setBody(''); setEditingId(null); };
 
   const save = async () => {
     if (!body.trim()) { toast.error('Write the report first'); return; }
@@ -44,7 +53,7 @@ export default function NurseDutyReportPage() {
   };
 
   const startEdit = (r) => {
-    setEditingId(r.id); setHeading(r.heading || DEFAULT_HEADING); setBody(r.body || '');
+    setEditingId(r.id); setHeading(r.heading || makeHeading()); setBody(r.body || '');
     window.scrollTo?.(0, 0);
   };
 
@@ -69,13 +78,10 @@ export default function NurseDutyReportPage() {
           </div>
           <div className="card-body">
             <div className="form-group">
-              <label className="form-label">Report heading</label>
-              <textarea className="form-textarea full-width" rows={2}
-                style={{ fontWeight:800, textTransform:'uppercase', letterSpacing:'.02em' }}
-                value={heading} onChange={e => setHeading(e.target.value)} />
-            </div>
-            <div className="form-group" style={{ marginTop:12 }}>
-              <label className="form-label">{heading || 'Duty report'}</label>
+              <label className="form-label"
+                style={{ fontSize:17, fontWeight:800, lineHeight:1.4, letterSpacing:'.02em', color:'var(--t1)', textTransform:'uppercase', marginBottom:8 }}>
+                {heading}
+              </label>
               <textarea className="form-textarea full-width" rows={16}
                 placeholder="Write the duty report here…"
                 value={body} onChange={e => setBody(e.target.value)} />
