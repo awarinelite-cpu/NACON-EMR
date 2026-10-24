@@ -2088,7 +2088,7 @@ html, body { overflow-x: hidden; }
 /* Mobile: heading fits on exactly two lines (split before "TO 0600HRS") */
 @media (max-width: 768px) {
   .duty-heading-wrap { container-type: inline-size; }
-  .duty-heading { font-size: 2.9cqw; line-height: 1.5; letter-spacing: .01em; }
+  .duty-heading { font-size: min(13px, 3.3cqw); line-height: 1.5; letter-spacing: .04em; } /* 13px = same as 'Patients seen this shift'; shrinks only on very narrow phones */
   .duty-heading .duty-heading-line { white-space: nowrap; }
 }
 @media (min-width: 769px) {
