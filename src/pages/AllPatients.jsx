@@ -50,8 +50,8 @@ export default function AllPatients({ role, filter }) {
     s==='referred'?'badge-warn':s==='sickbay'?'badge-danger':'badge-info';
 
   const titles = {
-    doctor:'Doctor — All Patients', nurse:'All Patients',
-    records:'Records — All Case Folders', admin:'Admin — All Patients',
+    doctor:'All Patients', nurse:'All Patients',
+    records:'All Case Folders', admin:'All Patients',
   };
 
   const handleAddSet = async () => {
