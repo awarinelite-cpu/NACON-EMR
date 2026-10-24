@@ -1857,6 +1857,29 @@ html, body { overflow-x: hidden; }
 }
 
 /* ══════════════════════════════════
+   PATIENT PROFILE on phones: the five vital cards always fit the screen
+   (SpO₂ never cut off) and the Visit-tab cards run edge to edge.
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  .pp-root .pp-vitals { gap: 5px !important; padding-left: 8px !important; padding-right: 8px !important; }
+  .pp-root .pp-vitals > div { padding: 8px 5px !important; overflow: hidden; }
+  .pp-root .pp-vitals > div > div:nth-child(1) { gap: 2px; }
+  .pp-root .pp-vitals > div > div:nth-child(1) i { font-size: 13px !important; }
+  .pp-root .pp-vitals > div > div:nth-child(1) span { font-size: 8px !important; letter-spacing: 0 !important; }
+  .pp-root .pp-vitals > div > div:nth-child(2) { font-size: clamp(13px, 4.4vw, 20px) !important; white-space: nowrap; }
+  .pp-root .pp-vitals > div > div:nth-child(3) { font-size: 8px !important; }
+
+  /* Visit tab: Patient Profile + Visit Timeline cards span the full phone width */
+  .pp-root .card.pp-wide {
+    margin-left: -14px;
+    margin-right: -14px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+/* ══════════════════════════════════
    VITALS ENTRY ("New Reading") — soft card, two-column fields
 ══════════════════════════════════ */
 .card.vitals-entry {

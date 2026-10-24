@@ -1033,7 +1033,7 @@ export default function PatientProfile() {
         {!isRecords && (
         <div className="pp-vitals" style={{
           display:'grid',
-          gridTemplateColumns:'repeat(5, 1fr)',
+          gridTemplateColumns:'repeat(5, minmax(0, 1fr))',
           gap:8, padding:'10px 14px 0',
         }}>
           {[
@@ -1053,6 +1053,7 @@ export default function PatientProfile() {
                 borderRadius:10,
                 padding:'10px 10px',
                 cursor:'pointer',
+                minWidth:0,
               }} onClick={() => setActiveTab('vitals')}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
                   <i className={`ti ${v.icon}`} style={{ fontSize:15, color: flagColor }} />
@@ -1116,7 +1117,7 @@ export default function PatientProfile() {
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
             {/* Patient profile — one compact card, sections scroll sideways if needed */}
-            <div className="card">
+            <div className="card pp-wide">
               <div className="card-header"><div className="card-title"><i className="ti ti-user" />Patient Profile</div></div>
               <div className="card-body pp-profile" style={{
                 display:'flex', alignItems:'stretch', gap:14,
@@ -1215,7 +1216,7 @@ export default function PatientProfile() {
             </div>
 
             {/* Timeline — full width below the profile strip */}
-            <div className="card">
+            <div className="card pp-wide">
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-activity" />Visit Timeline</div>
                 <span style={{ fontSize:15, color:'var(--t3)' }}>{timeline.length} events</span>
