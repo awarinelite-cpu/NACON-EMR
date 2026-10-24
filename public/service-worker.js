@@ -1,6 +1,6 @@
 /* NACON MRS EMR — Service Worker v3.0 — Offline-First */
 
-const CACHE_VERSION = 'nacon-emr-v7';
+const CACHE_VERSION = 'nacon-emr-v8'; // bumped: forces every device onto the newest build
 const CDN_CACHE = 'nacon-cdn-v1'; // icon font + web fonts (survive app updates)
 
 const PRECACHE_URLS = [
@@ -113,7 +113,7 @@ self.addEventListener('fetch', event => {
   // Navigation requests: network-first, fallback to offline.html
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })   // always the newest index.html, never the browser's HTTP cache
         .then(response => {
           const clone = response.clone();
           caches.open(CACHE_VERSION).then(cache => cache.put(request, clone));
