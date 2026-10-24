@@ -14,7 +14,7 @@ const fmtDate = (d) =>
 // Shift window for the patient cards: 1700hrs -> 0600hrs next day
 // Safe date display (handles Firestore Timestamps, {seconds} objects, numbers; blank while the server time is pending)
 const fmtWhen = (ts) => {
-  const ms = ts?.toDate ? ts.toDate().getTime() : (ts?.seconds != null ? ts.seconds * 1000 : (typeof ts === 'number' ? ts : 0));
+  const ms = ts?.toDate ? ts.toDate().getTime() : (ts?.seconds != null ? ts.seconds * 1000 : (ts?._seconds != null ? ts._seconds * 1000 : (typeof ts === 'number' ? ts : (typeof ts === 'string' ? Date.parse(ts) || 0 : 0))));
   return ms ? formatTs(new Date(ms)) : '';
 };
 

@@ -597,7 +597,18 @@ export function listenDutyReports(callback) {
   const q = query(collection(db, COL.NOTES), where('type', '==', 'duty_report'));
   return onSnapshot(q, snap => {
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    // Newest first. A just-submitted report still waiting for its server time (null) counts as "now".
+    const ms = (d) => {
+      const t = d.createdAt;
+      if (t == null) return Date.now();
+      if (t.toDate) return t.toDate().getTime();
+      if (t.seconds != null) return t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6);
+      if (t._seconds != null) return t._seconds * 1000;
+      if (typeof t === 'number') return t;
+      const p = Date.parse(t);
+      return Number.isNaN(p) ? 0 : p;
+    };
+    docs.sort((a, b) => ms(b) - ms(a));
     callback(docs.slice(0, 40));
   });
 }
