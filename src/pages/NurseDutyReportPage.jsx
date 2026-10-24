@@ -130,7 +130,7 @@ export default function NurseDutyReportPage() {
               <div onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor:'pointer' }}>
                 <div style={{ fontWeight:800, fontSize:13, color:'var(--t1)', overflowWrap:'anywhere' }}>{r.heading}</div>
                 <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>
-                  {r.authorName} · {formatTs(r.createdAt)}{r.editedAt ? ' · edited' : ''}
+                  {r.authorName} · {formatTs(r.createdAt)}{r.editedAt ? ' · edited' : ''}{Array.isArray(r.patientsSeen) ? ` · ${r.patientsSeen.length} patient${r.patientsSeen.length === 1 ? '' : 's'} seen` : ''}
                 </div>
               </div>
               {openId === r.id && (
