@@ -531,14 +531,16 @@ async function markSeenIfReportedSickToday(emrNumber, by) {
 // CLINICAL NOTES
 // ─────────────────────────────────────────────
 export async function addNote(emrNumber, visitId, noteData, author, role) {
-  const ref = await addDoc(collection(db, COL.NOTES), {
+  author = author || 'Unknown staff';
+  role   = role   || null;
+  const ref = await addDoc(collection(db, COL.NOTES), deepStripUndefined({
     emrNumber,
     visitId:    visitId || null,
     ...noteData,
     authorName: author,
     authorRole: role,
     createdAt:  serverTimestamp(),
-  });
+  }));
   await markSeenIfReportedSickToday(emrNumber, author);
   await logAudit('ADD_NOTE', emrNumber, author, { noteId: ref.id, role }, role);
   return ref.id;
