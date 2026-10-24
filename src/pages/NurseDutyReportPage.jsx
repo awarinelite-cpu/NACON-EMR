@@ -163,7 +163,12 @@ export default function NurseDutyReportPage() {
           <div className="card-body">
             <div className="form-group duty-heading-wrap">
               <label className="duty-heading">
-                {heading}
+                {(() => {
+                  const i = (heading || '').indexOf(' TO 0600HRS');
+                  return i > 0
+                    ? <><span className="duty-heading-line">{heading.slice(0, i)}</span><br /><span className="duty-heading-line">{heading.slice(i + 1)}</span></>
+                    : heading;
+                })()}
               </label>
               <textarea className="form-textarea full-width" rows={16}
                 placeholder="Write the duty report here…"
