@@ -13,8 +13,12 @@ const fmtDate = (d) =>
 
 // Shift window for the patient cards: 1700hrs -> 0600hrs next day
 // Safe date display (handles Firestore Timestamps, {seconds} objects, numbers; blank while the server time is pending)
-const fmtWhen = (ts) => {
-  const ms = ts?.toDate ? ts.toDate().getTime() : (ts?.seconds != null ? ts.seconds * 1000 : (ts?._seconds != null ? ts._seconds * 1000 : (typeof ts === 'number' ? ts : (typeof ts === 'string' ? Date.parse(ts) || 0 : 0))));
+const tsMs = (ts) => ts?.toDate ? ts.toDate().getTime()
+  : (ts?.seconds != null ? ts.seconds * 1000
+  : (ts?._seconds != null ? ts._seconds * 1000
+  : (typeof ts === 'number' ? ts : (typeof ts === 'string' ? Date.parse(ts) || 0 : 0))));
+const fmtWhen = (r) => {
+  const ms = typeof r.createdMs === 'number' ? r.createdMs : tsMs(r.createdAt);
   return ms ? formatTs(new Date(ms)) : '';
 };
 
@@ -48,12 +52,16 @@ export default function NurseDutyReportPage() {
   const [localCut,   setLocalCut]   = useState(0);      // instant clear on submit, before the server time arrives
   const { start: shiftStart, end: shiftEnd } = shiftWindow();
 
-  // Cards restart after the latest report saved in this shift, so the next shift/report starts empty.
-  const msOf = (ts) => ts?.toDate ? ts.toDate().getTime() : (ts?.seconds ? ts.seconds * 1000 : 0);
+  // Cards restart after the latest report submitted in this shift, so a submitted patient never comes back
+  // under the textarea (until that patient is seen again later). Works for older reports too: if a report has
+  // no saved time, the time of the last event in its saved patients is used.
   const lastSaved = reports.reduce((m, r) => {
     if (r.type && r.type !== 'duty_report') return m;
-    const t = msOf(r.createdAt) || (r.createdAt === null ? Date.now() : 0);   // pending server time = just now
-    return t >= shiftStart.getTime() && t > m ? t : m;
+    let t = typeof r.createdMs === 'number' ? r.createdMs : tsMs(r.createdAt);
+    if (!t && r.createdAt === null) t = Date.now();          // pending server time = just now
+    const evMax = (r.patientsSeen || []).reduce((x, c) => (c.events || []).reduce((y, e) => Math.max(y, e.time || 0), x), 0);
+    const c = Math.max(t || 0, evMax ? evMax + 1 : 0);
+    return c >= shiftStart.getTime() && c > m ? c : m;
   }, 0);
   const cardsStart = new Date(Math.max(shiftStart.getTime(), lastSaved, localCut));
 
@@ -179,7 +187,7 @@ export default function NurseDutyReportPage() {
               <div onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor:'pointer' }}>
                 <div style={{ fontWeight:800, fontSize:13, color:'var(--t1)', overflowWrap:'anywhere' }}>{r.heading}</div>
                 <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>
-                  {r.authorName} · {fmtWhen(r.createdAt)}{r.editedAt ? ' · edited' : ''}{Array.isArray(r.patientsSeen) ? ` · ${r.patientsSeen.length} patient${r.patientsSeen.length === 1 ? '' : 's'} seen` : ''}
+                  {r.authorName} · {fmtWhen(r)}{r.editedAt ? ' · edited' : ''}{Array.isArray(r.patientsSeen) ? ` · ${r.patientsSeen.length} patient${r.patientsSeen.length === 1 ? '' : 's'} seen` : ''}
                 </div>
               </div>
               {openId === r.id && (

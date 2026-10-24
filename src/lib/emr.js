@@ -48,7 +48,10 @@ function stripUndefined(obj) {
 // are nulled out too.
 function deepStripUndefined(value) {
   if (Array.isArray(value)) return value.map(deepStripUndefined);
-  if (value && typeof value === 'object' && typeof value.toDate !== 'function') {
+  // Only rebuild plain objects. Firestore values (serverTimestamp(), Timestamp, Date, refs...) must pass
+  // through untouched — copying them turned serverTimestamp() into a junk map, so createdAt was never a real date.
+  const proto = value && typeof value === 'object' ? Object.getPrototypeOf(value) : undefined;
+  if (value && typeof value === 'object' && (proto === Object.prototype || proto === null)) {
     const clean = {};
     for (const [k, v] of Object.entries(value)) {
       clean[k] = v === undefined ? null : deepStripUndefined(v);
@@ -560,6 +563,7 @@ export async function addDutyReport({ heading, body, patientsSeen }, author, rol
     patientsSeen: Array.isArray(patientsSeen) ? patientsSeen : [],
     authorName: author || 'Unknown staff', authorRole: role || null,
     createdAt: serverTimestamp(),
+    createdMs: Date.now(),   // plain number: reliable ordering + "cards restart after this report" cutoff
   }));
   await logAudit('ADD_DUTY_REPORT', ref.id, author || 'Unknown staff', { heading }, role);
   return ref.id;
@@ -608,7 +612,8 @@ export function listenDutyReports(callback) {
       const p = Date.parse(t);
       return Number.isNaN(p) ? 0 : p;
     };
-    docs.sort((a, b) => ms(b) - ms(a));
+    const when = (d) => (typeof d.createdMs === 'number' ? d.createdMs : ms(d));
+    docs.sort((a, b) => when(b) - when(a));
     callback(docs.slice(0, 40));
   });
 }
