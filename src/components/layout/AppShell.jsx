@@ -33,6 +33,11 @@ export default function AppShell() {
   // Auto-close sidebar on every route change
   useEffect(() => {
     setSidebarOpen(false);
+    // landscape / wide screens use the desktop sidebar state — close that too
+    if (window.innerWidth > 768) {
+      setDesktopCollapsed(true);
+      localStorage.setItem('nacon_sidebar_collapsed', '1');
+    }
   }, [location.pathname]);
 
   // Start sync engine once on mount + listen for SW background sync messages
@@ -113,7 +118,7 @@ export default function AppShell() {
         aria-hidden="true"
       />
 
-      <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeSidebar} />
+      <Sidebar stats={stats} isOpen={sidebarOpen} onClose={closeNav} />
       <PullToRefresh scrollRef={mainRef} />
 
       <div className={`main-area${DASHBOARD_PATHS.includes(location.pathname) ? ' is-nurse-dashboard' : ''}`} ref={mainRef}>

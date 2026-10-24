@@ -134,6 +134,7 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
   };
 
   const handleLogout = async () => {
+    onClose?.();
     await logout();
     navigate('/login');
   };
@@ -150,7 +151,7 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
           <div className="sb-name">NACON MRS</div>
           <div className="sb-loc">Yaba · Lagos</div>
         </div>
-        <button onClick={toggleTheme} aria-label="Toggle theme" className="sb-theme-btn">
+        <button onClick={() => { toggleTheme(); onClose?.(); }} aria-label="Toggle theme" className="sb-theme-btn">
           <i className={`ti ${theme==='light'?'ti-moon':'ti-sun'}`} />
         </button>
       </div>
