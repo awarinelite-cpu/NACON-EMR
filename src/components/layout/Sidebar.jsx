@@ -150,6 +150,9 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
           <div className="sb-name">NACON MRS</div>
           <div className="sb-loc">Yaba · Lagos</div>
         </div>
+        <button onClick={toggleTheme} aria-label="Toggle theme" className="sb-theme-btn">
+          <i className={`ti ${theme==='light'?'ti-moon':'ti-sun'}`} />
+        </button>
       </div>
 
       {/* Search */}
@@ -262,10 +265,6 @@ export default function Sidebar({ stats = {}, isOpen, onClose }) {
             <div className="sb-urole" style={{textTransform:'capitalize'}}>{profile?.role}</div>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:4}}>
-            <button onClick={toggleTheme} aria-label="Toggle theme"
-              style={{background:'none',border:'none',cursor:'pointer',color:'var(--sb-text2)',fontSize:24,padding:3}}>
-              <i className={`ti ${theme==='light'?'ti-moon':'ti-sun'}`} />
-            </button>
             <button onClick={handleLogout} aria-label="Logout"
               style={{background:'none',border:'none',cursor:'pointer',color:'var(--sb-text2)',fontSize:24,padding:3}}>
               <i className="ti ti-logout" />

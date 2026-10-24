@@ -938,7 +938,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
     position: fixed;
     top: 0; left: 0; bottom: 0;
     z-index: 1000;
-    width: 250px;
+    width: 58vw;
     transform: translateX(-100%);
     transition: transform 0.27s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: none;
@@ -1379,7 +1379,7 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   .app-shell:not(.sidebar-desktop-collapsed) .hamburger-btn { left: 312px; }
 }
 @media (max-width: 768px) {
-  .sidebar { width: 310px; max-width: 88vw; }
+  .sidebar { width: 58vw; max-width: 58vw; min-width: 215px; } /* phones: drawer stops at 58% of the screen */
 }
 
 /* ══════════════════════════════════
@@ -1970,4 +1970,22 @@ html, body { overflow-x: hidden; }
     border-left: none;
     border-right: none;
   }
+}
+
+/* Theme (moon/sun) button lives in the sidebar header, at the right of the brand */
+.sb-brand { position: relative; }
+.sb-theme-btn {
+  margin-left: auto; flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--sb-text2); font-size: 22px; padding: 4px;
+  align-self: flex-end;
+}
+@media (max-width: 768px) {
+  .sidebar .sb-brand { padding-left: 10px !important; padding-right: 8px !important; gap: 8px !important; }
+  .sidebar .sb-icon { width: 38px !important; height: 38px !important; }
+  .sidebar .sb-icon i { font-size: 22px !important; }
+  .sidebar .sb-name { font-size: 17px !important; }
+  .sidebar .sb-loc  { font-size: 12px !important; }
+  .sidebar .sb-footer { padding: 12px 10px !important; }
+  .sidebar .sb-user { gap: 8px !important; }
 }
