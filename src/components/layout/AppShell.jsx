@@ -119,6 +119,9 @@ export default function AppShell() {
       <div className={`main-area${DASHBOARD_PATHS.includes(location.pathname) ? ' is-nurse-dashboard' : ''}`} ref={mainRef}>
         <OfflineBanner />
         <Outlet />
+        <footer className="app-footnote">
+          NACON MRS EMR · Nigerian Army College of Nursing, Yaba, Lagos · © {new Date().getFullYear()}
+        </footer>
       </div>
     </div>
   );

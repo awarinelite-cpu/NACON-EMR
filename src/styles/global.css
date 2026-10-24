@@ -1756,3 +1756,14 @@ html, body { overflow-x: hidden; }
 @media (max-width: 768px) {
   .topbar.topbar-tight { padding-left: 52px; }
 }
+
+/* App footnote — sits at the very bottom of every page */
+.app-footnote {
+  flex-shrink: 0;
+  padding: 14px 16px 18px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--t3);
+  border-top: 1px solid var(--border);
+}

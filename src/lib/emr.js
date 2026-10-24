@@ -246,7 +246,7 @@ export function listenPatients(callback) {
 // CLASS SETS (SET 49, SET 50, ...) — admin-managed list
 // Stored in settings/classSets as { sets: ['SET 49', ...] }
 // ─────────────────────────────────────────────
-export const DEFAULT_CLASS_SETS = ['SET 49', 'SET 50', 'SET 51', 'SET 52'];
+export const DEFAULT_CLASS_SETS = ['SET 46', 'SET 47', 'SET 48', 'SET 49', 'SET 50', 'SET 51', 'SET 52'];
 
 // 'set  51' / 'Set 51' / 'SET51' -> 'SET 51' so one set is never split in two
 export function normalizeClassSet(v) {
