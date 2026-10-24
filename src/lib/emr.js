@@ -585,6 +585,17 @@ export async function addVitals(emrNumber, visitId, vitalsData, recordedBy, reco
   return ref.id;
 }
 
+/** Edit an existing vitals reading (values, notes and/or reading time) */
+export async function updateVitals(vitalsId, emrNumber, patch, editedBy, editedByRole = null, opts = {}) {
+  await updateDoc(doc(db, COL.VITALS, vitalsId), {
+    ...patch,
+    ...(opts.recordedAt ? { recordedAt: Timestamp.fromDate(opts.recordedAt) } : {}),
+    editedBy,
+    editedAt: serverTimestamp(),
+  });
+  await logAudit('EDIT_VITALS', emrNumber, editedBy, { vitalsId, ...patch }, editedByRole);
+}
+
 export function listenVitals(emrNumber, callback) {
   const q = query(collection(db, COL.VITALS), where('emrNumber', '==', emrNumber));
   return onSnapshot(q, snap => {

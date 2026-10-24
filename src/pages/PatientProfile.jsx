@@ -12,7 +12,7 @@ import {
   addNote, addVitals, addPrescription, addPrescriptionWithStock, confirmRxStock, addFluidEntry,
   saveGlucoseRows, deleteGlucoseRow, migrateLegacyGlucose, newGlucoseRowId, uploadPatientFile, createReferral,
   admitPatient, getOrOpenVisit, formatTs, formatTime,
-  formatDateTime, ROLES, reportSick,
+  formatDateTime, ROLES, reportSick, updateVitals,
   saveNHISForm, saveNACONForm, listenPatientForms,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults, LAB_TESTS,
   addCarePlan, listenCarePlans, updateCarePlanEvaluation,
@@ -71,6 +71,9 @@ const todayStr = () => {
   const d = new Date(), z = n => String(n).padStart(2,'0');
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
 };
+const tsToDate = (ts) => !ts ? null : ts.toDate ? ts.toDate() : (ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+const fmtDateISO = (d) => { if (!d) return '—'; const z = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; };
+const fmtTime12 = (d) => d ? d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true }) : '—';
 const nowHM = () => { const d = new Date(), z = n => String(n).padStart(2,'0'); return `${z(d.getHours())}:${z(d.getMinutes())}`; };
 const emptyVitals = () => ({ date: todayStr(), time: nowHM(), temp:'', hr:'', rr:'', bp:'', spo2:'', notes:'' });
 const newFluidForm = () => {
@@ -108,6 +111,8 @@ export default function PatientProfile() {
 
   const [noteText,  setNoteText]  = useState('');
   const [vitalForm, setVitalForm] = useState(emptyVitals);
+  const [editingVitalId, setEditingVitalId] = useState(null);
+  const vitalsFormRef = useRef(null);
   const [rxForm,    setRxForm]    = useState([{ drug:'', dose:'', frequency:'', duration:'' }]);
   const [dischargeSummaryOpen, setDischargeSummaryOpen] = useState(false);
   // Official printed Rx form state (NHIS for soldiers, NACON for civilians)
@@ -624,6 +629,18 @@ export default function PatientProfile() {
     } catch(e) { console.error('submitEvaluation', e); toast.error('Failed: ' + (e?.message||e)); }
   };
 
+  const startEditVitals = (v) => {
+    const d = tsToDate(v.recordedAt) || new Date();
+    const z = n => String(n).padStart(2,'0');
+    setVitalForm({
+      date: fmtDateISO(d), time: `${z(d.getHours())}:${z(d.getMinutes())}`,
+      temp: v.temp ?? '', hr: v.hr ?? '', rr: v.rr ?? '',
+      bp: (v.sbp || v.dbp) ? `${v.sbp}/${v.dbp}` : '', spo2: v.spo2 ?? '', notes: v.notes || '',
+    });
+    setEditingVitalId(v.id);
+    setTimeout(() => vitalsFormRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 50);
+  };
+
   const saveVitals = async () => {
     // BP is one box ("120/80") — split it back into systolic / diastolic
     const bpTxt = (vitalForm.bp || '').trim();
@@ -642,8 +659,19 @@ export default function PatientProfile() {
     const when = vitalForm.date ? new Date(`${vitalForm.date}T${vitalForm.time || '00:00'}`) : null;
     setSaving(true);
     try {
+      const who = profile.displayName || profile.email || 'Unknown';
+      if (editingVitalId) {
+        await updateVitals(editingVitalId, emrNumber,
+          { ...vitalsData, notes: vitalForm.notes || '' }, who, profile.role,
+          { recordedAt: when && !isNaN(when) ? when : null });
+        setEditingVitalId(null);
+        setVitalForm(emptyVitals());
+        toast.success('Reading updated');
+        setSaving(false);
+        return;
+      }
       const vid = await ensureVisitId();
-      await addVitals(emrNumber, vid, vitalsData, profile.displayName || profile.email || 'Unknown', profile.role,
+      await addVitals(emrNumber, vid, vitalsData, who, profile.role,
         { recordedAt: when && !isNaN(when) ? when : null });
       setVitalForm(emptyVitals());
       toast.success('Vitals recorded');
@@ -1236,8 +1264,8 @@ export default function PatientProfile() {
             {/* Trend Chart */}
             {vitals.length > 1 && <VitalsTrendChart vitals={vitals} />}
 
-            {!viewOnly && <div className="card vitals-entry">
-              <div className="vitals-entry-title">New Reading</div>
+            {!viewOnly && <div className="card vitals-entry" ref={vitalsFormRef}>
+              <div className="vitals-entry-title">{editingVitalId ? 'Edit Reading' : 'New Reading'}</div>
               <div className="vitals-entry-grid">
                 <div className="vitals-entry-field">
                   <label>Date</label>
@@ -1265,33 +1293,51 @@ export default function PatientProfile() {
                   </div>
                 ))}
               </div>
-              <button className="vitals-entry-btn" onClick={saveVitals} disabled={saving}>
-                {saving ? 'Saving…' : 'Add Reading'}
-              </button>
+              <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+                <button className="vitals-entry-btn" onClick={saveVitals} disabled={saving}>
+                  {saving ? 'Saving…' : editingVitalId ? 'Update Reading' : 'Add Reading'}
+                </button>
+                {editingVitalId && (
+                  <button className="vitals-entry-btn vitals-entry-btn-ghost" disabled={saving}
+                    onClick={() => { setEditingVitalId(null); setVitalForm(emptyVitals()); }}>
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />Vitals History</div></div>
               <div className="table-scroll">
-              <table className="data-table big-table">
-                <thead><tr><th>Time</th><th>BP</th><th>HR</th><th>Temp</th><th>RR</th><th>SpO₂</th><th>By</th></tr></thead>
+              <table className="data-table big-table vitals-history">
+                <thead><tr>
+                  <th>Date</th><th>Time</th><th>Temp (°C)</th><th>Pulse</th><th>Resp Rate</th><th>BP</th><th>SpO2 (%)</th><th>Notes</th>{!viewOnly && <th></th>}
+                </tr></thead>
                 <tbody>
-                  {vitals.map(v => (
-                    <tr key={v.id}>
-                      <td style={{ fontFamily:'var(--mono)', fontSize:11 }}>{formatDateTime(v.recordedAt)}</td>
-                      {(() => {
-                        const cell = (flag, txt) => <td style={isAbn(flag) ? { color:RED, fontWeight:800 } : undefined}>{txt}</td>;
-                        return (<>
-                          {cell(bpFlagOf(v), `${v.sbp}/${v.dbp}`)}
-                          {cell(vitalFlag('hr',v.hr), v.hr)}
-                          {cell(vitalFlag('temp',v.temp), `${v.temp}°C`)}
-                          {cell(vitalFlag('rr',v.rr), v.rr)}
-                          {cell(vitalFlag('spo2',v.spo2), `${v.spo2}%`)}
-                        </>);
-                      })()}
-                      <td style={{ fontSize:11, color:'var(--t3)' }}>{v.recordedBy}</td>
-                    </tr>
-                  ))}
-                  {vitals.length===0 && <tr><td colSpan={7} style={{ textAlign:'center', color:'var(--t3)', padding:16 }}>No vitals recorded yet</td></tr>}
+                  {vitals.map(v => {
+                    const d = tsToDate(v.recordedAt);
+                    const cell = (flag, txt) => <td style={isAbn(flag) ? { color:RED, fontWeight:800 } : undefined}>{txt || '—'}</td>;
+                    return (
+                      <tr key={v.id}>
+                        <td style={{ whiteSpace:'nowrap' }}>{fmtDateISO(d)}</td>
+                        <td style={{ whiteSpace:'nowrap' }}>{fmtTime12(d)}</td>
+                        {cell(vitalFlag('temp', v.temp), v.temp)}
+                        {cell(vitalFlag('hr', v.hr), v.hr)}
+                        {cell(vitalFlag('rr', v.rr), v.rr)}
+                        {cell(bpFlagOf(v), (v.sbp || v.dbp) ? `${v.sbp}/${v.dbp}` : '')}
+                        {cell(vitalFlag('spo2', v.spo2), v.spo2)}
+                        <td style={{ textAlign:'left', minWidth:140 }}>
+                          {v.notes || ''}
+                          <div style={{ fontSize:11, color:'var(--t3)' }}>{v.recordedBy}</div>
+                        </td>
+                        {!viewOnly && (
+                          <td>
+                            <button className="vitals-edit-btn" onClick={() => startEditVitals(v)}>Edit</button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {vitals.length===0 && <tr><td colSpan={9} style={{ textAlign:'center', color:'var(--t3)', padding:16 }}>No vitals recorded yet</td></tr>}
                 </tbody>
               </table>
               </div>
