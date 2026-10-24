@@ -1,6 +1,6 @@
 /* NACON MRS EMR — Service Worker v3.0 — Offline-First */
 
-const CACHE_VERSION = 'nacon-emr-v8'; // bumped: forces every device onto the newest build
+const CACHE_VERSION = 'nacon-emr-v9'; // bumped: forces every device onto the newest build
 const CDN_CACHE = 'nacon-cdn-v1'; // icon font + web fonts (survive app updates)
 
 const PRECACHE_URLS = [
