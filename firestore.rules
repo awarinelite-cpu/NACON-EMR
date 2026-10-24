@@ -76,6 +76,12 @@ service cloud.firestore {
       allow write: if isClinical() || isAdmin();
     }
 
+    // App settings (e.g. class SET list) — all staff read, admin write
+    match /settings/{doc} {
+      allow read:  if isAnyStaff();
+      allow write: if isAdmin();
+    }
+
     // Users — admin only for write, self can read own doc
     match /users/{uid} {
       allow read:  if isAuth() && (request.auth.uid == uid || isAdmin());

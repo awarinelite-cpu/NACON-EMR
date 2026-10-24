@@ -104,6 +104,7 @@ export const COL = {
   GLUCOSE_SCHEDULE: 'glucose_schedule',
   TELEGRAM_LINKS:   'telegram_links',
   LINK_CODES:       'link_codes',
+  SETTINGS:         'settings',
 };
 
 // ── ROLES ────────────────────────────────────
@@ -239,6 +240,50 @@ export function listenPatients(callback) {
   return onSnapshot(q, snap => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   });
+}
+
+// ─────────────────────────────────────────────
+// CLASS SETS (SET 49, SET 50, ...) — admin-managed list
+// Stored in settings/classSets as { sets: ['SET 49', ...] }
+// ─────────────────────────────────────────────
+export const DEFAULT_CLASS_SETS = ['SET 49', 'SET 50', 'SET 51', 'SET 52'];
+
+// 'set  51' / 'Set 51' / 'SET51' -> 'SET 51' so one set is never split in two
+export function normalizeClassSet(v) {
+  const t = String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  const m = t.match(/^SET\s*-?\s*(\d+)$/);
+  return m ? `SET ${m[1]}` : t;
+}
+
+// Highest set number first (SET 52, SET 51, ...), non-numeric names last
+export function sortClassSets(list) {
+  const num = x => { const m = String(x).match(/(\d+)/); return m ? parseInt(m[1], 10) : -1; };
+  return [...list].sort((a, b) => (num(b) - num(a)) || String(a).localeCompare(String(b)));
+}
+
+export function listenClassSets(callback) {
+  return onSnapshot(
+    doc(db, COL.SETTINGS, 'classSets'),
+    snap => {
+      const saved = snap.exists() ? (snap.data().sets || []) : [];
+      callback([...new Set([...DEFAULT_CLASS_SETS, ...saved].map(normalizeClassSet))].filter(Boolean));
+    },
+    () => callback([...DEFAULT_CLASS_SETS]),
+  );
+}
+
+export async function addClassSet(name, by, byRole = null) {
+  const clean = normalizeClassSet(name);
+  if (!clean) throw new Error('Enter a set name, e.g. SET 53');
+  const ref_ = doc(db, COL.SETTINGS, 'classSets');
+  const snap = await getDoc(ref_);
+  const existing = snap.exists() ? (snap.data().sets || []).map(normalizeClassSet) : [];
+  if (existing.includes(clean) || DEFAULT_CLASS_SETS.includes(clean)) {
+    throw new Error(`${clean} already exists`);
+  }
+  await setDoc(ref_, { sets: [...existing, clean], updatedAt: serverTimestamp(), updatedBy: by || null }, { merge: true });
+  await logAudit('ADD_CLASS_SET', clean, by, {}, byRole);
+  return clean;
 }
 
 // ─────────────────────────────────────────────

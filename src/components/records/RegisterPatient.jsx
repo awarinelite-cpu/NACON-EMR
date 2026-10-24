@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
-import { registerPatient, searchPatients, getPatient, updatePatient } from '../../lib/emr';
+import { registerPatient, searchPatients, getPatient, updatePatient, listenClassSets, sortClassSets } from '../../lib/emr';
 import toast from 'react-hot-toast';
 
 const EMPTY = {
@@ -28,6 +28,9 @@ export default function RegisterPatient({ emrNumber: editEmr }) {
   const [dupCheck, setDupCheck]   = useState(null);
   const [checking, setChecking]   = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(!!editEmr);
+  const [classSets, setClassSets] = useState([]);
+
+  useEffect(() => listenClassSets(setClassSets), []);
 
   const isEdit = !!editEmr;
 
@@ -318,7 +321,11 @@ export default function RegisterPatient({ emrNumber: editEmr }) {
             <div className="form-group">
               <label className="form-label">Class / SET<span className="req">*</span></label>
               <input className="form-input" placeholder="e.g. SET 49" value={form.classSet}
+                list="class-set-options"
                 onChange={e => set('classSet', e.target.value)} />
+              <datalist id="class-set-options">
+                {sortClassSets(classSets).map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div className="form-group">
               <label className="form-label">Level / Year</label>
