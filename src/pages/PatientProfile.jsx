@@ -1259,9 +1259,6 @@ export default function PatientProfile() {
         {/* ── VITALS TAB ── */}
         {activeTab==='vitals' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {/* NEWS2 Early Warning Score — computed from latest vitals */}
-            {vitals.length > 0 && <NewsScore vitals={vitals[0]} />}
-
             {/* Trend Chart */}
             {vitals.length > 1 && (
               <div>
