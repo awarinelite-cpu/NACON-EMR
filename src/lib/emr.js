@@ -2331,3 +2331,51 @@ export async function updateLabRequestStatus(requestId, status, updatedBy, updat
   await logAudit('LAB_STATUS_UPDATE', requestId, updatedBy, { status }, updatedByRole);
 }
 
+
+// ─────────────────────────────────────────────
+// SHIFT ACTIVITY — everything recorded for patients between two times
+// (used by the Nurses Report page: patients seen 1700hrs → 0600hrs).
+// Each collection is read with a single-field time range (no composite
+// index). callback(items) → [{ ts, type, data }] where type matches the
+// patient visit timeline: note | vitals | fluid | glucose | rx | lab | upload.
+// ─────────────────────────────────────────────
+export function listenShiftActivity(start, end, callback) {
+  const s = Timestamp.fromDate(start), e = Timestamp.fromDate(end);
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const msOf = (ts) => ts?.toDate ? ts.toDate().getTime() : (ts?.seconds ? ts.seconds * 1000 : 0);
+  const inWindow = (ts) => { const m = msOf(ts); return m >= start.getTime() && m <= end.getTime(); };
+  const toDocs = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const store = {};
+  const emit = () => {
+    const out = [];
+    const add = (type, docs, tsOf) => (docs || []).forEach(d => { if (d.emrNumber) out.push({ ts: tsOf(d), type, data: d }); });
+    add('note',    (store.note || []).filter(n => n.type !== 'duty_report'), d => d.createdAt);
+    add('vitals',  store.vitals,  d => d.recordedAt);
+    add('fluid',   store.fluid,   d => d.recordedAt);
+    add('rx',      store.rx,      d => d.createdAt);
+    add('lab',     store.lab,     d => d.completedAt || d.requestedAt);
+    add('upload',  store.upload,  d => d.uploadedAt);
+    // Glucose: grid rows are timed by their own date/time, not when they were saved
+    const gl = [...new Map([...(store.glucoseDate || []), ...(store.glucoseSaved || [])].map(d => [d.id, d])).values()];
+    add('glucose', flattenGlucoseDocs(gl).filter(g => inWindow(g.recordedAt)), d => d.recordedAt);
+    out.sort((a, b) => msOf(a.ts) - msOf(b.ts));
+    callback(out);
+  };
+
+  const subs = [];
+  const watch = (key, col, field, bounds) => {
+    const q = query(collection(db, col), where(field, '>=', bounds[0]), where(field, '<=', bounds[1]));
+    subs.push(onSnapshot(q, snap => { store[key] = toDocs(snap); emit(); },
+      err => { console.error('listenShiftActivity', key, err); store[key] = []; emit(); }));
+  };
+  watch('note',   COL.NOTES,         'createdAt',   [s, e]);
+  watch('vitals', COL.VITALS,        'recordedAt',  [s, e]);
+  watch('fluid',  COL.FLUIDS,        'recordedAt',  [s, e]);
+  watch('rx',     COL.PRESCRIPTIONS, 'createdAt',   [s, e]);
+  watch('lab',    COL.LAB_RESULTS,   'completedAt', [s, e]);
+  watch('upload', COL.UPLOADS,       'uploadedAt',  [s, e]);
+  watch('glucoseSaved', COL.GLUCOSE, 'recordedAt',  [s, e]);
+  watch('glucoseDate',  COL.GLUCOSE, 'date',        [iso(start), iso(end)]);
+  return () => subs.forEach(u => u());
+}

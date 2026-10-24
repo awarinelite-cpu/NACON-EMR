@@ -4,11 +4,20 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
+import ShiftPatientCards from '../components/nurse/ShiftPatientCards';
 import { addDutyReport, updateDutyReport, listenDutyReports, formatTs } from '../lib/emr';
 
 const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const fmtDate = (d) =>
   `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
+
+// Shift window for the patient cards: 1700hrs -> 0600hrs next day
+const shiftWindow = () => {
+  const now   = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 6 ? 1 : 0), 17, 0, 0);
+  const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 6, 0, 0);
+  return { start, end };
+};
 
 // Shift runs 1600hrs -> 0600hrs next day. Before 0600 we are still in the shift that began yesterday.
 const makeHeading = () => {
@@ -27,6 +36,7 @@ export default function NurseDutyReportPage() {
   const [editingId, setEditingId] = useState(null);
   const [openId,    setOpenId]    = useState(null);
   const [saving,    setSaving]    = useState(false);
+  const { start: shiftStart, end: shiftEnd } = shiftWindow();
 
   useEffect(() => listenDutyReports(setReports), []);
 
@@ -80,6 +90,7 @@ export default function NurseDutyReportPage() {
                 placeholder="Write the duty report here…"
                 value={body} onChange={e => setBody(e.target.value)} />
             </div>
+            <ShiftPatientCards start={shiftStart} end={shiftEnd} />
             <div style={{ display:'flex', gap:8, marginTop:12 }}>
               <button className="btn btn-primary" onClick={save} disabled={saving}>
                 <i className="ti ti-device-floppy" /> {saving ? 'Saving…' : editingId ? 'Update report' : 'Save report'}
