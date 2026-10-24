@@ -2356,6 +2356,16 @@ export function listenShiftActivity(start, end, callback) {
     add('rx',      store.rx,      d => d.createdAt);
     add('lab',     store.lab,     d => d.completedAt || d.requestedAt);
     add('upload',  store.upload,  d => d.uploadedAt);
+    add('admit',     store.admit,     d => d.admittedAt);
+    add('discharge', store.discharge, d => d.dischargedAt);
+    add('referral',  store.referral,  d => d.createdAt);
+    // Fallback: discharged/referred patients whose visit/referral record is missing
+    const have = new Set(out.filter(o => o.type === 'discharge' || o.type === 'referral').map(o => o.data.emrNumber));
+    (store.patientStatus || []).forEach(p => {
+      if (have.has(p.emrNumber)) return;
+      if (p.status === 'discharged') out.push({ ts: p.updatedAt, type: 'discharge', data: { emrNumber: p.emrNumber, dischargeNote: p.dischargeNote, dischargedBy: p.updatedBy } });
+      if (p.status === 'referred')   out.push({ ts: p.updatedAt, type: 'referral',  data: { emrNumber: p.emrNumber, to: '', referredBy: p.updatedBy } });
+    });
     // Glucose: grid rows are timed by their own date/time, not when they were saved
     const gl = [...new Map([...(store.glucoseDate || []), ...(store.glucoseSaved || [])].map(d => [d.id, d])).values()];
     add('glucose', flattenGlucoseDocs(gl).filter(g => inWindow(g.recordedAt)), d => d.recordedAt);
@@ -2375,6 +2385,10 @@ export function listenShiftActivity(start, end, callback) {
   watch('rx',     COL.PRESCRIPTIONS, 'createdAt',   [s, e]);
   watch('lab',    COL.LAB_RESULTS,   'completedAt', [s, e]);
   watch('upload', COL.UPLOADS,       'uploadedAt',  [s, e]);
+  watch('admit',     COL.VISITS,    'admittedAt',   [s, e]);
+  watch('discharge', COL.VISITS,    'dischargedAt', [s, e]);
+  watch('referral',  COL.REFERRALS, 'createdAt',    [s, e]);
+  watch('patientStatus', COL.PATIENTS, 'updatedAt', [s, e]);
   watch('glucoseSaved', COL.GLUCOSE, 'recordedAt',  [s, e]);
   watch('glucoseDate',  COL.GLUCOSE, 'date',        [iso(start), iso(end)]);
   return () => subs.forEach(u => u());

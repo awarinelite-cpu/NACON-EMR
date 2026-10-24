@@ -6,9 +6,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { listenPatients, listenShiftActivity, formatTime, formatTs } from '../../lib/emr';
 
-const COLOR = { note:'#2E7FDB', vitals:'#E53935', rx:'#1A7A4A', fluid:'#0288D1', glucose:'#F57C00', lab:'#0E7490', upload:'#6C3CE1' };
-const ICON  = { note:'ti-notes-medical', vitals:'ti-heart-rate-monitor', rx:'ti-pill', fluid:'ti-droplet', glucose:'ti-activity', lab:'ti-microscope', upload:'ti-upload' };
-const TITLE = { note:'Clinical note', vitals:'Vitals recorded', rx:'Prescription', fluid:'Fluid entry', glucose:'Glucose reading', lab:'Lab result', upload:'File uploaded' };
+const COLOR = { note:'#2E7FDB', vitals:'#E53935', rx:'#1A7A4A', fluid:'#0288D1', glucose:'#F57C00', lab:'#0E7490', upload:'#6C3CE1', admit:'#a855f7', discharge:'#64748B', referral:'#F59E0B' };
+const ICON  = { note:'ti-notes-medical', vitals:'ti-heart-rate-monitor', rx:'ti-pill', fluid:'ti-droplet', glucose:'ti-activity', lab:'ti-microscope', upload:'ti-upload', admit:'ti-bed', discharge:'ti-door-exit', referral:'ti-transfer' };
+const TITLE = { note:'Clinical note', vitals:'Vitals recorded', rx:'Prescription', fluid:'Fluid entry', glucose:'Glucose reading', lab:'Lab result', upload:'File uploaded', admit:'Admitted to sick bay', discharge:'Discharged', referral:'Transferred / referred' };
 
 function describe(item) {
   const d = item.data;
@@ -31,11 +31,17 @@ function describe(item) {
     }
     case 'upload':
       return `File: ${d.fileName}`;
+    case 'admit':
+      return 'Admitted to sick bay';
+    case 'discharge':
+      return d.dischargeNote ? `Discharge note: ${d.dischargeNote}` : 'Discharged from sick bay';
+    case 'referral':
+      return [d.to && `To: ${d.to}`, d.purpose && `Purpose: ${d.purpose}`, d.clinicalNotes && `Notes: ${d.clinicalNotes}`].filter(Boolean).join('\n') || 'Transferred / referred';
     default: return '';
   }
 }
 const byOf = (item) => item.type === 'note' ? item.data.authorName
-  : item.data.recordedBy || item.data.prescribedBy || item.data.resultEnteredBy || item.data.uploadedBy || '';
+  : item.data.recordedBy || item.data.prescribedBy || item.data.resultEnteredBy || item.data.uploadedBy || item.data.admittedBy || item.data.dischargedBy || item.data.referredBy || '';
 
 export default function ShiftPatientCards({ start, end }) {
   const [patients, setPatients] = useState([]);
