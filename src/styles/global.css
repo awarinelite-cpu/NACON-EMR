@@ -2121,3 +2121,30 @@ html, body { overflow-x: hidden; }
   .shift-card-num, .shift-card-name { font-size: 17px; }
   .shift-card-badge { font-size: 12px; padding: 5px 10px; }
 }
+
+/* ══════════════════════════════════
+   DESKTOP: every page scrolls as ONE piece, exactly like on phones —
+   .main-area is the single scroll container; the page root, page-content
+   and patient profile never scroll or clip inside themselves.
+══════════════════════════════════ */
+@media (min-width: 769px) {
+  .main-area {
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+  .main-area > div:not(.offline-banner) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .main-area .topbar { position: relative; z-index: 50; overflow: visible; }
+  .main-area .page-content { overflow: visible !important; flex: none; }
+  .pp-root { height: auto !important; min-height: 100%; overflow: visible !important; }
+  .pp-root .pp-header { position: static !important; }
+  .pp-collapsible, .pp-collapsible.pp-collapsed {
+    max-height: none !important; opacity: 1 !important; pointer-events: auto !important;
+  }
+  .table-scroll { max-height: none !important; overflow-x: auto; overflow-y: visible !important; }
+}
