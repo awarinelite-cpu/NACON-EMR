@@ -78,8 +78,7 @@ export default function NurseDutyReportPage() {
           </div>
           <div className="card-body">
             <div className="form-group">
-              <label className="form-label"
-                style={{ fontSize:17, fontWeight:800, lineHeight:1.4, letterSpacing:'.02em', color:'var(--t1)', textTransform:'uppercase', marginBottom:8 }}>
+              <label className="duty-heading">
                 {heading}
               </label>
               <textarea className="form-textarea full-width" rows={16}

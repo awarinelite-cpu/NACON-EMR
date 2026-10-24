@@ -2079,3 +2079,12 @@ html, body { overflow-x: hidden; }
     max-width: 38% !important; min-width: 120px; margin-left: auto;
   }
 }
+
+/* Nurses duty report heading */
+.duty-heading {
+  font-size: 22px; font-weight: 800; line-height: 1.4; letter-spacing: .02em;
+  color: var(--t1); text-transform: uppercase; margin-bottom: 10px;
+}
+@media (min-width: 769px) {
+  .duty-heading { font-size: 30px; text-align: center; display: block; margin-bottom: 14px; }
+}
