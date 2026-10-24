@@ -22,7 +22,7 @@ const TABS = [
   { id:'fluid',        label:'Fluid Chart',    icon:'ti-droplet' },
   { id:'glucose',      label:'Glucose',        icon:'ti-activity' },
   { id:'nursing',      label:'Nursing',        icon:'ti-notes-medical' },
-  { id:'doctor',       label:"Doctor's Report",icon:'ti-stethoscope' },
+  { id:'doctor',       label:"Consult",icon:'ti-stethoscope' },
   { id:'labs',         label:'Labs',           icon:'ti-microscope' },
   { id:'uploads',      label:'Uploads',        icon:'ti-upload' },
   { id:'referral',     label:'Refer/Discharge',icon:'ti-file-export' },
@@ -565,7 +565,7 @@ function NoteForm({ emr, profile, noteRole, onSaved }) {
       <div className="card-header">
         <div className="card-title">
           <i className={`ti ${noteRole === 'doctor' ? 'ti-stethoscope' : 'ti-notes-medical'}`} />
-          {noteRole === 'doctor' ? "Doctor's Consultation Note" : 'Nursing Note'}
+          {noteRole === 'doctor' ? "Consult" : 'Nursing Note'}
         </div>
       </div>
       <div className="card-body">

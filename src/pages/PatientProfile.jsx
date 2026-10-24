@@ -39,7 +39,7 @@ const TABS = [
   { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
   { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
   { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },
-  { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
+  { id:'doctor',   label:"Consult", icon:'🩺',  roles: ['doctor'] },
   { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
   { id:'lab',      label:'Lab',             icon:'🔬',  roles: ['doctor','lab','admin','subadmin'] },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄',  roles: ['doctor','nurse'] },
@@ -2041,7 +2041,7 @@ export default function PatientProfile() {
               <div className="card-header">
                 <div className="card-title">
                   <i className={`ti ${activeTab==='doctor'?'ti-stethoscope':'ti-notes-medical'}`} />
-                  {activeTab==='doctor' ? "Doctor's Consultation Note" : 'Nursing Report'}
+                  {activeTab==='doctor' ? "Consult" : 'Nursing Report'}
                 </div>
               </div>
               <div className="card-body">
@@ -2234,7 +2234,7 @@ export default function PatientProfile() {
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {!viewOnly && <div className="card">
               <div className="card-header">
-                <div className="card-title"><i className="ti ti-stethoscope" />Doctor's Consultation Note</div>
+                <div className="card-title"><i className="ti ti-stethoscope" />Consult</div>
               </div>
               <div className="card-body">
                 <div className="form-group">
