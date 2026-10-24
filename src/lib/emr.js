@@ -597,6 +597,11 @@ export async function deleteDutyDraft(shiftKey) {
   await deleteDoc(doc(db, COL.NOTES, `duty_draft_${shiftKey}`));
 }
 
+export async function deleteDutyReport(id, who, role, heading) {
+  await deleteDoc(doc(db, COL.NOTES, id));
+  await logAudit('DELETE_DUTY_REPORT', id, who || 'Unknown staff', { heading }, role);
+}
+
 export function listenDutyReports(callback) {
   const q = query(collection(db, COL.NOTES), where('type', '==', 'duty_report'));
   return onSnapshot(q, snap => {

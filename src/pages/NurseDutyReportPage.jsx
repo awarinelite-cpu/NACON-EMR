@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 import ShiftPatientCards, { SavedPatientsSeen } from '../components/nurse/ShiftPatientCards';
-import { addDutyReport, updateDutyReport, listenDutyReports, saveDutyDraft, getDutyDraft, deleteDutyDraft, formatTs } from '../lib/emr';
+import { addDutyReport, updateDutyReport, listenDutyReports, saveDutyDraft, getDutyDraft, deleteDutyDraft, deleteDutyReport, formatTs } from '../lib/emr';
 
 const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const fmtDate = (d) =>
@@ -124,6 +124,19 @@ export default function NurseDutyReportPage() {
     setSaving(false);
   };
 
+  const removeReport = async (r) => {
+    if (!window.confirm('Delete this saved report permanently? This cannot be undone.')) return;
+    try {
+      await deleteDutyReport(r.id, who(), profile?.role, r.heading);
+      if (editingId === r.id) reset();
+      setOpenId(null);
+      toast.success('Report deleted');
+    } catch (e) {
+      console.error('delete duty report', e);
+      toast.error('Failed to delete report');
+    }
+  };
+
   const startEdit = (r) => {
     setEditingId(r.id); setHeading(r.heading || makeHeading()); setBody(r.body || '');
     window.scrollTo?.(0, 0);
@@ -197,9 +210,14 @@ export default function NurseDutyReportPage() {
                   </div>
                   <SavedPatientsSeen patients={r.patientsSeen} />
 
-                  <button className="btn btn-sm" style={{ marginTop:8 }} onClick={() => startEdit(r)}>
-                    <i className="ti ti-edit" /> Edit
-                  </button>
+                  <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                    <button className="btn btn-sm" onClick={() => startEdit(r)}>
+                      <i className="ti ti-edit" /> Edit
+                    </button>
+                    <button className="btn btn-sm" style={{ color:'var(--danger)' }} onClick={() => removeReport(r)}>
+                      <i className="ti ti-trash" /> Delete
+                    </button>
+                  </div>
                 </>
               )}
             </div>
