@@ -472,7 +472,6 @@ export default function PatientProfile() {
   const isRecords    = isRecordsRole;
   const canPrescribe = isDoctor || isNurse;
   const latestV      = vitals[0];
-  const activeMeds   = rx.reduce((a, r) => a + (r.drugs?.length || 0), 0);
 
   // Ensure visitId exists before saving.
   // FIX: this used to fabricate a fake local ID ("visit_<emr>_<time>") the
@@ -952,11 +951,11 @@ export default function PatientProfile() {
           gap:8, padding:'10px 14px 0',
         }}>
           {[
-            { label:'BP',   value: latestV ? `${latestV.sbp}/${latestV.dbp}` : '—', unit:'mmHg',  icon:'ti-heartbeat',          flag: latestV ? bpFlagOf(latestV) : '' },
-            { label:'HR',   value: latestV?.hr   || '—', unit:'bpm',   icon:'ti-heart-rate-monitor', flag: latestV ? vitalFlag('hr',  latestV.hr)  : '' },
-            { label:'TEMP', value: latestV?.temp  || '—', unit:'°C',    icon:'ti-temperature',        flag: latestV ? vitalFlag('temp',latestV.temp): '' },
-            { label:'SPO₂', value: latestV?.spo2  || '—', unit:'%',     icon:'ti-lungs',              flag: latestV ? vitalFlag('spo2',latestV.spo2): '' },
-            { label:'MEDS', value: activeMeds,             unit:'active',icon:'ti-pill',               flag: 'ok' },
+            { label:'TEMP',  value: latestV?.temp || '—', unit:'°C',    icon:'ti-temperature',        flag: latestV ? vitalFlag('temp', latestV.temp) : '' },
+            { label:'PULSE', value: latestV?.hr   || '—', unit:'bpm',   icon:'ti-heart-rate-monitor', flag: latestV ? vitalFlag('hr',   latestV.hr)   : '' },
+            { label:'RESP',  value: latestV?.rr   || '—', unit:'cpm',   icon:'ti-wind',               flag: latestV ? vitalFlag('rr',   latestV.rr)   : '' },
+            { label:'BP',    value: latestV ? `${latestV.sbp}/${latestV.dbp}` : '—', unit:'mmHg', icon:'ti-heartbeat', flag: latestV ? bpFlagOf(latestV) : '' },
+            { label:'SPO₂',  value: latestV?.spo2 || '—', unit:'%',     icon:'ti-lungs',              flag: latestV ? vitalFlag('spo2', latestV.spo2) : '' },
           ].map(v => {
             const abn = isAbn(v.flag);
             const flagColor = abn ? RED : 'var(--accent)';
