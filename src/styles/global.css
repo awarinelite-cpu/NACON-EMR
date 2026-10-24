@@ -2042,3 +2042,25 @@ html, body { overflow-x: hidden; }
   }
   .table-scroll thead th { position: static; }
 }
+
+/* ══════════════════════════════════
+   PHONES (portrait AND landscape): every page is ONE scroll — the page root
+   never scrolls or clips inside itself, so the heading, all content and the
+   footnote move together and the footnote is always reachable at the end.
+══════════════════════════════════ */
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .main-area > div:not(.offline-banner) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .main-area .topbar { position: relative; }
+  .main-area .page-content { overflow: visible !important; flex: none; }
+  .table-scroll {
+    max-height: none !important;
+    overflow-x: auto;
+    overflow-y: visible !important;
+  }
+}
