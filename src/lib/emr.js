@@ -572,6 +572,27 @@ export async function updateDutyReport(id, { heading, body }, editor, role) {
   await logAudit('EDIT_DUTY_REPORT', id, editor || 'Unknown staff', { heading }, role);
 }
 
+// Draft of the duty report for one shift (the "Save" button). One shared draft per shift,
+// stored in 'notes' as type 'duty_report_draft' (no emrNumber, so it never shows in patient notes).
+// The "Submit" button turns the draft into a real report and removes it.
+export async function saveDutyDraft(shiftKey, { heading, body }, author) {
+  await setDoc(doc(db, COL.NOTES, `duty_draft_${shiftKey}`), deepStripUndefined({
+    type: 'duty_report_draft', emrNumber: null, visitId: null,
+    heading, body,
+    updatedBy: author || 'Unknown staff',
+    updatedAt: serverTimestamp(),
+  }));
+}
+
+export async function getDutyDraft(shiftKey) {
+  const snap = await getDoc(doc(db, COL.NOTES, `duty_draft_${shiftKey}`));
+  return snap.exists() ? snap.data() : null;
+}
+
+export async function deleteDutyDraft(shiftKey) {
+  await deleteDoc(doc(db, COL.NOTES, `duty_draft_${shiftKey}`));
+}
+
 export function listenDutyReports(callback) {
   const q = query(collection(db, COL.NOTES), where('type', '==', 'duty_report'));
   return onSnapshot(q, snap => {

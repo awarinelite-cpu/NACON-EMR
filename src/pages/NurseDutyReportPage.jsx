@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 import ShiftPatientCards, { SavedPatientsSeen } from '../components/nurse/ShiftPatientCards';
-import { addDutyReport, updateDutyReport, listenDutyReports, formatTs } from '../lib/emr';
+import { addDutyReport, updateDutyReport, listenDutyReports, saveDutyDraft, getDutyDraft, deleteDutyDraft, formatTs } from '../lib/emr';
 
 const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const fmtDate = (d) =>
@@ -36,6 +36,8 @@ export default function NurseDutyReportPage() {
   const [editingId, setEditingId] = useState(null);
   const [openId,    setOpenId]    = useState(null);
   const [saving,    setSaving]    = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftAt,   setDraftAt]   = useState(null);
   const [seenSnap,  setSeenSnap]  = useState(null);   // live snapshot of the patient cards (null while loading)
   const [localCut,   setLocalCut]   = useState(0);      // instant clear on submit, before the server time arrives
   const { start: shiftStart, end: shiftEnd } = shiftWindow();
@@ -51,26 +53,59 @@ export default function NurseDutyReportPage() {
 
   useEffect(() => listenDutyReports(setReports), []);
 
+  // One draft per shift, keyed by the shift's start date
+  const shiftKey = `${shiftStart.getFullYear()}-${String(shiftStart.getMonth()+1).padStart(2,'0')}-${String(shiftStart.getDate()).padStart(2,'0')}`;
+
+  // Come back later and continue where you stopped
+  useEffect(() => {
+    let alive = true;
+    getDutyDraft(shiftKey).then(d => {
+      if (!alive || !d) return;
+      setBody(b => (b ? b : (d.body || '')));
+      setDraftAt(d.updatedAt || null);
+    }).catch(e => console.error('load draft', e));
+    return () => { alive = false; };
+  }, [shiftKey]);
+
   const reset = () => { setHeading(makeHeading()); setBody(''); setEditingId(null); };
 
-  const save = async () => {
+  const who = () => profile?.displayName || profile?.email || 'Unknown staff';
+
+  // SAVE = keep as a draft so the nurse can continue later. Does NOT go to Previous reports.
+  const saveDraft = async () => {
+    if (!body.trim()) { toast.error('Write the report first'); return; }
+    setDraftBusy(true);
+    try {
+      await saveDutyDraft(shiftKey, { heading, body }, who());
+      setDraftAt(new Date());
+      toast.success('Draft saved — you can continue later');
+    } catch (e) {
+      console.error('duty draft', e);
+      toast.error('Failed to save draft');
+    }
+    setDraftBusy(false);
+  };
+
+  // SUBMIT = push to Previous reports (with the patients seen) and clear for the next shift.
+  const submit = async () => {
     if (!body.trim()) { toast.error('Write the report first'); return; }
     if (!editingId && seenSnap === null) { toast.error('Patients seen are still loading — try again in a moment'); return; }
     setSaving(true);
     try {
-      const who = profile?.displayName || profile?.email || 'Unknown staff';
       if (editingId) {
-        await updateDutyReport(editingId, { heading, body }, who, profile?.role);
+        await updateDutyReport(editingId, { heading, body }, who(), profile?.role);
         toast.success('Report updated');
       } else {
-        await addDutyReport({ heading, body, patientsSeen: seenSnap || [] }, who, profile?.role);
+        await addDutyReport({ heading, body, patientsSeen: seenSnap || [] }, who(), profile?.role);
         setLocalCut(Date.now());
-        toast.success('Duty report saved');
+        try { await deleteDutyDraft(shiftKey); } catch (e) { console.error('delete draft', e); }
+        setDraftAt(null);
+        toast.success('Report submitted');
       }
       reset();
     } catch (e) {
       console.error('duty report', e);
-      toast.error('Failed to save report');
+      toast.error('Failed to submit report');
     }
     setSaving(false);
   };
@@ -111,12 +146,20 @@ export default function NurseDutyReportPage() {
           <ShiftPatientCards start={cardsStart} end={shiftEnd} onCards={setSeenSnap} />
         </div>
 
-        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            <i className="ti ti-device-floppy" /> {saving ? 'Saving…' : editingId ? 'Update report' : 'Save report'}
+        <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap' }}>
+          {!editingId && (
+            <button className="btn" onClick={saveDraft} disabled={draftBusy || saving}>
+              <i className="ti ti-device-floppy" /> {draftBusy ? 'Saving…' : 'Save'}
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={submit} disabled={saving || draftBusy}>
+            <i className="ti ti-send" /> {saving ? 'Submitting…' : editingId ? 'Update report' : 'Submit'}
           </button>
           {editingId && <button className="btn" onClick={reset}>Cancel</button>}
         </div>
+        {!editingId && draftAt && (
+          <div style={{ fontSize:12, color:'var(--t3)', marginTop:-6 }}>Draft saved {formatTs(draftAt)} {draftAt?.toDate ? draftAt.toDate().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'}) : new Date(draftAt).toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})} — not yet in Previous reports</div>
+        )}
 
         <div className="card" style={{ flexShrink:0 }}>
           <div className="card-header">
