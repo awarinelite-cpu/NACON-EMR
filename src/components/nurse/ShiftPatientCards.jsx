@@ -110,7 +110,6 @@ export default function ShiftPatientCards({ start, end, onCards }) {
       } : null,
       events: c.events.map(it => ({ type: it.type, title: TITLE[it.type] || '', time: msOf(it.ts), text: describe(it) || '', by: byOf(it) || '' })),
     })));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards, loaded]);
 
   return (
