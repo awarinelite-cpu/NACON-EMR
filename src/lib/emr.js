@@ -2032,14 +2032,14 @@ export async function saveNACONForm(formData, savedBy, savedByRole = null) {
 }
 
 export function listenNHISForms(callback) {
-  const q = query(collection(db, 'nhis_prescriptions'), orderBy('savedAt', 'desc'));
+  const q = query(collection(db, 'nhis_prescriptions'), orderBy('savedAt', 'desc'), limit(100));
   return onSnapshot(q, snap =>
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
   );
 }
 
 export function listenNACONForms(callback) {
-  const q = query(collection(db, 'nacon_prescriptions'), orderBy('savedAt', 'desc'));
+  const q = query(collection(db, 'nacon_prescriptions'), orderBy('savedAt', 'desc'), limit(100));
   return onSnapshot(q, snap =>
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
   );
@@ -2228,15 +2228,29 @@ export async function enterLabResults(requestId, results, enteredBy, enteredByRo
 }
 
 /** Live listener: all pending lab requests */
-export function listenLabRequests(callback, statusFilter = null) {
-  // Single-field where only to avoid composite index. Sort client-side.
-  const constraints = statusFilter ? [where('status', '==', statusFilter)] : [];
-  const q = query(collection(db, COL.LAB_REQUESTS), ...constraints);
-  return onSnapshot(q, snap => {
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    docs.sort((a, b) => (a.requestedAt?.seconds || 0) - (b.requestedAt?.seconds || 0));
-    callback(docs);
-  });
+export function listenLabRequests(callback, statusFilter = null, completedDays = 7) {
+  // Single-field queries only (no composite index). Sort client-side.
+  // Open work (pending / processing) is always loaded in full; completed
+  // results are only loaded for the last `completedDays` days so the list
+  // doesn't grow — and get re-read — forever. Older results stay available
+  // per patient via listenPatientLabResults.
+  const sortAsc = docs => docs.sort((a, b) => (a.requestedAt?.seconds || 0) - (b.requestedAt?.seconds || 0));
+  const toDocs = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  if (statusFilter && statusFilter !== 'completed') {
+    const q = query(collection(db, COL.LAB_REQUESTS), where('status', '==', statusFilter));
+    return onSnapshot(q, snap => callback(sortAsc(toDocs(snap))));
+  }
+
+  const since = new Date(); since.setDate(since.getDate() - completedDays); since.setHours(0, 0, 0, 0);
+  let open = [], done = [];
+  const emit = () => callback(sortAsc([...open, ...done]));
+
+  const openQ = query(collection(db, COL.LAB_REQUESTS), where('status', 'in', ['pending', 'processing']));
+  const doneQ = query(collection(db, COL.LAB_REQUESTS), where('resultEnteredAt', '>=', Timestamp.fromDate(since)));
+  const u1 = statusFilter === 'completed' ? () => {} : onSnapshot(openQ, snap => { open = toDocs(snap); emit(); });
+  const u2 = onSnapshot(doneQ, snap => { done = toDocs(snap).filter(r => r.status === 'completed'); emit(); });
+  return () => { u1(); u2(); };
 }
 
 /** Live listener: lab results for a specific patient */

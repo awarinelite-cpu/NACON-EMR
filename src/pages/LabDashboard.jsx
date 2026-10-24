@@ -422,7 +422,7 @@ export default function LabDashboard() {
         <div style={{display:'flex', gap:4, background:'var(--card-bg)', border:'1px solid var(--border)', borderRadius:10, padding:4, marginBottom:12}}>
           <button style={tabStyle('pending')}    onClick={() => setTab('pending')}>Pending ({pending.length})</button>
           <button style={tabStyle('processing')} onClick={() => setTab('processing')}>Processing ({processing.length})</button>
-          <button style={tabStyle('completed')}  onClick={() => setTab('completed')}>Completed ({completed.length})</button>
+          <button style={tabStyle('completed')}  onClick={() => setTab('completed')}>Completed - last 7 days ({completed.length})</button>
         </div>
 
         {/* Request list */}
