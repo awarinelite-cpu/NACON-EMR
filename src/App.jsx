@@ -101,6 +101,18 @@ export default function App() {
             <Route path="/doctor/queue" element={
               <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" filter="active" /></ProtectedRoute>
             } />
+            <Route path="/doctor/sick-report" element={
+              <ProtectedRoute allowedRoles={['doctor']}><SickReportPage /></ProtectedRoute>
+            } />
+            <Route path="/doctor/seen-today" element={
+              <ProtectedRoute allowedRoles={['doctor']}><SeenTodayPage /></ProtectedRoute>
+            } />
+            <Route path="/doctor/on-admission" element={
+              <ProtectedRoute allowedRoles={['doctor']}><OnAdmissionPage /></ProtectedRoute>
+            } />
+            <Route path="/doctor/discharged-referred" element={
+              <ProtectedRoute allowedRoles={['doctor']}><DischargedReferredPage /></ProtectedRoute>
+            } />
             <Route path="/doctor/consults" element={
               <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
             } />

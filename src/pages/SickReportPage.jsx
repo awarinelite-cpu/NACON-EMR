@@ -102,7 +102,7 @@ export default function SickReportPage() {
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
       <div className="topbar">
-        <button className="btn btn-ghost" onClick={() => navigate('/nurse')} style={{padding:'6px 10px',flexShrink:0}}>
+        <button className="btn btn-ghost" onClick={() => navigate(window.location.pathname.startsWith('/doctor') ? '/doctor' : '/nurse')} style={{padding:'6px 10px',flexShrink:0}}>
           <i className="ti ti-arrow-left" />
         </button>
         <div className="topbar-title">

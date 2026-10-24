@@ -1,9 +1,9 @@
-// src/pages/DoctorDashboard.jsx
+// src/pages/DoctorDashboard.jsx — same layout as the nurse dashboard
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import PatientSearch from '../components/shared/PatientSearch';
-import { listenPatients, listenTriageQueue, formatTs } from '../lib/emr';
+import { listenPatients, listenTriageQueue, listenSickReportsToday, listenSeenToday } from '../lib/emr';
 
 // "Nr Elite" / "Dr Ario" — title + the signed-in user's name (falls back to the email name if no display name is set)
 const whoAmI = (profile, title) => {
@@ -14,111 +14,111 @@ const whoAmI = (profile, title) => {
 export default function DoctorDashboard() {
   const { profile } = useAuth();
   const navigate    = useNavigate();
-  const [patients,  setPatients]  = useState([]);
-  const [queue,     setQueue]     = useState([]);
+  const [patients,    setPatients]    = useState([]);
+  const [queue,       setQueue]       = useState([]);
+  const [sickReports, setSickReports] = useState([]);
+  const [seenToday,   setSeenToday]   = useState([]);
 
   useEffect(() => {
     const u1 = listenPatients(setPatients);
     const u2 = listenTriageQueue(setQueue);
-    return () => { u1 && u1(); u2 && u2(); };
+    const u3 = listenSickReportsToday(setSickReports);
+    const u4 = listenSeenToday(setSeenToday);
+    return () => { u1?.(); u2?.(); u3?.(); u4?.(); };
   }, []);
 
-  // Stats derived from live data
+  const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+  const isToday = ts => {
+    if (!ts) return false;
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d >= todayStart;
+  };
+
   const waiting       = queue.filter(q => q.status === 'waiting').length;
-  const seenToday     = patients.filter(p => p.status === 'discharged').length;
-  const referred      = patients.filter(p => p.status === 'referred').length;
-  const totalPatients = patients.length;
-  const active        = patients.filter(p => p.status === 'active');
-
-  const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
-  const statusCls   = s => s==='active'?'badge-danger':s==='discharged'?'badge-ok':s==='referred'?'badge-warn':'badge-info';
-
-  const stats = [
-    { label:'Waiting',        value: waiting,       icon:'ti-clock',       color:'var(--accent)',  route:'/doctor/queue'     },
-    { label:'Seen today',     value: seenToday,     icon:'ti-check',       color:'var(--success)', route:'/doctor/patients'  },
-    { label:'Referred',       value: referred,      icon:'ti-file-export', color:'var(--warn)',    route:'/doctor/referrals' },
-    { label:'Total Patients', value: totalPatients, icon:'ti-users',       color:'var(--info)',    route:'/doctor/patients'  },
-  ];
+  const sickBay       = patients.filter(p => p.status === 'sickbay');
+  const maleAdm       = sickBay.filter(p => p.sex === 'Male').length;
+  const femaleAdm     = sickBay.filter(p => p.sex === 'Female').length;
+  const seenIds       = new Set(seenToday.map(p => p.id));
+  const sickSeenCount = sickReports.filter(p => seenIds.has(p.id)).length;
+  const sickTotal     = sickReports.length;
+  const notSeen       = sickTotal - sickSeenCount;
+  const dischargedToday = patients.filter(p => p.status === 'discharged' && isToday(p.updatedAt)).length;
+  const referredToday   = patients.filter(p => p.status === 'referred'   && isToday(p.updatedAt)).length;
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
-      <div className="topbar">
+      <div className="topbar topbar-lg">
         <div className="topbar-title">Dashboard<span className="dash-title-name">{whoAmI(profile, 'Dr')}</span></div>
-        <PatientSearch />
-        <button className="btn btn-primary" onClick={() => navigate('/doctor/patients')}>
-          <i className="ti ti-stethoscope" /> New consultation
-        </button>
+        <PatientSearch placeholder="Search EMR, name or SET…" />
       </div>
-      <div className="page-content">
-        <div className="stats-grid">
-          {stats.map(s => (
-            <div key={s.label} className="stat-card"
-              onClick={() => navigate(s.route)}
-              style={{ cursor:'pointer' }}
-            >
-              <div className="stat-label">
-                <i className={`ti ${s.icon}`} style={{color:s.color}} />{s.label}
-              </div>
-              <div className="stat-value" style={{color:s.color}}>{s.value}</div>
-            </div>
-          ))}
+      <div className="page-content dash-page" style={{ flex:1 }}>
+
+        {/* ── Total Registered Patients ── */}
+        <div className="dash-card dash-card-wide" onClick={() => navigate('/doctor/patients')}
+          style={{'--ac':'#7c3aed'}}>
+          <div className="dash-label"><i className="ti ti-users" />Total Registered Patients</div>
+          <div className="dash-value">{patients.length}</div>
         </div>
 
-        {/* Triage Queue — patients waiting to see doctor */}
-        {waiting > 0 && (
-          <div className="card" style={{marginBottom:12}}>
-            <div className="card-header">
-              <div className="card-title"><i className="ti ti-clock" />Triage Queue — Waiting</div>
-              <span className="card-action" onClick={() => navigate('/doctor/queue')}>View all →</span>
+        {/* ── Row 1: Sick Report · Seen Today · On Admission ── */}
+        <div className="dash-grid">
+          <div className="dash-card" onClick={() => navigate('/doctor/sick-report')}
+            style={{'--ac':'#ea580c'}}>
+            <div className="dash-label"><i className="ti ti-stethoscope" />Sick Report</div>
+            <div className="dash-value">{sickTotal}</div>
+            <div className="dash-sub">
+              <span>✓ {sickSeenCount} seen</span>
+              <span>· {notSeen} pending</span>
             </div>
-            {queue.filter(q => q.status==='waiting').slice(0,5).map(q => (
-              <div key={q.id} className="patient-row"
-                onClick={() => navigate(`/patient/${q.emrNumber}`)}
-                style={{ cursor:'pointer' }}
-              >
-                <div style={{
-                  width:32, height:32, borderRadius:8,
-                  background: q.priority==='P1'?'var(--danger-bg)':q.priority==='P2'?'var(--warn-bg)':'var(--accent-bg)',
-                  color: q.priority==='P1'?'var(--danger)':q.priority==='P2'?'var(--warn)':'var(--accent)',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:11, fontWeight:700, flexShrink:0,
-                }}>{q.priority}</div>
-                <div className="p-info">
-                  <div className="p-name">{q.surname} {q.firstName}</div>
-                  <div className="p-meta">{q.classSet} · {q.chiefComplaint}</div>
-                </div>
-                <span className="badge badge-warn">Waiting</span>
-              </div>
-            ))}
           </div>
-        )}
 
-        {/* Active patients list */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title"><i className="ti ti-clock" />Active patients — in clinic today</div>
-            <span className="card-action" onClick={() => navigate('/doctor/patients')}>View all →</span>
+          <div className="dash-card" onClick={() => navigate('/doctor/seen-today')}
+            style={{'--ac':'#16a34a'}}>
+            <div className="dash-label"><i className="ti ti-check" />Seen today</div>
+            <div className="dash-value">{sickSeenCount}</div>
           </div>
-          {active.slice(0,10).map(p => (
-            <div key={p.id} className="patient-row"
-              onClick={() => navigate(`/patient/${p.emrNumber}`)}
-              style={{ cursor:'pointer' }}
-            >
-              <div className="p-avatar" style={{background:'var(--accent-bg)',color:'var(--accent)'}}>{getInitials(p)}</div>
-              <div className="p-info">
-                <div className="p-name">{p.surname} {p.firstName}</div>
-                <div className="p-meta">{p.classSet} · {p.folderNumber}</div>
+
+          <div className="dash-card" onClick={() => navigate('/doctor/on-admission')}
+            style={{'--ac':'#9333ea'}}>
+            <div className="dash-label"><i className="ti ti-bed" />On Admission</div>
+            <div className="dash-split">
+              <div>
+                <div className="dash-value-sm">{maleAdm}</div>
+                <div className="dash-caption">Male</div>
               </div>
-              <span className="emr-tag">{p.emrNumber}</span>
-              <span className={`badge ${statusCls(p.status)}`}>{p.status}</span>
+              <div className="dash-divider" />
+              <div>
+                <div className="dash-value-sm">{femaleAdm}</div>
+                <div className="dash-caption">Female</div>
+              </div>
             </div>
-          ))}
-          {active.length===0 && (
-            <div style={{padding:20,textAlign:'center',color:'var(--t3)',fontWeight:700}}>
-              No active patients in clinic today
-            </div>
-          )}
+          </div>
         </div>
+
+        {/* ── Row 2: D/R Today · Waiting · Meds Due ── */}
+        <div className="dash-grid">
+          <div className="dash-card" onClick={() => navigate('/doctor/discharged-referred')}
+            style={{'--ac':'#059669'}}>
+            <div className="dash-label"><i className="ti ti-logout" />D/R Today</div>
+            <div className="dash-split">
+              <div>
+                <div className="dash-value-sm">{dischargedToday}</div>
+                <div className="dash-caption">Discharged</div>
+              </div>
+              <div className="dash-divider" />
+              <div>
+                <div className="dash-value-sm">{referredToday}</div>
+                <div className="dash-caption">Referred</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="dash-card" style={{'--ac':'#2563eb'}}>
+            <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
+            <div className="dash-value">{waiting}</div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
