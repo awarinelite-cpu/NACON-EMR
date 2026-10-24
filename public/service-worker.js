@@ -1,6 +1,7 @@
 /* NACON MRS EMR — Service Worker v3.0 — Offline-First */
 
-const CACHE_VERSION = 'nacon-emr-v6';
+const CACHE_VERSION = 'nacon-emr-v7';
+const CDN_CACHE = 'nacon-cdn-v1'; // icon font + web fonts (survive app updates)
 
 const PRECACHE_URLS = [
   '/',
@@ -20,11 +21,46 @@ const PRECACHE_URLS = [
   '/nacon-crest.png',
 ];
 
+// Pre-cache every JS/CSS file of the current build (listed in the build's
+// asset-manifest.json) so the whole app opens offline, even pages that have
+// never been visited on this device. Best-effort: never blocks install.
+async function precacheBuild(cache) {
+  try {
+    const res = await fetch('/asset-manifest.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const manifest = await res.json();
+    const files = new Set([
+      ...(manifest.entrypoints || []).map(f => '/' + f.replace(/^\//, '')),
+      ...Object.values(manifest.files || {})
+        .filter(f => /\.(js|css)$/.test(f))
+        .map(f => (f.startsWith('/') ? f : '/' + f)),
+    ]);
+    await Promise.all([...files].map(f => cache.add(f).catch(() => {})));
+  } catch (_) { /* offline or no manifest — runtime caching still covers it */ }
+}
+
+// Icon font (tabler) + Google fonts: needed so icons/text look right offline.
+const CDN_URLS = [
+  'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css',
+  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=DM+Mono:wght@500&display=swap',
+];
+async function precacheCdn() {
+  try {
+    const cache = await caches.open(CDN_CACHE);
+    await Promise.all(CDN_URLS.map(u =>
+      fetch(u, { mode: 'no-cors' }).then(r => cache.put(u, r)).catch(() => {})
+    ));
+  } catch (_) {}
+}
+const isCdnHost = h =>
+  h.includes('cdn.jsdelivr.net') || h.includes('fonts.googleapis.com') || h.includes('fonts.gstatic.com');
+
 // ── Install: pre-cache app shell ─────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(PRECACHE_URLS))
+      .then(cache => cache.addAll(PRECACHE_URLS).then(() => precacheBuild(cache)))
+      .then(() => precacheCdn())
       .then(() => self.skipWaiting())
   );
 });
@@ -35,7 +71,7 @@ self.addEventListener('activate', event => {
     caches.keys()
       .then(keys => Promise.all(
         keys
-          .filter(k => k !== CACHE_VERSION)
+          .filter(k => k !== CACHE_VERSION && k !== CDN_CACHE)
           .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
@@ -47,6 +83,21 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Icon font + web fonts: serve from cache instantly, refresh in the background
+  if (request.method === 'GET' && isCdnHost(url.hostname)) {
+    event.respondWith(
+      caches.open(CDN_CACHE).then(cache =>
+        cache.match(request).then(cached => {
+          const refresh = fetch(request)
+            .then(res => { if (res && (res.ok || res.type === 'opaque')) cache.put(request, res.clone()); return res; })
+            .catch(() => cached);
+          return cached || refresh;
+        })
+      )
+    );
+    return;
+  }
+
   // Never intercept Firebase, Auth, or API calls
   if (
     url.hostname.includes('firebase') ||
@@ -54,9 +105,6 @@ self.addEventListener('fetch', event => {
     url.hostname.includes('firestore') ||
     url.hostname.includes('identitytoolkit') ||
     url.hostname.includes('securetoken') ||
-    url.hostname.includes('cdn.jsdelivr.net') ||
-    url.hostname.includes('fonts.googleapis.com') ||
-    url.hostname.includes('fonts.gstatic.com') ||
     request.method !== 'GET'
   ) {
     return;

@@ -3,11 +3,13 @@
 // All Firestore operations for NACON MRS EMR
 // ─────────────────────────────────────────────
 import {
-  doc, collection, getDocs, getDoc, setDoc,
-  addDoc, updateDoc, deleteDoc, query, where,
+  doc, collection, getDocs, getDoc,
+  query, where,
   orderBy, onSnapshot, runTransaction,
-  serverTimestamp, Timestamp, writeBatch, limit, getCountFromServer,
+  serverTimestamp, Timestamp, limit, getCountFromServer,
 } from 'firebase/firestore';
+// Offline-safe writes: saved on the device instantly, uploaded when back online
+import { setDoc, addDoc, updateDoc, deleteDoc, writeBatch } from './offlineWrites';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { enqueuePendingWrite } from './offlineDB';
@@ -1148,19 +1150,30 @@ export async function getAuditForPatient(emrNumber, actions = null) {
 // ─────────────────────────────────────────────
 // DASHBOARD STATS
 // ─────────────────────────────────────────────
+// Patient count: cheap server-side count when online; from the on-device
+// cache when offline (a count query needs the network).
+async function countPatients() {
+  try {
+    const c = await getCountFromServer(collection(db, COL.PATIENTS));
+    return c.data().count;
+  } catch (_) {
+    try { return (await getDocs(collection(db, COL.PATIENTS))).size; } catch (e) { return 0; }
+  }
+}
+
 export async function getTodayStats() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
 
-  const [visitsSnap, patientsCount] = await Promise.all([
+  const [visitsSnap, patientsTotal] = await Promise.all([
     getDocs(query(collection(db, COL.VISITS), where('createdAt', '>=', todayTs))),
-    getCountFromServer(collection(db, COL.PATIENTS)), // 1 read per 1,000 docs instead of 1 per patient
+    countPatients(), // 1 read per 1,000 docs instead of 1 per patient
   ]);
 
   const visits = visitsSnap.docs.map(d => d.data());
   return {
-    totalPatients: patientsCount.data().count,
+    totalPatients: patientsTotal,
     visitsToday:   visits.length,
     waiting:       0,   // not used — AppShell uses listenTriageQueue for live badge
     referred:      visits.filter(v => v.status === 'referred').length,
@@ -1765,7 +1778,7 @@ export async function getHealthStats(fromDate, toDate) {
       where('arrivedAt', '>=', fromTs),
       where('arrivedAt', '<=', toTs)
     )),
-    getCountFromServer(collection(db, COL.PATIENTS)),
+    countPatients(),
   ]);
 
   const visits  = visitsSnap.docs.map(d => d.data());
@@ -1790,7 +1803,7 @@ export async function getHealthStats(fromDate, toDate) {
 
   return {
     totalVisits:    visits.length,
-    totalPatients:  patientsSnap.data().count,
+    totalPatients:  patientsSnap,
     totalTriage:    triage.length,
     discharged:     visits.filter(v => v.status === 'discharged').length,
     referred:       visits.filter(v => v.status === 'referred').length,

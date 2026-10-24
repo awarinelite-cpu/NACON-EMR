@@ -10,9 +10,10 @@
 // This file only reads/writes the Firestore docs those functions watch.
 // ─────────────────────────────────────────────
 import {
-  doc, collection, addDoc, updateDoc, deleteDoc, setDoc,
+  doc, collection,
   query, where, onSnapshot, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
+import { addDoc, updateDoc, deleteDoc, setDoc } from './offlineWrites';
 import { db } from './firebase';
 import { COL } from './emr';
 

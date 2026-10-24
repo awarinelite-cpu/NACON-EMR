@@ -13,6 +13,16 @@ const AuthContext = createContext(null);
 // Accounts created without a display name used to make every save that signs
 // with profile.displayName fail (Firestore rejects undefined fields). Always
 // give the profile a usable name: saved name -> auth name -> email.
+// Remember the signed-in profile on the device so a reload with no internet
+// still opens the app instead of dropping to the login screen.
+const PROFILE_KEY = uid => `nacon-profile-${uid}`;
+function saveProfileLocally(uid, prof) {
+  try { if (prof) localStorage.setItem(PROFILE_KEY(uid), JSON.stringify(prof)); } catch (_) {}
+}
+function loadProfileLocally(uid) {
+  try { const s = localStorage.getItem(PROFILE_KEY(uid)); return s ? JSON.parse(s) : null; } catch (_) { return null; }
+}
+
 function withDisplayName(prof, fbUser) {
   if (!prof) return prof;
   if (!prof.displayName || !String(prof.displayName).trim()) {
@@ -37,7 +47,13 @@ export function AuthProvider({ children }) {
       try {
         if (firebaseUser) {
           setUser(firebaseUser);
-          const prof = await getUser(firebaseUser.uid);
+          let prof = null;
+          try { prof = await getUser(firebaseUser.uid); }
+          catch (err) {
+            console.warn('[AuthContext] profile fetch failed, trying device copy:', err);
+          }
+          if (prof) saveProfileLocally(firebaseUser.uid, prof);
+          else prof = loadProfileLocally(firebaseUser.uid);   // offline fallback
           // Attach the Firebase Auth UID onto the profile so components can use profile.uid
           if (prof) prof.uid = firebaseUser.uid;
           setProfile(withDisplayName(prof, firebaseUser));
@@ -58,13 +74,16 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const prof = await getUser(cred.user.uid);
-    if (prof) prof.uid = cred.user.uid;
+    if (prof) { prof.uid = cred.user.uid; saveProfileLocally(cred.user.uid, prof); }
     withDisplayName(prof, cred.user);
     setProfile(prof);
     return prof;
   };
 
   const logout = async () => {
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('nacon-profile-')).forEach(k => localStorage.removeItem(k));
+    } catch (_) {}
     await signOut(auth);
     setUser(null);
     setProfile(null);
