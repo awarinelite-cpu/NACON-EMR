@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";        // ← add this
 
@@ -17,7 +17,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Persistent on-device cache: data already downloaded is reused after reloads
+// and across tabs instead of being re-read (and re-billed) from the server.
+let _db;
+try {
+  _db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  });
+} catch (e) {
+  _db = getFirestore(app); // already initialised / cache unsupported in this browser
+}
+export const db = _db;
 export const rtdb = getDatabase(app);
 export const storage = getStorage(app);   // ← add this
 export default app;

@@ -6,7 +6,7 @@ import {
   doc, collection, getDocs, getDoc, setDoc,
   addDoc, updateDoc, deleteDoc, query, where,
   orderBy, onSnapshot, runTransaction,
-  serverTimestamp, Timestamp, writeBatch,
+  serverTimestamp, Timestamp, writeBatch, limit, getCountFromServer,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
@@ -235,11 +235,44 @@ export async function searchPatients(searchTerm) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// ONE shared live listener for the whole patients collection. Every page that
+// calls listenPatients() reuses it (and gets the latest list instantly), so
+// opening several pages no longer re-reads every patient each time. The
+// listener is kept for 2 minutes after the last page leaves, so quick
+// navigation between pages costs nothing.
+const _patientSubs = new Set();
+let _patientsUnsub = null;
+let _patientsData = null;
+let _patientsDetachTimer = null;
+
 export function listenPatients(callback) {
-  const q = query(collection(db, COL.PATIENTS), orderBy('registeredAt', 'desc'));
-  return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  });
+  if (_patientsDetachTimer) { clearTimeout(_patientsDetachTimer); _patientsDetachTimer = null; }
+  _patientSubs.add(callback);
+
+  if (!_patientsUnsub) {
+    const q = query(collection(db, COL.PATIENTS), orderBy('registeredAt', 'desc'));
+    _patientsUnsub = onSnapshot(q, snap => {
+      _patientsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      _patientSubs.forEach(cb => cb([..._patientsData]));
+    }, err => {
+      console.error('listenPatients', err);
+      _patientsUnsub = null; // allow a fresh attempt on the next subscribe
+    });
+  } else if (_patientsData) {
+    callback([..._patientsData]);
+  }
+
+  return () => {
+    _patientSubs.delete(callback);
+    if (_patientSubs.size === 0 && !_patientsDetachTimer) {
+      _patientsDetachTimer = setTimeout(() => {
+        if (_patientSubs.size === 0 && _patientsUnsub) {
+          _patientsUnsub(); _patientsUnsub = null; _patientsData = null;
+        }
+        _patientsDetachTimer = null;
+      }, 120000);
+    }
+  };
 }
 
 // ─────────────────────────────────────────────
@@ -1118,14 +1151,14 @@ export async function getTodayStats() {
   today.setHours(0, 0, 0, 0);
   const todayTs = Timestamp.fromDate(today);
 
-  const [visitsSnap, patientsSnap] = await Promise.all([
+  const [visitsSnap, patientsCount] = await Promise.all([
     getDocs(query(collection(db, COL.VISITS), where('createdAt', '>=', todayTs))),
-    getDocs(collection(db, COL.PATIENTS)),
+    getCountFromServer(collection(db, COL.PATIENTS)), // 1 read per 1,000 docs instead of 1 per patient
   ]);
 
   const visits = visitsSnap.docs.map(d => d.data());
   return {
-    totalPatients: patientsSnap.size,
+    totalPatients: patientsCount.data().count,
     visitsToday:   visits.length,
     waiting:       0,   // not used — AppShell uses listenTriageQueue for live badge
     referred:      visits.filter(v => v.status === 'referred').length,
@@ -1730,7 +1763,7 @@ export async function getHealthStats(fromDate, toDate) {
       where('arrivedAt', '>=', fromTs),
       where('arrivedAt', '<=', toTs)
     )),
-    getDocs(collection(db, COL.PATIENTS)),
+    getCountFromServer(collection(db, COL.PATIENTS)),
   ]);
 
   const visits  = visitsSnap.docs.map(d => d.data());
@@ -1755,7 +1788,7 @@ export async function getHealthStats(fromDate, toDate) {
 
   return {
     totalVisits:    visits.length,
-    totalPatients:  patientsSnap.size,
+    totalPatients:  patientsSnap.data().count,
     totalTriage:    triage.length,
     discharged:     visits.filter(v => v.status === 'discharged').length,
     referred:       visits.filter(v => v.status === 'referred').length,
@@ -2096,7 +2129,7 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy, 
 
 /** Live listener: all dispense log entries */
 export function listenDispenseLog(callback) {
-  const q = query(collection(db, COL.DISPENSE_LOG), orderBy('dispensedAt', 'desc'));
+  const q = query(collection(db, COL.DISPENSE_LOG), orderBy('dispensedAt', 'desc'), limit(300));
   return onSnapshot(q, snap =>
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
   );

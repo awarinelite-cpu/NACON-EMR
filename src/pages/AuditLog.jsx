@@ -70,7 +70,7 @@ export default function AuditLog() {
     const q = query(
       collection(db, COL.AUDIT),
       orderBy('timestamp', 'desc'),
-      limit(500)
+      limit(200)
     );
     // Live listener — admin/subadmin see new staff activity as it happens.
     const unsub = onSnapshot(q, snap => {
