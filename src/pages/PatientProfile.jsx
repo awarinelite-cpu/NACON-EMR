@@ -2041,7 +2041,7 @@ export default function PatientProfile() {
               <div className="card-header">
                 <div className="card-title">
                   <i className={`ti ${activeTab==='doctor'?'ti-stethoscope':'ti-notes-medical'}`} />
-                  {activeTab==='doctor' ? "Consult" : 'Nursing Report'}
+                  {activeTab==='doctor' ? "Consult" : 'Nursing Consult'}
                 </div>
               </div>
               <div className="card-body">
@@ -2050,9 +2050,7 @@ export default function PatientProfile() {
                     {activeTab==='doctor' ? 'C/O · O/E · Diagnosis · Plan' : 'Nursing observation / intervention'}
                   </label>
                   <textarea className="form-textarea full-width" rows={6}
-                    placeholder={activeTab==='doctor'
-                      ? 'C/O: headache × 2 days\nO/E: Temp 38.5°C, BP 110/70\nDx: ? Malaria\nPlan: IM Artemether 160mg OD × 3/7…'
-                      : 'Patient assessment, interventions, response to treatment…'}
+                    placeholder={'C/O: headache × 2 days\nO/E: Temp 38.5°C, BP 110/70\nDx: ? Malaria\nPlan: IM Artemether 160mg OD × 3/7…'}
                     value={noteText} onChange={e=>setNoteText(e.target.value)} />
                 </div>
                 <AIDrugInsightPanel noteText={noteText} patient={patient} onConfirmDrugs={handleConfirmDrugs} />
