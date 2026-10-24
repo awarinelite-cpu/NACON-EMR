@@ -3,14 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
-import { getAllUsers, createUser, updateUserRole, updateUserProfile, deactivateUser, reactivateUser } from '../lib/emr';
+import { getAllUsers, getUser, createUser, updateUserRole, updateUserProfile, deactivateUser, reactivateUser } from '../lib/emr';
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   updatePassword,
   signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, getStaffCreationAuth } from '../lib/firebase';
 
 const ROLES = ['doctor', 'nurse', 'records', 'pharmacist', 'lab', 'subadmin', 'admin'];
 const EMPTY_USER = { displayName:'', email:'', password:'', role:'nurse', phone:'' };
@@ -51,8 +52,27 @@ export default function UserManagement() {
     }
     setSaving(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
-      await createUser(cred.user.uid, {
+      // Create the login on a separate session so the admin stays signed in
+      const staffAuth = getStaffCreationAuth();
+      let newUid;
+      try {
+        try {
+          const cred = await createUserWithEmailAndPassword(staffAuth, form.email, form.password);
+          newUid = cred.user.uid;
+        } catch (err) {
+          if (err.code !== 'auth/email-already-in-use') throw err;
+          // Login exists already. If its profile was never saved (an earlier attempt
+          // failed half-way), finish it now; otherwise it really is a duplicate.
+          let existingUid = null;
+          try { existingUid = (await signInWithEmailAndPassword(staffAuth, form.email, form.password)).user.uid; }
+          catch (_) { throw err; }
+          if (await getUser(existingUid)) throw err;
+          newUid = existingUid;
+        }
+      } finally {
+        try { await signOut(staffAuth); } catch (_) {}
+      }
+      await createUser(newUid, {
         displayName: form.displayName,
         email:       form.email,
         role:        form.role,

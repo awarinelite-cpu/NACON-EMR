@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { initializeApp as _initApp, getApps } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";        // ← add this
@@ -30,4 +31,14 @@ try {
 export const db = _db;
 export const rtdb = getDatabase(app);
 export const storage = getStorage(app);   // ← add this
+
+// A second, separate sign-in session used ONLY to create staff logins.
+// Creating a login on the main session signs the admin out and signs in the
+// new person, so the admin could no longer save the new staff profile.
+export function getStaffCreationAuth() {
+  const NAME = 'staff-creation';
+  const existing = getApps().find(a => a.name === NAME);
+  return getAuth(existing || _initApp(firebaseConfig, NAME));
+}
+
 export default app;
