@@ -9,7 +9,6 @@ const NAV = {
     { grp: 'Clinical', items: [
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/doctor' },
       { icon: 'ti-urgent',           label: 'Triage',         path: '/triage' },
-      { icon: 'ti-pill',             label: 'MAR',            path: '/mar' },
       { icon: 'ti-clock',            label: "Today's Queue",  path: '/doctor/queue',     badge: 'queue' },
       { icon: 'ti-users',            label: 'My Patients',    path: '/doctor/patients' },
       { icon: 'ti-notes-medical',    label: 'Consultations',  path: '/doctor/consults' },
@@ -22,11 +21,7 @@ const NAV = {
     { grp: 'Clinical', items: [
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/nurse' },
       { icon: 'ti-urgent',           label: 'Triage',         path: '/triage',           badge: 'p1' },
-      { icon: 'ti-pill',             label: 'MAR',            path: '/mar' },
-      { icon: 'ti-clock',            label: 'Queue',          path: '/nurse/queue',      badge: 'queue' },
       { icon: 'ti-notes-medical',    label: 'Nursing Notes',  path: '/nurse/notes' },
-      { icon: 'ti-pill',             label: 'Medication Log', path: '/nurse/meds' },
-      { icon: 'ti-temperature',      label: 'Vital Signs',    path: '/nurse/vitals' },
       { icon: 'ti-users',            label: 'All Patients',   path: '/nurse/patients' },
       { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
     ]},

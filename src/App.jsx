@@ -21,13 +21,10 @@ import AuditLog         from './pages/AuditLog';
 import RolesAccess      from './pages/RolesAccess';
 import Settings         from './pages/Settings';
 import TriagePage       from './pages/TriagePage';
-import MARPage          from './pages/MARPage';
 import PharmacyInventory from './pages/PharmacyInventory';
 import HealthStats        from './pages/HealthStats';
 import SelfReport         from './pages/SelfReport';
 import NursingNotesPage        from './pages/NursingNotesPage';
-import MedicationLogPage       from './pages/MedicationLogPage';
-import VitalSignsPage          from './pages/VitalSignsPage';
 import SickReportPage          from './pages/SickReportPage';
 import SeenTodayPage           from './pages/SeenTodayPage';
 import DischargedReferredPage  from './pages/DischargedReferredPage';
@@ -121,20 +118,11 @@ export default function App() {
             <Route path="/nurse/patients" element={
               <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" /></ProtectedRoute>
             } />
-            <Route path="/nurse/queue" element={
-              <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="active" /></ProtectedRoute>
-            } />
             <Route path="/nurse/sickbay" element={
               <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="sickbay" /></ProtectedRoute>
             } />
             <Route path="/nurse/notes" element={
               <ProtectedRoute allowedRoles={['nurse']}><NursingNotesPage /></ProtectedRoute>
-            } />
-            <Route path="/nurse/meds" element={
-              <ProtectedRoute allowedRoles={['nurse']}><MedicationLogPage /></ProtectedRoute>
-            } />
-            <Route path="/nurse/vitals" element={
-              <ProtectedRoute allowedRoles={['nurse']}><VitalSignsPage /></ProtectedRoute>
             } />
             <Route path="/nurse/sick-report" element={
               <ProtectedRoute allowedRoles={['nurse']}><SickReportPage /></ProtectedRoute>
@@ -147,13 +135,6 @@ export default function App() {
             } />
             <Route path="/nurse/discharged-referred" element={
               <ProtectedRoute allowedRoles={['nurse']}><DischargedReferredPage /></ProtectedRoute>
-            } />
-
-            {/* ── MAR ── */}
-            <Route path="/mar" element={
-              <ProtectedRoute allowedRoles={['nurse','doctor','admin','subadmin']}>
-                <MARPage />
-              </ProtectedRoute>
             } />
 
             {/* ── TRIAGE ── */}

@@ -113,16 +113,9 @@ export default function NurseDashboard() {
             </div>
           </div>
 
-          <div className="dash-card" onClick={() => navigate('/nurse/queue')}
-            style={{'--ac':'#2563eb'}}>
+          <div className="dash-card" style={{'--ac':'#2563eb'}}>
             <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
             <div className="dash-value">{waiting}</div>
-          </div>
-
-          <div className="dash-card" onClick={() => navigate('/nurse/meds')}
-            style={{'--ac':'#dc2626'}}>
-            <div className="dash-label"><i className="ti ti-pill" />Meds due</div>
-            <div className="dash-value">0</div>
           </div>
         </div>
 
