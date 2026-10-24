@@ -39,13 +39,11 @@ const TABS = [
   { id:'fluid',    label:'Fluid I/O',       icon:'💧',  roles: ['doctor','nurse'] },
   { id:'glucose',  label:'Glycemic',        icon:'🩸',  roles: ['doctor','nurse'] },
   { id:'nursing',  label:'Nursing',         icon:'📋',  roles: ['nurse'] },
-  { id:'careplan', label:'Care Plan',       icon:'📝',  roles: ['nurse'] },
   { id:'doctor',   label:"Doctor's Report", icon:'🩺',  roles: ['doctor'] },
   { id:'mar',      label:'MAR',             icon:'💉',  roles: ['doctor','nurse'] },
-  { id:'reminders',label:'Bot Reminders',   icon:'🔔',  roles: ['doctor','nurse'] },
-  { id:'lab',      label:'Lab',             icon:'🔬',  roles: ['doctor','nurse','lab','admin','subadmin'] },
+  { id:'lab',      label:'Lab',             icon:'🔬',  roles: ['doctor','lab','admin','subadmin'] },
   { id:'referral', label:'Transfer/D/C',    icon:'🔄',  roles: ['doctor','nurse'] },
-  { id:'uploads',  label:'Documents',       icon:'📁',  roles: ['doctor','nurse','records','admin','subadmin','lab'] },
+  { id:'uploads',  label:'Documents',       icon:'📁',  roles: ['records','admin','subadmin','lab'] },
 ];
 
 const vitalFlag = (key, val) => {
@@ -298,6 +296,38 @@ export default function PatientProfile() {
                       fontSize:13, fontWeight:500, color:'var(--t1)', lineHeight:1.8,
                       whiteSpace:'pre-line',
                     }}>{n.text}</div>
+                  </div>
+                );
+              })()}
+
+              {/* ── LAB RESULT ── */}
+              {selectedEvent.type === 'lab' && (() => {
+                const l = selectedEvent.data;
+                const entries = Object.entries(l.results || {});
+                return (
+                  <div>
+                    {entries.length === 0 && (
+                      <div style={{ fontSize:13, color:'var(--t3)' }}>{(l.tests || []).join(', ') || 'No result values recorded'}</div>
+                    )}
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {entries.map(([test, r]) => {
+                        const abn = r.flag === 'high' || r.flag === 'low';
+                        return (
+                          <div key={test} style={{ background: abn ? 'var(--danger-bg)' : 'var(--card-bg2)', borderRadius:10, padding:'10px 14px' }}>
+                            <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{test}</div>
+                            <div style={{ fontSize:20, fontWeight:700, color: abn ? RED : 'var(--t1)', lineHeight:1.2 }}>
+                              {r.value ?? '—'} <span style={{ fontSize:12, fontWeight:600 }}>{r.unit || ''}</span>
+                              {r.flag && <span style={{ fontSize:11, marginLeft:8, fontWeight:800 }}>{String(r.flag).toUpperCase()}</span>}
+                            </div>
+                            {r.referenceRange && <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>Ref: {r.referenceRange}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ marginTop:10, fontSize:11, color:'var(--t3)' }}>
+                      Requested by: <b style={{ color:'var(--t2)' }}>{l.requestedBy || '—'}</b>
+                      {l.resultEnteredBy && <> · Entered by: <b style={{ color:'var(--t2)' }}>{l.resultEnteredBy}</b></>}
+                    </div>
                   </div>
                 );
               })()}
@@ -746,6 +776,7 @@ export default function PatientProfile() {
     ...(isRecords ? [] : fluid.map(f   => ({ ts:f.recordedAt,  type:'fluid',   data:f }))),
     ...(isRecords ? [] : glucose.map(g => ({ ts:g.recordedAt,  type:'glucose', data:g }))),
     ...(isRecords ? [] : rx.map(r      => ({ ts:r.createdAt,   type:'rx',      data:r }))),
+    ...(isRecords ? [] : labResults.map(l => ({ ts:l.completedAt || l.requestedAt, type:'lab', data:l }))),
     ...uploads.map(u => ({ ts:u.uploadedAt,  type:'upload',  data:u })),
   ].sort((a,b) => ((b.ts?.seconds||0)-(a.ts?.seconds||0)));
 
@@ -759,13 +790,22 @@ export default function PatientProfile() {
     if (item.type==='rx')      return `Prescription — ${item.data.drugs?.map(d=>d.drug).join(', ')}`;
     if (item.type==='fluid')   return `Fluid — In: ${item.data.intakeAmt}ml Out: ${item.data.outputAmt}ml`;
     if (item.type==='glucose') return `Blood glucose ${item.data.reading} ${item.data.unit || 'mmol/L'} (${item.data.context})`;
+    if (item.type==='lab') {
+      const entries = Object.entries(item.data.results || {});
+      if (!entries.length) return `Lab result — ${(item.data.tests || []).join(', ')}`;
+      return entries.slice(0, 4).map(([test, r], i) => {
+        const txt = `${test} ${r.value ?? '—'}${r.unit ? ' ' + r.unit : ''}`;
+        const abn = r.flag === 'high' || r.flag === 'low';
+        return <React.Fragment key={test}>{i > 0 && ' · '}{abn ? <b style={{ color:RED, fontWeight:800 }}>{txt}</b> : txt}</React.Fragment>;
+      }).concat(entries.length > 4 ? [` · +${entries.length - 4} more`] : []);
+    }
     if (item.type==='upload')  return `File: ${item.data.fileName}`;
     return '';
   };
 
-  const tlColor = { note:'#2E7FDB', vitals:'#E53935', rx:'#1A7A4A', fluid:'#0288D1', glucose:'#F57C00', upload:'#6C3CE1' };
-  const tlIcon  = { note:'ti-notes-medical', vitals:'ti-heart-rate-monitor', rx:'ti-pill', fluid:'ti-droplet', glucose:'ti-activity', upload:'ti-upload' };
-  const tlTitle = { note:'Clinical note', vitals:'Vitals recorded', rx:'Prescription', fluid:'Fluid entry', glucose:'Glucose reading', upload:'File uploaded' };
+  const tlColor = { note:'#2E7FDB', vitals:'#E53935', rx:'#1A7A4A', fluid:'#0288D1', glucose:'#F57C00', lab:'#0E7490', upload:'#6C3CE1' };
+  const tlIcon  = { note:'ti-notes-medical', vitals:'ti-heart-rate-monitor', rx:'ti-pill', fluid:'ti-droplet', glucose:'ti-activity', lab:'ti-microscope', upload:'ti-upload' };
+  const tlTitle = { note:'Clinical note', vitals:'Vitals recorded', rx:'Prescription', fluid:'Fluid entry', glucose:'Glucose reading', lab:'Lab result', upload:'File uploaded' };
 
   const statusColor = patient.status === 'active' ? '#22C55E' : patient.status === 'discharged' ? '#64748B' : '#F59E0B';
 
@@ -1155,7 +1195,7 @@ export default function PatientProfile() {
                         </div>
                         <div className="tl-sub">{tlDesc(item)}</div>
                         <div style={{ fontSize:14, color:'var(--t3)', marginTop:2 }}>
-                          {item.type==='note' ? item.data.authorName : item.data.recordedBy || item.data.prescribedBy || item.data.uploadedBy}
+                          {item.type==='note' ? item.data.authorName : item.data.recordedBy || item.data.prescribedBy || item.data.resultEnteredBy || item.data.uploadedBy}
                         </div>
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
