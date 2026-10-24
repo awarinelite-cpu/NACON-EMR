@@ -1006,7 +1006,7 @@ export default function PatientProfile() {
         scrollbarWidth:'none',
       }}>
         {TABS.filter(t => t.roles.includes(profile?.role?.toLowerCase())).map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); setViewOnly(['visit','reminders','referral'].includes(t.id)); }} style={{
+          <button key={t.id} className={`pp-tab${activeTab===t.id ? ' pp-tab-active' : ''}`} onClick={() => { setActiveTab(t.id); setViewOnly(['visit','reminders','referral'].includes(t.id)); }} style={{
             display:'flex', alignItems:'center', gap:4,
             padding:'9px 12px',
             border:'none', borderBottom: activeTab===t.id ? '2px solid var(--accent)' : '2px solid transparent',

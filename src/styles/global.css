@@ -1823,3 +1823,35 @@ html, body { overflow-x: hidden; }
     pointer-events: auto !important;
   }
 }
+
+/* ══════════════════════════════════
+   PATIENT PROFILE TABS on phones: small button cards that wrap onto
+   several rows (no sideways scrolling, nothing cut off).
+══════════════════════════════════ */
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .pp-root .pp-tabs {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+  .pp-root .pp-tabs button.pp-tab {
+    flex: 0 0 auto;
+    margin: 0 !important;
+    padding: 5px 9px !important;
+    gap: 4px !important;
+    font-size: 11px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    background: var(--card-bg) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.10), 0 2px 0 var(--border);
+  }
+  .pp-root .pp-tabs button.pp-tab span { font-size: 12px !important; }
+  .pp-root .pp-tabs button.pp-tab.pp-tab-active {
+    border-color: var(--accent) !important;
+    background: var(--accent-bg) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 2px 0 var(--accent);
+  }
+}
