@@ -553,10 +553,11 @@ export async function addNote(emrNumber, visitId, noteData, author, role) {
 // Stored in the existing 'notes' collection with type 'duty_report' so the
 // current security rules already cover it.
 // ─────────────────────────────────────────────
-export async function addDutyReport({ heading, body }, author, role) {
+export async function addDutyReport({ heading, body, patientsSeen }, author, role) {
   const ref = await addDoc(collection(db, COL.NOTES), deepStripUndefined({
     type: 'duty_report', emrNumber: null, visitId: null,
     heading, body,
+    patientsSeen: Array.isArray(patientsSeen) ? patientsSeen : [],
     authorName: author || 'Unknown staff', authorRole: role || null,
     createdAt: serverTimestamp(),
   }));

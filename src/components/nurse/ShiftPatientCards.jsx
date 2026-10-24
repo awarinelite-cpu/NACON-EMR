@@ -43,7 +43,7 @@ function describe(item) {
 const byOf = (item) => item.type === 'note' ? item.data.authorName
   : item.data.recordedBy || item.data.prescribedBy || item.data.resultEnteredBy || item.data.uploadedBy || item.data.admittedBy || item.data.dischargedBy || item.data.referredBy || '';
 
-export default function ShiftPatientCards({ start, end }) {
+export default function ShiftPatientCards({ start, end, onCards }) {
   const [patients, setPatients] = useState([]);
   const [items,    setItems]    = useState([]);
   const [loaded,   setLoaded]   = useState(false);
@@ -95,6 +95,24 @@ export default function ShiftPatientCards({ start, end }) {
     return '';
   };
 
+  // Hand the parent a plain, saveable snapshot of the cards (stored with the report on submit)
+  useEffect(() => {
+    if (!onCards) return;
+    if (!loaded) { onCards(null); return; }
+    const msOf = (ts) => ts?.toDate ? ts.toDate().getTime() : (ts?.seconds ? ts.seconds * 1000 : (typeof ts === 'number' ? ts : 0));
+    onCards(cards.map(c => ({
+      emr: c.emr || '',
+      name: nameOf(c),
+      badge: badgeOf(c),
+      info: c.patient ? {
+        folderNumber: c.patient.folderNumber || '', classSet: c.patient.classSet || '', sex: c.patient.sex || '',
+        status: c.patient.status || '', knownAllergies: c.patient.knownAllergies || '',
+      } : null,
+      events: c.events.map(it => ({ type: it.type, title: TITLE[it.type] || '', time: msOf(it.ts), text: describe(it) || '', by: byOf(it) || '' })),
+    })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, loaded]);
+
   return (
     <div style={{ margin:'14px 0' }}>
       <div style={{ fontWeight:800, fontSize:13, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.04em', marginBottom:10 }}>
@@ -139,6 +157,58 @@ export default function ShiftPatientCards({ start, end }) {
                       </div>
                       <div style={{ fontSize:13, color:'var(--t1)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginTop:2 }}>{describe(it)}</div>
                       {byOf(it) && <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>{byOf(it)}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Read-only list of the patients that were saved with a duty report.
+export function SavedPatientsSeen({ patients }) {
+  const [open, setOpen] = useState(null);
+  if (!patients?.length) return null;
+  return (
+    <div style={{ marginTop:12 }}>
+      <div style={{ fontWeight:800, fontSize:12, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.04em', marginBottom:8 }}>
+        Patients seen this shift ({patients.length})
+      </div>
+      {patients.map((c, idx) => {
+        const isOpen = open === idx;
+        const p = c.info;
+        return (
+          <div key={idx} className={`shift-card${isOpen ? ' is-open' : ''}`}>
+            <button type="button" className="shift-card-head" onClick={() => setOpen(isOpen ? null : idx)} aria-expanded={isOpen}>
+              <span className="shift-card-num">{idx + 1}.</span>
+              <span className="shift-card-name">{c.name}</span>
+              {c.badge && <span className="shift-card-badge">{c.badge}</span>}
+              <span className="shift-card-arrow" aria-hidden="true">▼</span>
+            </button>
+            {isOpen && (
+              <div className="shift-card-body">
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px 12px', fontSize:13, margin:'12px 0', color:'var(--t2)' }}>
+                  <div><b>EMR No:</b> {c.emr}</div>
+                  {p && <><div><b>Folder:</b> {p.folderNumber || '—'}</div>
+                  <div><b>Set:</b> {p.classSet || '—'}</div>
+                  <div><b>Sex:</b> {p.sex || '—'}</div>
+                  <div><b>Status:</b> {p.status || '—'}</div>
+                  {p.knownAllergies && <div style={{ color:'var(--danger)', fontWeight:700 }}>⚠ {p.knownAllergies}</div>}</>}
+                </div>
+                {(c.events || []).map((it, i) => (
+                  <div key={i} style={{ display:'flex', gap:10, padding:'8px 0', borderTop: i ? '1px dashed var(--border)' : 'none' }}>
+                    <i className={`ti ${ICON[it.type] || 'ti-notes-medical'}`} style={{ color:COLOR[it.type], fontSize:18, marginTop:2 }} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', gap:8 }}>
+                        <span style={{ fontWeight:800, fontSize:13, color:'var(--t1)' }}>{it.title}</span>
+                        <span style={{ fontSize:12, color:'var(--t3)', whiteSpace:'nowrap' }}>{formatTs(it.time)} {formatTime(it.time)}</span>
+                      </div>
+                      <div style={{ fontSize:13, color:'var(--t1)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginTop:2 }}>{it.text}</div>
+                      {it.by && <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>{it.by}</div>}
                     </div>
                   </div>
                 ))}

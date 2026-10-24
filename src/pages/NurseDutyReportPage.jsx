@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
-import ShiftPatientCards from '../components/nurse/ShiftPatientCards';
+import ShiftPatientCards, { SavedPatientsSeen } from '../components/nurse/ShiftPatientCards';
 import { addDutyReport, updateDutyReport, listenDutyReports, formatTs } from '../lib/emr';
 
 const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
@@ -36,7 +36,18 @@ export default function NurseDutyReportPage() {
   const [editingId, setEditingId] = useState(null);
   const [openId,    setOpenId]    = useState(null);
   const [saving,    setSaving]    = useState(false);
+  const [seenSnap,  setSeenSnap]  = useState(null);   // live snapshot of the patient cards (null while loading)
+  const [localCut,   setLocalCut]   = useState(0);      // instant clear on submit, before the server time arrives
   const { start: shiftStart, end: shiftEnd } = shiftWindow();
+
+  // Cards restart after the latest report saved in this shift, so the next shift/report starts empty.
+  const msOf = (ts) => ts?.toDate ? ts.toDate().getTime() : (ts?.seconds ? ts.seconds * 1000 : 0);
+  const lastSaved = reports.reduce((m, r) => {
+    if (r.type && r.type !== 'duty_report') return m;
+    const t = msOf(r.createdAt) || (r.createdAt === null ? Date.now() : 0);   // pending server time = just now
+    return t >= shiftStart.getTime() && t > m ? t : m;
+  }, 0);
+  const cardsStart = new Date(Math.max(shiftStart.getTime(), lastSaved, localCut));
 
   useEffect(() => listenDutyReports(setReports), []);
 
@@ -44,6 +55,7 @@ export default function NurseDutyReportPage() {
 
   const save = async () => {
     if (!body.trim()) { toast.error('Write the report first'); return; }
+    if (!editingId && seenSnap === null) { toast.error('Patients seen are still loading — try again in a moment'); return; }
     setSaving(true);
     try {
       const who = profile?.displayName || profile?.email || 'Unknown staff';
@@ -51,7 +63,8 @@ export default function NurseDutyReportPage() {
         await updateDutyReport(editingId, { heading, body }, who, profile?.role);
         toast.success('Report updated');
       } else {
-        await addDutyReport({ heading, body }, who, profile?.role);
+        await addDutyReport({ heading, body, patientsSeen: seenSnap || [] }, who, profile?.role);
+        setLocalCut(Date.now());
         toast.success('Duty report saved');
       }
       reset();
@@ -95,7 +108,7 @@ export default function NurseDutyReportPage() {
 
         {/* Patients seen this shift — standalone, never clipped by the report card */}
         <div style={{ flexShrink:0 }}>
-          <ShiftPatientCards start={shiftStart} end={shiftEnd} />
+          <ShiftPatientCards start={cardsStart} end={shiftEnd} onCards={setSeenSnap} />
         </div>
 
         <div style={{ display:'flex', gap:8, flexShrink:0 }}>
@@ -125,6 +138,7 @@ export default function NurseDutyReportPage() {
                   <div style={{ whiteSpace:'pre-wrap', fontSize:13, lineHeight:1.6, marginTop:8, color:'var(--t1)', overflowWrap:'anywhere' }}>
                     {r.body}
                   </div>
+                  <SavedPatientsSeen patients={r.patientsSeen} />
                   <button className="btn btn-sm" style={{ marginTop:8 }} onClick={() => startEdit(r)}>
                     <i className="ti ti-edit" /> Edit
                   </button>
