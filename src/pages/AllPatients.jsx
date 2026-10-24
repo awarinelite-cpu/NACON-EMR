@@ -50,7 +50,7 @@ export default function AllPatients({ role, filter }) {
     s==='referred'?'badge-warn':s==='sickbay'?'badge-danger':'badge-info';
 
   const titles = {
-    doctor:'Doctor — All Patients', nurse:'Nurse — All Patients',
+    doctor:'Doctor — All Patients', nurse:'All Patients',
     records:'Records — All Case Folders', admin:'Admin — All Patients',
   };
 
@@ -69,7 +69,7 @@ export default function AllPatients({ role, filter }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
-      <div className="topbar">
+      <div className="topbar topbar-tight">
         <div className="topbar-title">{titles[role] || 'All Patients'}</div>
         {['doctor','nurse','records'].includes(role) && <PatientSearch />}
         {role === 'records' && (

@@ -1751,3 +1751,8 @@ html, body { overflow-x: hidden; }
   .dash-title-name { display: block; }
   .dash-title-name:not(:empty)::before { content: none; }
 }
+
+/* Tighter gap between the hamburger button and the page title (All Patients) */
+@media (max-width: 768px) {
+  .topbar.topbar-tight { padding-left: 52px; }
+}
