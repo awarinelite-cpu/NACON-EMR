@@ -1994,7 +1994,11 @@ html, body { overflow-x: hidden; }
    PHARMACY page on phones: everything fits the screen width
 ══════════════════════════════════ */
 @media (max-width: 768px) {
-  .ph-root { max-width: 100%; overflow-x: hidden !important; }
+  /* One scroll for the whole page: heading, content and footnote move together
+     (the page used to scroll inside itself, leaving the heading and footnote stuck) */
+  .ph-root { max-width: 100%; height: auto !important; min-height: 100%; overflow: visible !important; }
+  .ph-root .topbar { position: static !important; }
+  .ph-root .page-content { overflow: visible !important; }
   .ph-root .topbar-title { white-space: normal; overflow-wrap: anywhere; }
   .ph-root .topbar input { max-width: 100% !important; width: 100%; flex: 1 1 100% !important; min-width: 0; }
   /* 4 summary cards → 2 x 2 */
