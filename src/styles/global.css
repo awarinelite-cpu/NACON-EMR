@@ -2156,3 +2156,50 @@ html, body { overflow-x: hidden; }
   .pp-root .pp-header { position: static !important; top: auto !important; }
   .main-area .pp-root, .main-area .pp-root * { scroll-margin-top: 0; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   CARDS + BUTTONS — same look and feel as the 68-drug-course app
+   (layered soft card shadows, raised buttons that press down).
+   Shape, depth and motion only — no colour is changed here.
+══════════════════════════════════════════════════════════════ */
+:root {
+  --shadow-card: 0 1px 0 rgba(255,255,255,.6) inset, 0 1px 2px rgba(16,24,40,.08), 0 6px 14px -6px rgba(16,24,40,.2), 0 16px 30px -14px rgba(16,24,40,.22);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,.6) inset, 0 2px 4px rgba(16,24,40,.1), 0 10px 20px -6px rgba(16,24,40,.26), 0 22px 38px -14px rgba(16,24,40,.26);
+}
+[data-theme="dark"] {
+  --shadow-card: 0 1px 0 rgba(255,255,255,.04) inset, 0 1px 2px rgba(0,0,0,.4), 0 6px 14px -6px rgba(0,0,0,.55), 0 16px 30px -14px rgba(0,0,0,.5);
+  --shadow-card-hover: 0 1px 0 rgba(255,255,255,.05) inset, 0 2px 4px rgba(0,0,0,.45), 0 10px 20px -6px rgba(0,0,0,.6), 0 22px 38px -14px rgba(0,0,0,.55);
+}
+
+/* Cards */
+.card,
+.stat-card,
+.login-card,
+.lp-card,
+.pp-vitals > div {
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+.stat-card:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(16,24,40,.15); }
+
+/* Buttons: raised, press down on tap */
+.btn {
+  border-radius: 8px;
+  letter-spacing: -.01em;
+  position: relative;
+  box-shadow: 0 3px 0 rgba(0,0,0,.28), 0 2px 3px rgba(0,0,0,.18), 0 6px 12px -4px rgba(0,0,0,.3);
+  transform: translateY(0);
+  transition: transform .1s ease, box-shadow .1s ease, filter .1s ease, background .15s;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.18);
+}
+.btn:disabled { transform: translateY(0); box-shadow: 0 1px 0 rgba(0,0,0,.15); filter: grayscale(.3) brightness(.9); }
+.btn-ghost, .btn-ghost:hover {
+  box-shadow: 0 2px 0 var(--border2), 0 3px 6px -2px rgba(0,0,0,.18);
+}
+.btn-ghost:active { box-shadow: 0 1px 0 var(--border2); }
