@@ -112,6 +112,7 @@ export default function PatientProfile() {
   const [noteText,  setNoteText]  = useState('');
   const [vitalForm, setVitalForm] = useState(emptyVitals);
   const [editingVitalId, setEditingVitalId] = useState(null);
+  const [trendOpen, setTrendOpen] = useState(false);
   const vitalsFormRef = useRef(null);
   const [rxForm,    setRxForm]    = useState([{ drug:'', dose:'', frequency:'', duration:'' }]);
   const [dischargeSummaryOpen, setDischargeSummaryOpen] = useState(false);
@@ -1262,7 +1263,18 @@ export default function PatientProfile() {
             {vitals.length > 0 && <NewsScore vitals={vitals[0]} />}
 
             {/* Trend Chart */}
-            {vitals.length > 1 && <VitalsTrendChart vitals={vitals} />}
+            {vitals.length > 1 && (
+              <div>
+                <button type="button" className="trend-toggle" aria-expanded={trendOpen}
+                  onClick={() => setTrendOpen(o => !o)}>
+                  <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <i className="ti ti-chart-line" /> Vitals Trend
+                  </span>
+                  <i className={`ti ti-chevron-${trendOpen ? 'up' : 'down'}`} />
+                </button>
+                {trendOpen && <div style={{ marginTop:10 }}><VitalsTrendChart vitals={vitals} /></div>}
+              </div>
+            )}
 
             {!viewOnly && <div className="card vitals-entry" ref={vitalsFormRef}>
               <div className="vitals-entry-title">{editingVitalId ? 'Edit Reading' : 'New Reading'}</div>

@@ -1903,3 +1903,13 @@ html, body { overflow-x: hidden; }
   background: var(--card-bg) !important; color: var(--t2) !important;
   border: 1px solid var(--border) !important; box-shadow: none !important;
 }
+
+/* Vitals trend — collapsed drop-down header */
+.trend-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border: 1px solid var(--border); border-radius: 16px; cursor: pointer;
+  background: var(--card-bg); color: var(--t1);
+  font-size: 16px; font-weight: 800; font-family: var(--font);
+  box-shadow: 0 2px 8px rgba(30,41,90,.08), 0 3px 0 var(--border);
+}
+.trend-toggle i { font-size: 20px; color: var(--accent); }
