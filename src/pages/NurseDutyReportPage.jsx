@@ -72,7 +72,7 @@ export default function NurseDutyReportPage() {
       <div className="page-content" style={{ flex:1, display:'flex', flexDirection:'column', gap:14 }}>
         <div className="card">
           <div className="card-body">
-            <div className="form-group">
+            <div className="form-group duty-heading-wrap">
               <label className="duty-heading">
                 {heading}
               </label>

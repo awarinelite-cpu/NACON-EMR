@@ -2086,5 +2086,9 @@ html, body { overflow-x: hidden; }
   color: var(--t1); text-transform: uppercase; margin-bottom: 10px;
 }
 @media (min-width: 769px) {
-  .duty-heading { font-size: 30px; text-align: center; display: block; margin-bottom: 14px; }
+  .duty-heading-wrap { container-type: inline-size; }
+  .duty-heading {
+    display: block; text-align: center; margin-bottom: 14px;
+    white-space: nowrap; font-size: 20px; font-size: min(30px, 1.75cqw);
+  }
 }
