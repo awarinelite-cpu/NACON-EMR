@@ -1,0 +1,123 @@
+// src/pages/NurseDutyReportPage.jsx
+// Nurses write the daily MRS duty report here (one report per shift).
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useAuth } from '../lib/AuthContext';
+import { addDutyReport, updateDutyReport, listenDutyReports, formatTs } from '../lib/emr';
+
+const DEFAULT_HEADING =
+  'MRS DUTY REPORT FROM 1600HRS MONDAY 12/10/26 TO 0600HRS TUESDAY 13/10/26';
+
+export default function NurseDutyReportPage() {
+  const { profile } = useAuth();
+  const navigate    = useNavigate();
+  const [heading,   setHeading]   = useState(DEFAULT_HEADING);
+  const [body,      setBody]      = useState('');
+  const [reports,   setReports]   = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [openId,    setOpenId]    = useState(null);
+  const [saving,    setSaving]    = useState(false);
+
+  useEffect(() => listenDutyReports(setReports), []);
+
+  const reset = () => { setHeading(DEFAULT_HEADING); setBody(''); setEditingId(null); };
+
+  const save = async () => {
+    if (!body.trim()) { toast.error('Write the report first'); return; }
+    setSaving(true);
+    try {
+      const who = profile?.displayName || profile?.email || 'Unknown staff';
+      if (editingId) {
+        await updateDutyReport(editingId, { heading, body }, who, profile?.role);
+        toast.success('Report updated');
+      } else {
+        await addDutyReport({ heading, body }, who, profile?.role);
+        toast.success('Duty report saved');
+      }
+      reset();
+    } catch (e) {
+      console.error('duty report', e);
+      toast.error('Failed to save report');
+    }
+    setSaving(false);
+  };
+
+  const startEdit = (r) => {
+    setEditingId(r.id); setHeading(r.heading || DEFAULT_HEADING); setBody(r.body || '');
+    window.scrollTo?.(0, 0);
+  };
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100%' }}>
+      <div className="topbar">
+        <button className="btn btn-ghost" onClick={() => navigate(-1)} style={{ padding:'6px 10px', flexShrink:0 }}>
+          <i className="ti ti-arrow-left" />
+        </button>
+        <div className="topbar-title">
+          <i className="ti ti-report-medical" style={{ color:'var(--accent)', marginRight:6 }} />
+          Nurses Report
+        </div>
+      </div>
+
+      <div className="page-content" style={{ flex:1, display:'flex', flexDirection:'column', gap:14 }}>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">
+              <i className="ti ti-notes-medical" />{editingId ? 'Edit duty report' : 'New duty report'}
+            </div>
+          </div>
+          <div className="card-body">
+            <div className="form-group">
+              <label className="form-label">Report heading</label>
+              <textarea className="form-textarea full-width" rows={2}
+                style={{ fontWeight:800, textTransform:'uppercase', letterSpacing:'.02em' }}
+                value={heading} onChange={e => setHeading(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginTop:12 }}>
+              <label className="form-label">{heading || 'Duty report'}</label>
+              <textarea className="form-textarea full-width" rows={16}
+                placeholder="Write the duty report here…"
+                value={body} onChange={e => setBody(e.target.value)} />
+            </div>
+            <div style={{ display:'flex', gap:8, marginTop:12 }}>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>
+                <i className="ti ti-device-floppy" /> {saving ? 'Saving…' : editingId ? 'Update report' : 'Save report'}
+              </button>
+              {editingId && <button className="btn" onClick={reset}>Cancel</button>}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title"><i className="ti ti-history" />Previous reports ({reports.length})</div>
+          </div>
+          {reports.length === 0 && (
+            <div style={{ padding:20, textAlign:'center', color:'var(--t3)', fontWeight:700 }}>No reports yet</div>
+          )}
+          {reports.map(r => (
+            <div key={r.id} style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)' }}>
+              <div onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor:'pointer' }}>
+                <div style={{ fontWeight:800, fontSize:13, color:'var(--t1)', overflowWrap:'anywhere' }}>{r.heading}</div>
+                <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>
+                  {r.authorName} · {formatTs(r.createdAt)}{r.editedAt ? ' · edited' : ''}
+                </div>
+              </div>
+              {openId === r.id && (
+                <>
+                  <div style={{ whiteSpace:'pre-wrap', fontSize:13, lineHeight:1.6, marginTop:8, color:'var(--t1)', overflowWrap:'anywhere' }}>
+                    {r.body}
+                  </div>
+                  <button className="btn btn-sm" style={{ marginTop:8 }} onClick={() => startEdit(r)}>
+                    <i className="ti ti-edit" /> Edit
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

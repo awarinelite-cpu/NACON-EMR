@@ -548,6 +548,38 @@ export async function addNote(emrNumber, visitId, noteData, author, role) {
   return ref.id;
 }
 
+// ─────────────────────────────────────────────
+// NURSES' DUTY REPORTS (ward-level shift report, not tied to one patient).
+// Stored in the existing 'notes' collection with type 'duty_report' so the
+// current security rules already cover it.
+// ─────────────────────────────────────────────
+export async function addDutyReport({ heading, body }, author, role) {
+  const ref = await addDoc(collection(db, COL.NOTES), deepStripUndefined({
+    type: 'duty_report', emrNumber: null, visitId: null,
+    heading, body,
+    authorName: author || 'Unknown staff', authorRole: role || null,
+    createdAt: serverTimestamp(),
+  }));
+  await logAudit('ADD_DUTY_REPORT', ref.id, author || 'Unknown staff', { heading }, role);
+  return ref.id;
+}
+
+export async function updateDutyReport(id, { heading, body }, editor, role) {
+  await updateDoc(doc(db, COL.NOTES, id), deepStripUndefined({
+    heading, body, editedBy: editor || 'Unknown staff', editedAt: serverTimestamp(),
+  }));
+  await logAudit('EDIT_DUTY_REPORT', id, editor || 'Unknown staff', { heading }, role);
+}
+
+export function listenDutyReports(callback) {
+  const q = query(collection(db, COL.NOTES), where('type', '==', 'duty_report'));
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    callback(docs.slice(0, 40));
+  });
+}
+
 export function listenNotes(emrNumber, callback) {
   const q = query(collection(db, COL.NOTES), where('emrNumber', '==', emrNumber));
   return onSnapshot(q, snap => {
