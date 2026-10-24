@@ -1798,3 +1798,28 @@ html, body { overflow-x: hidden; }
   .topbar .patient-search { position: relative; z-index: 200; }
   .page-content { overflow: visible; }
 }
+
+/* ══════════════════════════════════
+   PATIENT PROFILE on phones (portrait AND landscape): the whole page —
+   header, vitals, tabs, content and footnote — scrolls as ONE unit through
+   .main-area. Before, the profile had its own inner scroller, so the header
+   scrolled out of sight and the footnote sat on top of the content.
+══════════════════════════════════ */
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .pp-root {
+    height: auto !important;
+    min-height: 100%;
+    overflow: visible !important;
+  }
+  .pp-root .pp-header {
+    position: static !important;
+  }
+  /* vitals/actions block never collapses away on its own */
+  .pp-collapsible, .pp-collapsible.pp-collapsed {
+    max-height: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
