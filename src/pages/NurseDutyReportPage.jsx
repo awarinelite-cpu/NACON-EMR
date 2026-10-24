@@ -19,12 +19,12 @@ const shiftWindow = () => {
   return { start, end };
 };
 
-// Shift runs 1600hrs -> 0600hrs next day. Before 0600 we are still in the shift that began yesterday.
+// Shift runs 1700hrs -> 0600hrs next day. Before 0600 we are still in the shift that began yesterday.
 const makeHeading = () => {
   const now   = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 6 ? 1 : 0));
   const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
-  return `MRS DUTY REPORT FROM 1600HRS ${DAYS[start.getDay()]} ${fmtDate(start)} TO 0600HRS ${DAYS[end.getDay()]} ${fmtDate(end)}`;
+  return `MRS DUTY REPORT FROM 1700HRS ${DAYS[start.getDay()]} ${fmtDate(start)} TO 0600HRS ${DAYS[end.getDay()]} ${fmtDate(end)}`;
 };
 
 export default function NurseDutyReportPage() {
