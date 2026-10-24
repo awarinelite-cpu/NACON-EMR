@@ -78,35 +78,46 @@ export default function ShiftPatientCards({ start, end }) {
       .sort((a, b) => (a.patient?.surname || a.emr).localeCompare(b.patient?.surname || b.emr));
   }, [items, patients]);
 
-  const nameOf = (c) => c.patient
-    ? `${c.patient.surname || ''} ${c.patient.firstName || ''} ${c.patient.otherNames || ''}`.replace(/\s+/g, ' ').trim()
-    : c.emr;
+  const nameOf = (c) => {
+    if (!c.patient) return c.emr;
+    const nm = `${c.patient.surname || ''} ${c.patient.firstName || ''} ${c.patient.otherNames || ''}`.replace(/\s+/g, ' ').trim();
+    return c.patient.folderNumber ? `${nm} (${c.patient.folderNumber})` : nm;
+  };
+
+  const badgeOf = (c) => {
+    const types = new Set(c.events.map(e => e.type));
+    if (types.has('discharge')) return 'Discharge';
+    if (types.has('referral'))  return 'Int Trans Out';
+    const reg = c.patient?.registeredAt;
+    const regMs = reg?.toDate ? reg.toDate().getTime() : (reg?.seconds ? reg.seconds * 1000 : 0);
+    if (regMs >= startMs && regMs <= endMs) return 'New Patient';
+    if (types.has('admit')) return 'Admitted';
+    return '';
+  };
 
   return (
     <div style={{ margin:'14px 0' }}>
-      <div style={{ fontWeight:800, fontSize:13, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.04em', marginBottom:8 }}>
+      <div style={{ fontWeight:800, fontSize:13, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.04em', marginBottom:10 }}>
         Patients seen this shift {loaded ? `(${cards.length})` : ''}
       </div>
       {!loaded && <div style={{ color:'var(--t3)', fontWeight:700, padding:'8px 0' }}>Loading…</div>}
       {loaded && cards.length === 0 && (
         <div style={{ color:'var(--t3)', fontWeight:700, padding:'8px 0' }}>No patient activity recorded for this shift yet</div>
       )}
-      {cards.map(c => {
+      {cards.map((c, idx) => {
         const open = openEmr === c.emr;
         const p = c.patient;
+        const badge = badgeOf(c);
         return (
-          <div key={c.emr} ref={open ? openRef : null}
-            style={{ border:'1px solid var(--border)', borderRadius:12, background:'var(--card-bg)', marginBottom:8, overflow:'hidden' }}>
-            <button type="button" onClick={() => setOpenEmr(open ? null : c.emr)} aria-expanded={open}
-              style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'12px 14px', background:'none', border:'none',
-                       cursor:'pointer', textAlign:'left', fontFamily:'var(--font)', color:'var(--t1)' }}>
-              <i className="ti ti-user" style={{ color:'var(--accent)', fontSize:18 }} />
-              <span style={{ flex:1, fontWeight:800, fontSize:15, overflowWrap:'anywhere' }}>{nameOf(c)}</span>
-              <span style={{ fontSize:12, color:'var(--t3)', fontWeight:700 }}>{c.events.length}</span>
-              <i className={`ti ti-chevron-${open ? 'up' : 'down'}`} style={{ color:'var(--t3)' }} />
+          <div key={c.emr} ref={open ? openRef : null} className={`shift-card${open ? ' is-open' : ''}`}>
+            <button type="button" className="shift-card-head" onClick={() => setOpenEmr(open ? null : c.emr)} aria-expanded={open}>
+              <span className="shift-card-num">{idx + 1}.</span>
+              <span className="shift-card-name">{nameOf(c)}</span>
+              {badge && <span className="shift-card-badge">{badge}</span>}
+              <span className="shift-card-arrow" aria-hidden="true">▼</span>
             </button>
             {open && (
-              <div style={{ padding:'0 14px 14px', borderTop:'1px solid var(--border)' }}>
+              <div className="shift-card-body">
                 {p && (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px 12px', fontSize:13, margin:'12px 0', color:'var(--t2)' }}>
                     <div><b>EMR No:</b> {p.emrNumber}</div>

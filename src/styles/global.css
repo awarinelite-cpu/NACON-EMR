@@ -2092,3 +2092,32 @@ html, body { overflow-x: hidden; }
     white-space: nowrap; font-size: 20px; font-size: min(30px, 1.75cqw);
   }
 }
+
+/* Nurses report — patient shift cards (pill look) */
+.shift-card {
+  border-radius: 40px; margin-bottom: 14px; overflow: hidden;
+  background: linear-gradient(180deg, #f6f8fc 0%, #d6dce8 100%);
+  border: 1px solid #c9d0de;
+  box-shadow: 0 6px 14px rgba(40, 55, 90, .22), inset 0 2px 3px rgba(255, 255, 255, .9);
+}
+.shift-card.is-open { border-radius: 26px; }
+.shift-card-head {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 16px 22px; background: none; border: none; cursor: pointer;
+  text-align: left; font-family: var(--font); color: #0f1b3d;
+}
+.shift-card-num  { font-size: 20px; font-weight: 800; color: #3d4663; flex-shrink: 0; }
+.shift-card-name { flex: 1; min-width: 0; font-size: 20px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shift-card-badge {
+  flex-shrink: 0; background: #fde3e3; color: #8b1e1e; border-radius: 999px;
+  padding: 6px 14px; font-size: 14px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap;
+}
+.shift-card-arrow { flex-shrink: 0; font-size: 16px; color: #4b5470; transition: transform .15s; }
+.shift-card.is-open .shift-card-arrow { transform: rotate(180deg); }
+.shift-card-body { padding: 4px 22px 18px; background: rgba(255, 255, 255, .55); color: #0f1b3d; }
+.shift-card-body, .shift-card-body * { --t1: #0f1b3d; --t2: #3d4663; --t3: #66708c; --border: #cdd3e0; }
+@media (max-width: 480px) {
+  .shift-card-head { padding: 14px 16px; gap: 8px; }
+  .shift-card-num, .shift-card-name { font-size: 17px; }
+  .shift-card-badge { font-size: 12px; padding: 5px 10px; }
+}
