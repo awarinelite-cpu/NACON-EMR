@@ -33,6 +33,9 @@ export default function AppShell() {
   // Auto-close sidebar on every route change
   useEffect(() => {
     setSidebarOpen(false);
+    // Always start a new page at the top so its header is never scrolled out of view
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+    window.scrollTo(0, 0);
     // landscape / wide screens use the desktop sidebar state — close that too
     if (window.innerWidth > 768) {
       setDesktopCollapsed(true);
