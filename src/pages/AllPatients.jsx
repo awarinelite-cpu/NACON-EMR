@@ -16,7 +16,7 @@ export default function AllPatients({ role, filter }) {
   const navigate    = useNavigate();
   const [patients, setPatients]   = useState([]);
   const [classSets, setClassSets] = useState([]);
-  const [collapsed, setCollapsed] = useState({});
+  const [selectedSet, setSelectedSet] = useState(null);
   const [adding, setAdding]       = useState(false);
   const [newSet, setNewSet]       = useState('');
   const [saving, setSaving]       = useState(false);
@@ -84,100 +84,123 @@ export default function AllPatients({ role, filter }) {
         )}
       </div>
       <div className="page-content">
-        {/* Admin: add a new SET */}
-        {isAdmin && (
-          <div style={{ marginBottom:14 }}>
-            {!adding ? (
-              <button className="btn btn-sm" onClick={() => setAdding(true)}>
-                <i className="ti ti-plus" /> Add set
-              </button>
-            ) : (
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
-                <input
-                  className="form-input"
-                  style={{ maxWidth:180 }}
-                  placeholder="e.g. SET 53"
-                  value={newSet}
-                  autoFocus
-                  onChange={e => setNewSet(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && newSet.trim()) handleAddSet(); }}
-                />
-                <button className="btn btn-sm btn-primary" disabled={saving || !newSet.trim()} onClick={handleAddSet}>
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-                <button className="btn btn-sm" onClick={() => { setAdding(false); setNewSet(''); }}>
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {groups.map(g => {
-          const isCollapsed = !!collapsed[g.name];
-          return (
-            <div className="card" key={g.name} style={{ marginBottom:14 }}>
-              <div className="card-header"
-                style={{ cursor:'pointer' }}
-                onClick={() => setCollapsed(c => ({ ...c, [g.name]: !c[g.name] }))}>
-                <div className="card-title">
-                  <i className="ti ti-users" />
-                  {g.name} · {g.list.length} patient{g.list.length!==1?'s':''}
-                </div>
-                <i className={`ti ti-chevron-${isCollapsed ? 'down' : 'up'}`} style={{ color:'var(--t3)' }} />
-              </div>
-              {!isCollapsed && g.list.map(p => (
-                <div key={p.id} className="patient-row" onClick={() => navigate(`/patient/${p.emrNumber}`)}>
-                  <div className="p-avatar" style={{ background:'var(--accent-bg)', color:'var(--accent)' }}>
-                    {getInitials(p)}
+        {!selectedSet ? (
+          <>
+            {/* SET cards */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:12 }}>
+              {groups.map(g => (
+                <div key={g.name} className="card"
+                  onClick={() => setSelectedSet(g.name)}
+                  style={{ cursor:'pointer', marginBottom:0, textAlign:'center', padding:'18px 10px' }}>
+                  <i className="ti ti-users-group" style={{ fontSize:26, color:'var(--accent)' }} />
+                  <div style={{ fontSize:18, fontWeight:800, marginTop:6 }}>{g.name}</div>
+                  <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>
+                    {g.list.length} patient{g.list.length!==1?'s':''}
                   </div>
-                  <div className="p-info">
-                    <div className="p-name">{p.surname} {p.firstName} {p.otherNames}</div>
-                    <div className="p-meta">{p.classSet} · {p.folderNumber} · {p.matricNo}
-                      {p.patientIdentity && (
-                        <span style={{
-                          marginLeft:6, fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:4,
-                          background: p.patientIdentity === 'Soldier' ? 'rgba(29,78,216,.12)' : 'rgba(124,58,237,.12)',
-                          color: p.patientIdentity === 'Soldier' ? '#1d4ed8' : '#7c3aed',
-                        }}>
-                          {p.patientIdentity === 'Soldier' ? '🪖' : '👤'} {p.patientIdentity}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
-                    <span className="emr-tag">{p.emrNumber}</span>
-                    <span className={`badge ${statusCls(p.status)}`}>{p.status}</span>
-                  </div>
-                  {role === 'records' && (
-                    <button
-                      className="btn btn-sm"
-                      onClick={e => { e.stopPropagation(); navigate(`/records/edit/${p.emrNumber}`); }}
-                      style={{ marginLeft:4, flexShrink:0 }}
-                      title="Edit patient record"
-                    >
-                      <i className="ti ti-edit" />
-                    </button>
-                  )}
-                  <i className="ti ti-chevron-right" style={{ fontSize:16, color:'var(--t3)', marginLeft:4 }} />
                 </div>
               ))}
-              {!isCollapsed && g.list.length === 0 && (
-                <div style={{ padding:20, textAlign:'center', color:'var(--t3)', fontSize:12 }}>
-                  No patients in {g.name} yet
-                </div>
+
+              {/* Admin: add a new SET */}
+              {isAdmin && (
+                !adding ? (
+                  <div className="card" onClick={() => setAdding(true)}
+                    style={{ cursor:'pointer', marginBottom:0, textAlign:'center', padding:'18px 10px',
+                             borderStyle:'dashed', color:'var(--t3)' }}>
+                    <i className="ti ti-plus" style={{ fontSize:26 }} />
+                    <div style={{ fontSize:14, fontWeight:700, marginTop:6 }}>Add set</div>
+                  </div>
+                ) : (
+                  <div className="card" style={{ marginBottom:0, padding:'14px 10px', borderStyle:'dashed' }}>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. SET 53"
+                      value={newSet}
+                      autoFocus
+                      onChange={e => setNewSet(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && newSet.trim()) handleAddSet(); }}
+                    />
+                    <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'center' }}>
+                      <button className="btn btn-sm btn-primary" disabled={saving || !newSet.trim()} onClick={handleAddSet}>
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button className="btn btn-sm" onClick={() => { setAdding(false); setNewSet(''); }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )
               )}
             </div>
-          );
-        })}
 
-        {groups.length === 0 && (
-          <div className="card">
-            <div style={{ padding:32, textAlign:'center', color:'var(--t3)' }}>
-              <i className="ti ti-users-off" style={{ fontSize:32, display:'block', marginBottom:8 }} />
-              <div style={{ fontWeight:700 }}>No patients found</div>
-            </div>
-          </div>
+            {groups.length === 0 && (
+              <div className="card">
+                <div style={{ padding:32, textAlign:'center', color:'var(--t3)' }}>
+                  <i className="ti ti-users-off" style={{ fontSize:32, display:'block', marginBottom:8 }} />
+                  <div style={{ fontWeight:700 }}>No patients found</div>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          (() => {
+            const g = groups.find(x => x.name === selectedSet) || { name: selectedSet, list: [] };
+            return (
+              <>
+                <button className="btn btn-sm" style={{ marginBottom:12 }} onClick={() => setSelectedSet(null)}>
+                  <i className="ti ti-arrow-left" /> All sets
+                </button>
+                <div className="card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <i className="ti ti-users" />
+                      {g.name} · {g.list.length} patient{g.list.length!==1?'s':''}
+                    </div>
+                  </div>
+                  {g.list.map(p => (
+                    <div key={p.id} className="patient-row" onClick={() => navigate(`/patient/${p.emrNumber}`)}>
+                      <div className="p-avatar" style={{ background:'var(--accent-bg)', color:'var(--accent)' }}>
+                        {getInitials(p)}
+                      </div>
+                      <div className="p-info">
+                        <div className="p-name">{p.surname} {p.firstName} {p.otherNames}</div>
+                        <div className="p-meta">{p.classSet} · {p.folderNumber} · {p.matricNo}
+                          {p.patientIdentity && (
+                            <span style={{
+                              marginLeft:6, fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:4,
+                              background: p.patientIdentity === 'Soldier' ? 'rgba(29,78,216,.12)' : 'rgba(124,58,237,.12)',
+                              color: p.patientIdentity === 'Soldier' ? '#1d4ed8' : '#7c3aed',
+                            }}>
+                              {p.patientIdentity === 'Soldier' ? '🪖' : '👤'} {p.patientIdentity}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+                        <span className="emr-tag">{p.emrNumber}</span>
+                        <span className={`badge ${statusCls(p.status)}`}>{p.status}</span>
+                      </div>
+                      {role === 'records' && (
+                        <button
+                          className="btn btn-sm"
+                          onClick={e => { e.stopPropagation(); navigate(`/records/edit/${p.emrNumber}`); }}
+                          style={{ marginLeft:4, flexShrink:0 }}
+                          title="Edit patient record"
+                        >
+                          <i className="ti ti-edit" />
+                        </button>
+                      )}
+                      <i className="ti ti-chevron-right" style={{ fontSize:16, color:'var(--t3)', marginLeft:4 }} />
+                    </div>
+                  ))}
+                  {g.list.length === 0 && (
+                    <div style={{ padding:24, textAlign:'center', color:'var(--t3)', fontSize:12 }}>
+                      No patients in {g.name} yet
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()
         )}
       </div>
     </div>
