@@ -1989,3 +1989,27 @@ html, body { overflow-x: hidden; }
   .sidebar .sb-footer { padding: 12px 10px !important; }
   .sidebar .sb-user { gap: 8px !important; }
 }
+
+/* ══════════════════════════════════
+   PHARMACY page on phones: everything fits the screen width
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  .ph-root { max-width: 100%; overflow-x: hidden !important; }
+  .ph-root .topbar-title { white-space: normal; overflow-wrap: anywhere; }
+  .ph-root .topbar input { max-width: 100% !important; width: 100%; flex: 1 1 100% !important; min-width: 0; }
+  /* 4 summary cards → 2 x 2 */
+  .ph-root .ph-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .ph-root .ph-stats .stat-card { min-width: 0; padding: 10px 12px; }
+  .ph-root .ph-stats .stat-label { white-space: normal; font-size: 11px; line-height: 1.2; }
+  /* tabs share the width and wrap their text instead of running off */
+  .ph-root .ph-tabs { gap: 2px !important; }
+  .ph-root .ph-tabs button { min-width: 0; padding: 8px 2px !important; font-size: 11px !important; line-height: 1.2; white-space: normal; }
+  /* prescription rows */
+  .ph-root .ph-rx-head { flex-wrap: wrap; row-gap: 4px; }
+  .ph-root .ph-rx-head > div:nth-child(2) { min-width: 0; flex: 1 1 140px; overflow-wrap: anywhere; }
+  .ph-root .ph-rx-drugs { padding-left: 0 !important; }
+  .ph-root .ph-rx-drugs > div { flex-wrap: wrap; min-width: 0; }
+  .ph-root .ph-rx-drugs > div > div { min-width: 0; overflow-wrap: anywhere; }
+  .ph-root .page-content .card > div[style*="padding-left: 48px"],
+  .ph-root .page-content .card > div > div[style*="padding-left: 48px"] { padding-left: 0 !important; }
+}

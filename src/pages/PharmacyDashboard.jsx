@@ -89,7 +89,7 @@ export default function PharmacyDashboard() {
   });
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
+    <div className="ph-root" style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
       {/* ── Topbar ── */}
       <div className="topbar">
         <div className="topbar-title">
@@ -109,7 +109,7 @@ export default function PharmacyDashboard() {
 
       <div className="page-content">
         {/* ── Summary cards ── */}
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12, marginBottom:12}}>
+        <div className="ph-stats" style={{display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:12, marginBottom:12}}>
           <div className="stat-card" style={{cursor:'pointer'}} onClick={() => setTab('queue')}>
             <div className="stat-label"><i className="ti ti-clock" style={{color:'#f97316'}} />Pending Rx</div>
             <div className="stat-value" style={{color:'#f97316'}}>{pending.length}</div>
@@ -129,7 +129,7 @@ export default function PharmacyDashboard() {
         </div>
 
         {/* ── Tabs ── */}
-        <div style={{display:'flex', gap:4, background:'var(--card-bg)', border:'1px solid var(--border)', borderRadius:10, padding:4, marginBottom:12}}>
+        <div className="ph-tabs" style={{display:'flex', gap:4, background:'var(--card-bg)', border:'1px solid var(--border)', borderRadius:10, padding:4, marginBottom:12}}>
           <button style={tabStyle('queue')}     onClick={() => setTab('queue')}>Pending Queue ({pending.length})</button>
           <button style={tabStyle('inventory')} onClick={() => setTab('inventory')}>Inventory ({inventory.length})</button>
           <button style={tabStyle('log')}       onClick={() => setTab('log')}>Today's Log ({dispensed.length})</button>
@@ -148,7 +148,7 @@ export default function PharmacyDashboard() {
                   const name = p ? `${p.surname} ${p.firstName}` : rx.emrNumber;
                   return (
                     <div key={rx.id} style={{padding:'12px 16px', borderBottom:'1px solid var(--border)'}}>
-                      <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:8}}>
+                      <div className="ph-rx-head" style={{display:'flex', alignItems:'center', gap:10, marginBottom:8}}>
                         {/* Patient avatar */}
                         <div style={{
                           width:38, height:38, borderRadius:'50%', flexShrink:0,
@@ -166,16 +166,16 @@ export default function PharmacyDashboard() {
                         </div>
                         <span style={{
                           fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:6,
-                          background: rx.prescribedByRole==='nurse' ? 'var(--warn-bg)' : 'var(--accent-bg)',
-                          color: rx.prescribedByRole==='nurse' ? 'var(--warn)' : 'var(--accent)',
+                          background: 'var(--accent-bg)',
+                          color: 'var(--accent)',
                         }}>
-                          {rx.prescribedByRole === 'nurse' ? '⚠ Nurse Rx' : 'Doctor Rx'}
+                          {rx.prescribedByRole === 'nurse' ? 'Nurse Rx' : 'Doctor Rx'}
                         </span>
                         <div style={{fontSize:10, color:'var(--t3)'}}>{formatTs(rx.createdAt)}</div>
                       </div>
 
                       {/* Drug list */}
-                      <div style={{display:'flex', flexDirection:'column', gap:5, marginBottom:10, paddingLeft:48}}>
+                      <div className="ph-rx-drugs" style={{display:'flex', flexDirection:'column', gap:5, marginBottom:10, paddingLeft:48}}>
                         {(rx.drugs||[]).map((d,i) => {
                           const drugName  = d.name || d.drug || '';
                           const stockItem = inventory.find(inv => inv.name?.toLowerCase() === drugName?.toLowerCase());
