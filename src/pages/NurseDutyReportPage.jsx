@@ -133,12 +133,13 @@ export default function NurseDutyReportPage() {
                   {r.authorName} · {formatTs(r.createdAt)}{r.editedAt ? ' · edited' : ''}{Array.isArray(r.patientsSeen) ? ` · ${r.patientsSeen.length} patient${r.patientsSeen.length === 1 ? '' : 's'} seen` : ''}
                 </div>
               </div>
+              <SavedPatientsSeen patients={r.patientsSeen} />
               {openId === r.id && (
                 <>
                   <div style={{ whiteSpace:'pre-wrap', fontSize:13, lineHeight:1.6, marginTop:8, color:'var(--t1)', overflowWrap:'anywhere' }}>
                     {r.body}
                   </div>
-                  <SavedPatientsSeen patients={r.patientsSeen} />
+
                   <button className="btn btn-sm" style={{ marginTop:8 }} onClick={() => startEdit(r)}>
                     <i className="ti ti-edit" /> Edit
                   </button>
