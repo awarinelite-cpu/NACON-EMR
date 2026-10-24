@@ -71,11 +71,6 @@ export default function NurseDutyReportPage() {
 
       <div className="page-content" style={{ flex:1, display:'flex', flexDirection:'column', gap:14 }}>
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <i className="ti ti-notes-medical" />{editingId ? 'Edit duty report' : 'New duty report'}
-            </div>
-          </div>
           <div className="card-body">
             <div className="form-group">
               <label className="duty-heading">
