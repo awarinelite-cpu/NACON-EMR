@@ -12,6 +12,12 @@ const fmtDate = (d) =>
   `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
 
 // Shift window for the patient cards: 1700hrs -> 0600hrs next day
+// Safe date display (handles Firestore Timestamps, {seconds} objects, numbers; blank while the server time is pending)
+const fmtWhen = (ts) => {
+  const ms = ts?.toDate ? ts.toDate().getTime() : (ts?.seconds != null ? ts.seconds * 1000 : (typeof ts === 'number' ? ts : 0));
+  return ms ? formatTs(new Date(ms)) : '';
+};
+
 const shiftWindow = () => {
   const now   = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 6 ? 1 : 0), 17, 0, 0);
@@ -173,15 +179,15 @@ export default function NurseDutyReportPage() {
               <div onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor:'pointer' }}>
                 <div style={{ fontWeight:800, fontSize:13, color:'var(--t1)', overflowWrap:'anywhere' }}>{r.heading}</div>
                 <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>
-                  {r.authorName} · {formatTs(r.createdAt)}{r.editedAt ? ' · edited' : ''}{Array.isArray(r.patientsSeen) ? ` · ${r.patientsSeen.length} patient${r.patientsSeen.length === 1 ? '' : 's'} seen` : ''}
+                  {r.authorName} · {fmtWhen(r.createdAt)}{r.editedAt ? ' · edited' : ''}{Array.isArray(r.patientsSeen) ? ` · ${r.patientsSeen.length} patient${r.patientsSeen.length === 1 ? '' : 's'} seen` : ''}
                 </div>
               </div>
-              <SavedPatientsSeen patients={r.patientsSeen} />
               {openId === r.id && (
                 <>
                   <div style={{ whiteSpace:'pre-wrap', fontSize:13, lineHeight:1.6, marginTop:8, color:'var(--t1)', overflowWrap:'anywhere' }}>
                     {r.body}
                   </div>
+                  <SavedPatientsSeen patients={r.patientsSeen} />
 
                   <button className="btn btn-sm" style={{ marginTop:8 }} onClick={() => startEdit(r)}>
                     <i className="ti ti-edit" /> Edit
