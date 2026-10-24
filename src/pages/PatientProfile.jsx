@@ -231,7 +231,7 @@ export default function PatientProfile() {
           display:'flex', alignItems:'flex-end',
         }} onClick={() => setSelectedEvent(null)}>
           <div style={{
-            width:'100%', maxHeight:'80vh',
+            width:'100%', height:'calc(70vh / 1.0625)', maxHeight:'calc(70vh / 1.0625)',
             background:'var(--card-bg)',
             borderRadius:'18px 18px 0 0',
             display:'flex', flexDirection:'column',
@@ -269,7 +269,7 @@ export default function PatientProfile() {
             </div>
 
             {/* Drawer body — scrollable */}
-            <div style={{ overflowY:'auto', padding:'16px', overscrollBehavior:'none' }}>
+            <div style={{ overflowY:'auto', padding:'16px', overscrollBehavior:'none', flex:1, minHeight:0 }}>
 
               {/* ── NOTE ── */}
               {selectedEvent.type === 'note' && (() => {
@@ -2364,7 +2364,7 @@ export default function PatientProfile() {
           display:'flex', alignItems:'flex-end',
         }} onClick={() => setSelectedEvent(null)}>
           <div style={{
-            width:'100%', maxHeight:'80vh',
+            width:'100%', height:'calc(70vh / 1.0625)', maxHeight:'calc(70vh / 1.0625)',
             background:'var(--card-bg)',
             borderRadius:'18px 18px 0 0',
             display:'flex', flexDirection:'column',
@@ -2402,7 +2402,7 @@ export default function PatientProfile() {
             </div>
 
             {/* Drawer body — scrollable */}
-            <div style={{ overflowY:'auto', padding:'16px', overscrollBehavior:'none' }}>
+            <div style={{ overflowY:'auto', padding:'16px', overscrollBehavior:'none', flex:1, minHeight:0 }}>
 
               {/* ── NOTE ── */}
               {selectedEvent.type === 'note' && (() => {
