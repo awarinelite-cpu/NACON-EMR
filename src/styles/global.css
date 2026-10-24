@@ -2064,3 +2064,18 @@ html, body { overflow-x: hidden; }
     overflow-y: visible !important;
   }
 }
+
+/* Pharmacy header in LANDSCAPE: the title keeps its full width on one line and
+   the search box shrinks to a compact size beside it */
+@media (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .ph-root .topbar { flex-wrap: nowrap !important; align-items: center; }
+  .ph-root .topbar-title {
+    flex: 0 0 auto !important; width: auto !important;
+    white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important;
+  }
+  .ph-root .topbar input {
+    flex: 0 1 220px !important; width: 220px !important;
+    max-width: 38% !important; min-width: 120px; margin-left: auto;
+  }
+}
