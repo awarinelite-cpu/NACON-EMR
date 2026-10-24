@@ -44,7 +44,6 @@ export function buildDrugList(prescriptions) {
         status: d.status || 'active', action: actionOfStatus(d.status),
         inventoryDeducted: !!d.inventoryDeducted,
         prescribedBy: rx.prescribedBy, prescribedByRole: rx.prescribedByRole,
-        requiresCountersign: rx.requiresCountersign, countersigned: rx.countersigned,
         startedAt: tsDate(rx.createdAt),
       });
     });

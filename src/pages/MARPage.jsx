@@ -139,8 +139,6 @@ export default function MARPage() {
       prescribedBy: rx.prescribedBy,
       prescribedByRole: rx.prescribedByRole,
       rxCreatedAt:  rx.createdAt,
-      requiresCountersign: rx.requiresCountersign,
-      countersigned: rx.countersigned,
     }))
   );
 
@@ -364,13 +362,6 @@ export default function MARPage() {
                           <tr key={i} style={{ opacity: isActive ? 1 : 0.55 }}>
                             <td style={{ fontWeight:700 }}>
                               {d.drug}
-                              {d.requiresCountersign && !d.countersigned && (
-                                <span style={{
-                                  marginLeft:6, fontSize:9, fontWeight:700,
-                                  padding:'1px 6px', borderRadius:10,
-                                  background:'var(--warn-bg)', color:'var(--warn)',
-                                }}>Nurse Rx</span>
-                              )}
                             </td>
                             <td style={{ color:'var(--t2)' }}>{d.dose || '—'}</td>
                             <td style={{ color:'var(--t2)' }}>{d.frequency || '—'}</td>

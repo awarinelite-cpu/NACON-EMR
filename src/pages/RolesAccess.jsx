@@ -63,14 +63,14 @@ const ROLES = [
     badge: 'badge-info',
     icon: 'ti-heart-rate-monitor',
     label: 'Nurse',
-    description: 'Clinical nursing access. Can record vitals, write nursing notes, and prescribe (flagged for countersign).',
+    description: 'Clinical nursing access. Can record vitals, write nursing notes, and prescribe.',
     permissions: [
       'View and search all patients',
       'Record vital signs',
       'Write nursing notes',
       'Maintain fluid and glucose charts',
       'Upload results and reports',
-      'Prescribe medications (requires doctor countersign)',
+      'Prescribe medications',
       'Manage sick bay patients',
     ],
     cannot: [

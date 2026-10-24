@@ -386,11 +386,6 @@ export default function PatientProfile() {
                 const r = selectedEvent.data;
                 return (
                   <div>
-                    {r.requiresCountersign && (
-                      <div className="alert alert-warn" style={{ marginBottom:12 }}>
-                        <i className="ti ti-alert-triangle" /> Nurse prescription — requires doctor countersignature
-                      </div>
-                    )}
                     <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
                       {r.drugs?.map((d, i) => (
                         <div key={i} style={{
@@ -719,7 +714,7 @@ export default function PatientProfile() {
       const { inventory } = await addPrescriptionWithStock(emrNumber, vid, drugs, profile.displayName || profile.email || 'Unknown', profile.role || 'nurse');
       showStockToasts(inventory);
       setRxForm([{ drug:'', dose:'', frequency:'', duration:'' }]);
-      toast.success(isNurse ? 'Rx saved — countersign required' : 'Prescription saved');
+      toast.success('Prescription saved');
     } catch(e) { console.error('saveRx',e); toast.error('Failed: ' + (e?.message||e)); }
     setSaving(false);
   };
@@ -1236,9 +1231,6 @@ export default function PatientProfile() {
                         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                           <i className={`ti ${tlIcon[item.type]}`} style={{ color: tlColor[item.type], fontSize:17 }} />
                           <div className="tl-title">{tlTitle[item.type]}</div>
-                          {item.type==='rx' && item.data.requiresCountersign && (
-                            <span className="badge badge-warn" style={{ fontSize:12 }}>Nurse Rx</span>
-                          )}
                         </div>
                         <div className="tl-sub">{tlDesc(item)}</div>
                         <div style={{ fontSize:14, color:'var(--t3)', marginTop:2 }}>
@@ -1358,12 +1350,6 @@ export default function PatientProfile() {
         {/* ── PRESCRIPTION TAB ── */}
         {activeTab==='rx' && (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {!viewOnly && isNurse && (
-              <div className="alert alert-warn">
-                <i className="ti ti-alert-triangle" />
-                Nurse prescription — requires doctor countersignature.
-              </div>
-            )}
             {!viewOnly && <div className="card">
               <div className="card-header">
                 <div className="card-title"><i className="ti ti-pill" />Write Prescription</div>
@@ -2554,11 +2540,6 @@ export default function PatientProfile() {
                 const r = selectedEvent.data;
                 return (
                   <div>
-                    {r.requiresCountersign && (
-                      <div className="alert alert-warn" style={{ marginBottom:12 }}>
-                        <i className="ti ti-alert-triangle" /> Nurse prescription — requires doctor countersignature
-                      </div>
-                    )}
                     <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
                       {r.drugs?.map((d, i) => (
                         <div key={i} style={{

@@ -670,8 +670,6 @@ export async function addPrescriptionWithStock(emrNumber, visitId, rxData, presc
     visitId: visitId || null,
     prescribedBy,
     prescribedByRole: role,
-    requiresCountersign: role === ROLES.NURSE,
-    countersigned: false,
     dispensed: false,          // awaits pharmacist dispensing
   };
 
@@ -768,7 +766,7 @@ export async function addPrescriptionWithStock(emrNumber, visitId, rxData, presc
   if (!saved) await setDoc(rxRef, { ...baseDoc, drugs: lines, createdAt: serverTimestamp() });
 
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
-  await logAudit('PRESCRIPTION', emrNumber, prescribedBy, { requiresCountersign: role === ROLES.NURSE }, role);
+  await logAudit('PRESCRIPTION', emrNumber, prescribedBy, {}, role);
   return { id: rxRef.id, inventory };
 }
 

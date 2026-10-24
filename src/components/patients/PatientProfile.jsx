@@ -92,7 +92,7 @@ export default function PatientProfile({ backPath }) {
     })),
     ...rxList.map(r => ({
       type: 'prescription', color: '#1855A3',
-      text: `Prescribed ${r.drugs?.length || 0} drug(s)${r.requiresCountersign ? ' — ⚠ Nurse Rx, countersign needed' : ''}`,
+      text: `Prescribed ${r.drugs?.length || 0} drug(s)`,
       by: r.prescribedBy, at: r.createdAt,
     })),
     ...fluids.map(f => ({
@@ -253,12 +253,6 @@ export default function PatientProfile({ backPath }) {
         {/* PRESCRIPTION */}
         {activeTab === 'prescription' && (
           <>
-            {role === ROLES.NURSE && (
-              <div className="alert alert-warn">
-                <i className="ti ti-alert-triangle" />
-                <div>You are prescribing as a nurse. This will be flagged for doctor countersign.</div>
-              </div>
-            )}
             <RxForm emr={emr} profile={profile} role={role}
               onSaved={() => toast.success('Prescription saved')} />
             <RxHistory rxList={rxList} patient={patient} />
@@ -807,7 +801,7 @@ function RxHistory({ rxList, patient }) {
     const minute = Math.floor(ts / 60);
     const key = `${rx.prescribedBy}__${minute}`;
     if (!seenKeys[key]) {
-      seenKeys[key] = { key, at: rx.createdAt, by: rx.prescribedBy, requiresCountersign: rx.requiresCountersign, rxs: [] };
+      seenKeys[key] = { key, at: rx.createdAt, by: rx.prescribedBy, rxs: [] };
       grouped.push(seenKeys[key]);
     }
     seenKeys[key].rxs.push(rx);
@@ -825,7 +819,7 @@ function RxHistory({ rxList, patient }) {
 Patient: ${patientName}
 EMR: ${emrNo}
 Date: ${dateStr}
-Prescribed by: ${group.by}${group.requiresCountersign ? ' (Nurse Rx — awaiting countersign)' : ''}
+Prescribed by: ${group.by}
 
 MEDICATIONS:
 ${drugLines}
@@ -866,7 +860,6 @@ th{background:#1855A3;color:#fff;padding:8px;text-align:left}
   <div><strong>Folder:</strong> ${folder}</div>
   <div><strong>Date:</strong> ${dateStr}</div>
   <div><strong>Prescribed by:</strong> ${group.by}</div>
-  ${group.requiresCountersign ? '<div><span class="badge">⚠ Nurse Rx — Countersign needed</span></div>' : ''}
 </div>
 <table>
   <thead><tr><th>Drug</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead>
@@ -914,9 +907,6 @@ th{background:#1855A3;color:#fff;padding:8px;text-align:left}
                   </div>
                   <div style={{ fontSize:11, color:'var(--t3)', fontWeight:500, marginTop:1 }}>
                     {drugCount} medication{drugCount!==1?'s':''} · {group.by}
-                    {group.requiresCountersign && (
-                      <span className="badge badge-warn" style={{ fontSize:9, marginLeft:6 }}>⚠ Nurse Rx</span>
-                    )}
                   </div>
                 </div>
                 <i className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`}
@@ -962,9 +952,6 @@ th{background:#1855A3;color:#fff;padding:8px;text-align:left}
                   }}>
                     <span><strong style={{color:'var(--t2)'}}>Prescribed by:</strong> {group.by}</span>
                     <span><strong style={{color:'var(--t2)'}}>Date:</strong> {formatDateTime(group.at)}</span>
-                    {group.requiresCountersign && (
-                      <span className="badge badge-warn">⚠ Nurse Rx — countersign required</span>
-                    )}
                   </div>
 
                   {/* Action buttons */}

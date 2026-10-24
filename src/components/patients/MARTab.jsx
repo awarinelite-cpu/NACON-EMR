@@ -440,7 +440,6 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
                           {ed ? <input type="text" className="mar68-input" style={{ textAlign: 'left' }} value={ed.name} onChange={e => setEd({ name: e.target.value })} />
                             : (<>
                               {d.name || '—'}
-                              {d.requiresCountersign && !d.countersigned && <span className="mar68-nurse-rx">Nurse Rx</span>}
                             </>)}
                         </td>
                         <td style={drugTone(d, due)}>{ed ? <input type="text" className="mar68-input" value={ed.dose} onChange={e => setEd({ dose: e.target.value })} /> : (d.dose || '—')}</td>
