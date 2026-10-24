@@ -2085,11 +2085,11 @@ html, body { overflow-x: hidden; }
   font-size: 22px; font-weight: 800; line-height: 1.4; letter-spacing: .02em;
   color: var(--t1); text-transform: uppercase; margin-bottom: 10px;
 }
-/* Mobile: heading fits on exactly two lines (split before "TO 0600HRS") */
+/* Mobile: heading is 15px, split before "TO 0600HRS" */
 @media (max-width: 768px) {
   .duty-heading-wrap { container-type: inline-size; }
-  .duty-heading { font-size: min(13px, 3.3cqw); line-height: 1.5; letter-spacing: .04em; } /* 13px = same as 'Patients seen this shift'; shrinks only on very narrow phones */
-  .duty-heading .duty-heading-line { white-space: nowrap; }
+  .duty-heading { font-size: 15px; line-height: 1.5; letter-spacing: 0; }
+  .duty-heading .duty-heading-line { white-space: normal; }
 }
 @media (min-width: 769px) {
   .duty-heading-wrap { container-type: inline-size; }
