@@ -597,6 +597,21 @@ export async function deleteDutyDraft(shiftKey) {
   await deleteDoc(doc(db, COL.NOTES, `duty_draft_${shiftKey}`));
 }
 
+// "Patients seen" cutoff for a shift. Written on Submit and NOT removed when a report is deleted,
+// so submitted patients never come back under the textarea.
+export async function setDutyMarker(shiftKey, who) {
+  await setDoc(doc(db, COL.NOTES, `duty_marker_${shiftKey}`), {
+    type: 'duty_report_marker', emrNumber: null, visitId: null,
+    clearedMs: Date.now(), updatedBy: who || 'Unknown staff', updatedAt: serverTimestamp(),
+  });
+}
+
+export function listenDutyMarker(shiftKey, callback) {
+  return onSnapshot(doc(db, COL.NOTES, `duty_marker_${shiftKey}`),
+    snap => callback(snap.exists() && typeof snap.data().clearedMs === 'number' ? snap.data().clearedMs : 0),
+    () => callback(0));
+}
+
 export async function deleteDutyReport(id, who, role, heading) {
   await deleteDoc(doc(db, COL.NOTES, id));
   await logAudit('DELETE_DUTY_REPORT', id, who || 'Unknown staff', { heading }, role);

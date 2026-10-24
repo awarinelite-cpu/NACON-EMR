@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
 import ShiftPatientCards, { SavedPatientsSeen } from '../components/nurse/ShiftPatientCards';
-import { addDutyReport, updateDutyReport, listenDutyReports, saveDutyDraft, getDutyDraft, deleteDutyDraft, deleteDutyReport, formatTs } from '../lib/emr';
+import { addDutyReport, updateDutyReport, listenDutyReports, saveDutyDraft, getDutyDraft, deleteDutyDraft, deleteDutyReport, setDutyMarker, listenDutyMarker, formatTs } from '../lib/emr';
 
 const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const fmtDate = (d) =>
@@ -49,6 +49,7 @@ export default function NurseDutyReportPage() {
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftAt,   setDraftAt]   = useState(null);
   const [seenSnap,  setSeenSnap]  = useState(null);   // live snapshot of the patient cards (null while loading)
+  const [clearedMs,  setClearedMs]  = useState(0);      // saved cutoff for this shift (survives deleting reports)
   const [localCut,   setLocalCut]   = useState(0);      // instant clear on submit, before the server time arrives
   const { start: shiftStart, end: shiftEnd } = shiftWindow();
 
@@ -63,12 +64,14 @@ export default function NurseDutyReportPage() {
     const c = Math.max(t || 0, evMax ? evMax + 1 : 0);
     return c >= shiftStart.getTime() && c > m ? c : m;
   }, 0);
-  const cardsStart = new Date(Math.max(shiftStart.getTime(), lastSaved, localCut));
+  const cardsStart = new Date(Math.max(shiftStart.getTime(), lastSaved, localCut, clearedMs));
 
   useEffect(() => listenDutyReports(setReports), []);
 
   // One draft per shift, keyed by the shift's start date
   const shiftKey = `${shiftStart.getFullYear()}-${String(shiftStart.getMonth()+1).padStart(2,'0')}-${String(shiftStart.getDate()).padStart(2,'0')}`;
+
+  useEffect(() => listenDutyMarker(shiftKey, setClearedMs), [shiftKey]);
 
   // Come back later and continue where you stopped
   useEffect(() => {
@@ -112,6 +115,7 @@ export default function NurseDutyReportPage() {
       } else {
         await addDutyReport({ heading, body, patientsSeen: seenSnap || [] }, who(), profile?.role);
         setLocalCut(Date.now());
+        try { await setDutyMarker(shiftKey, who()); } catch (e) { console.error('duty marker', e); }
         try { await deleteDutyDraft(shiftKey); } catch (e) { console.error('delete draft', e); }
         setDraftAt(null);
         toast.success('Report submitted');
