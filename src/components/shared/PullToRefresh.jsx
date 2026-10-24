@@ -7,10 +7,10 @@
 //  - asks first if there is unsaved typing on the page
 import React, { useEffect, useState } from 'react';
 
-const THRESHOLD = 90;    // indicator distance needed to trigger (about 225px of finger travel)
-const MAX_PULL  = 130;
-const PULL_RATIO = 0.4;  // how much of the finger travel counts (lower = harder to trigger)
-const HOLD_MS   = 450;   // must stay pulled past the threshold this long before letting go
+const THRESHOLD = 70;    // indicator distance needed to trigger (about 115px of finger travel)
+const MAX_PULL  = 110;
+const PULL_RATIO = 0.6;  // how much of the finger travel counts (lower = harder to trigger)
+const HOLD_MS   = 150;   // short hold past the threshold, so a quick flick doesn't reload
 
 export default function PullToRefresh({ scrollRef }) {
   const [pull, setPull] = useState(0);
@@ -38,7 +38,7 @@ export default function PullToRefresh({ scrollRef }) {
       if (startY == null) return;
       const dy = e.touches[0].clientY - startY;
       const dx = Math.abs(e.touches[0].clientX - startX);
-      if (el.scrollTop > 0 || dy <= 0 || dx * 2 > dy) { if (dist) reset(); else if (dy <= 0) startY = null; return; }
+      if (el.scrollTop > 0 || dy <= 0 || dx > dy) { if (dist) reset(); else if (dy <= 0) startY = null; return; }
       dist = Math.min(MAX_PULL, dy * PULL_RATIO);
       if (dist >= THRESHOLD) { if (!readySince) readySince = Date.now(); } else { readySince = 0; }
       setPull(dist);
