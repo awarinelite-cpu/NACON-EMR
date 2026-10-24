@@ -1315,7 +1315,8 @@ export default function PatientProfile() {
                   <th>Date</th><th>Time</th><th>Temp (°C)</th><th>Pulse</th><th>Resp Rate</th><th>BP</th><th>SpO2 (%)</th><th>Notes</th>{!viewOnly && <th></th>}
                 </tr></thead>
                 <tbody>
-                  {vitals.map(v => {
+                  {/* oldest first — newest readings sit at the bottom */}
+                  {[...vitals].sort((a, b) => (tsToDate(a.recordedAt)?.getTime?.() || 0) - (tsToDate(b.recordedAt)?.getTime?.() || 0)).map(v => {
                     const d = tsToDate(v.recordedAt);
                     const cell = (flag, txt) => <td style={isAbn(flag) ? { color:RED, fontWeight:800 } : undefined}>{txt || '—'}</td>;
                     return (
