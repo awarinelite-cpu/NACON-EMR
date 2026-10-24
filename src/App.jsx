@@ -24,7 +24,6 @@ import TriagePage       from './pages/TriagePage';
 import PharmacyInventory from './pages/PharmacyInventory';
 import HealthStats        from './pages/HealthStats';
 import SelfReport         from './pages/SelfReport';
-import NursingNotesPage        from './pages/NursingNotesPage';
 import SickReportPage          from './pages/SickReportPage';
 import SeenTodayPage           from './pages/SeenTodayPage';
 import DischargedReferredPage  from './pages/DischargedReferredPage';
@@ -133,9 +132,6 @@ export default function App() {
             } />
             <Route path="/nurse/sickbay" element={
               <ProtectedRoute allowedRoles={['nurse']}><AllPatients role="nurse" filter="sickbay" /></ProtectedRoute>
-            } />
-            <Route path="/nurse/notes" element={
-              <ProtectedRoute allowedRoles={['nurse']}><NursingNotesPage /></ProtectedRoute>
             } />
             <Route path="/nurse/duty-report" element={
               <ProtectedRoute allowedRoles={['nurse']}><NurseDutyReportPage /></ProtectedRoute>
