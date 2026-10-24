@@ -1859,7 +1859,9 @@ html, body { overflow-x: hidden; }
    PATIENT PROFILE on phones: the five vital cards always fit the screen
    (SpO₂ never cut off) and the Visit-tab cards run edge to edge.
 ══════════════════════════════════ */
-@media (max-width: 768px) {
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
   .pp-root .pp-vitals { gap: 5px !important; padding-left: 8px !important; padding-right: 8px !important; }
   .pp-root .pp-vitals > div { padding: 8px 5px !important; overflow: hidden; }
   .pp-root .pp-vitals > div > div:nth-child(1) { gap: 2px; }
@@ -1945,7 +1947,9 @@ html, body { overflow-x: hidden; }
    cards in multi-column grids and pop-up dialogs (they carry an inline
    max-width) keep their normal look.
 ══════════════════════════════════ */
-@media (max-width: 768px) {
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
   .page-content .card:not(.card .card):not([style*="grid-template-columns"] > .card):not([style*="max-width"]) {
     margin-left: -10px;
     margin-right: -10px;
@@ -1953,6 +1957,7 @@ html, body { overflow-x: hidden; }
     border-left: none;
     border-right: none;
   }
+  .page-content { padding: 10px 10px 32px; }
   /* Vital Signs page body (16px gutter on desktop → 10px on phones) */
   .vs-body { padding: 10px !important; }
   .vs-body .card:not(.card .card):not([style*="grid-template-columns"] > .card):not([style*="max-width"]) {
@@ -1993,7 +1998,9 @@ html, body { overflow-x: hidden; }
 /* ══════════════════════════════════
    PHARMACY page on phones: everything fits the screen width
 ══════════════════════════════════ */
-@media (max-width: 768px) {
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
   /* One scroll for the whole page: heading, content and footnote move together
      (the page used to scroll inside itself, leaving the heading and footnote stuck) */
   .ph-root { max-width: 100%; height: auto !important; min-height: 100%; overflow: visible !important; }
@@ -2023,7 +2030,9 @@ html, body { overflow-x: hidden; }
    up/down scroll box, so an up/down swipe anywhere (even on a table) scrolls
    the WHOLE page — heading, content and footnote together.
 ══════════════════════════════════ */
-@media (max-width: 768px) {
+@media (max-width: 768px),
+       (min-width: 769px) and (max-height: 500px),
+       (min-width: 769px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
   .table-scroll {
     max-height: none !important;
     overflow-x: auto;
