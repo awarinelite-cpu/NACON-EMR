@@ -71,6 +71,8 @@ const todayStr = () => {
   const d = new Date(), z = n => String(n).padStart(2,'0');
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
 };
+const nowHM = () => { const d = new Date(), z = n => String(n).padStart(2,'0'); return `${z(d.getHours())}:${z(d.getMinutes())}`; };
+const emptyVitals = () => ({ date: todayStr(), time: nowHM(), temp:'', hr:'', rr:'', bp:'', spo2:'', notes:'' });
 const newFluidForm = () => {
   const d = new Date(), z = n => String(n).padStart(2,'0');
   return { date:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`, time:`${z(d.getHours())}:${z(d.getMinutes())}`, intakeType:'', intakeFluid:'', intakeAmt:'', outputType:'', outputAmt:'', notes:'' };
@@ -105,7 +107,7 @@ export default function PatientProfile() {
   const isCollapsed   = useRef(false);
 
   const [noteText,  setNoteText]  = useState('');
-  const [vitalForm, setVitalForm] = useState({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
+  const [vitalForm, setVitalForm] = useState(emptyVitals);
   const [rxForm,    setRxForm]    = useState([{ drug:'', dose:'', frequency:'', duration:'' }]);
   const [dischargeSummaryOpen, setDischargeSummaryOpen] = useState(false);
   // Official printed Rx form state (NHIS for soldiers, NACON for civilians)
@@ -623,23 +625,38 @@ export default function PatientProfile() {
   };
 
   const saveVitals = async () => {
-    if (!vitalForm.sbp && !vitalForm.temp) { toast.error('Enter at least BP or temperature'); return; }
+    // BP is one box ("120/80") — split it back into systolic / diastolic
+    const bpTxt = (vitalForm.bp || '').trim();
+    let sbp = '', dbp = '';
+    if (bpTxt) {
+      const m = bpTxt.match(/^(\d{2,3})\s*[\/\\-]\s*(\d{2,3})$/);
+      if (!m) { toast.error('Enter BP like 120/80'); return; }
+      sbp = m[1]; dbp = m[2];
+    }
+    if (!sbp && !vitalForm.temp) { toast.error('Enter at least BP or temperature'); return; }
+    const vitalsData = {
+      sbp, dbp,
+      hr: vitalForm.hr, temp: vitalForm.temp, rr: vitalForm.rr, spo2: vitalForm.spo2,
+      ...(vitalForm.notes ? { notes: vitalForm.notes } : {}),
+    };
+    const when = vitalForm.date ? new Date(`${vitalForm.date}T${vitalForm.time || '00:00'}`) : null;
     setSaving(true);
     try {
       const vid = await ensureVisitId();
-      await addVitals(emrNumber, vid, vitalForm, profile.displayName || profile.email || 'Unknown', profile.role);
-      setVitalForm({ sbp:'', dbp:'', hr:'', temp:'', rr:'', spo2:'' });
+      await addVitals(emrNumber, vid, vitalsData, profile.displayName || profile.email || 'Unknown', profile.role,
+        { recordedAt: when && !isNaN(when) ? when : null });
+      setVitalForm(emptyVitals());
       toast.success('Vitals recorded');
 
       // NEWS2 auto-alerting — a Medium/High risk score raises a facility-wide alert
       try {
-        const news = calculateNEWS2(vitalForm);
+        const news = calculateNEWS2(vitalsData);
         if (news.risk !== 'Low') {
           const patientName = `${patient?.surname || ''} ${patient?.firstName || ''} ${patient?.otherNames || ''}`.trim();
           await createClinicalAlert({
             emrNumber, patientName, visitId: vid,
             score: news.total, risk: news.risk, action: news.action,
-            vitals: vitalForm,
+            vitals: vitalsData,
           }, profile.displayName || profile.email || 'Unknown', profile.role);
           if (news.risk === 'High') toast.error(`NEWS2 ${news.total} — High Risk. ${news.action}`, { duration: 6000 });
           else toast(`NEWS2 ${news.total} — Medium Risk. ${news.action}`, { icon: '⚠️', duration: 5000 });
@@ -1219,36 +1236,38 @@ export default function PatientProfile() {
             {/* Trend Chart */}
             {vitals.length > 1 && <VitalsTrendChart vitals={vitals} />}
 
-            {!viewOnly && <div className="card">
-              <div className="card-header"><div className="card-title"><i className="ti ti-heart-rate-monitor" />Record Vitals</div></div>
-              <div className="card-body">
-                <div className="form-grid-3" style={{ gap:12 }}>
-                  {[
-                    { id:'sbp',  label:'Systolic BP',  ph:'120' },
-                    { id:'dbp',  label:'Diastolic BP',  ph:'80'  },
-                    { id:'hr',   label:'Heart Rate',    ph:'72'  },
-                    { id:'temp', label:'Temperature °C',ph:'36.5'},
-                    { id:'rr',   label:'Resp. Rate',    ph:'18'  },
-                    { id:'spo2', label:'SpO₂ %',        ph:'99'  },
-                  ].map(f => (
-                    <div key={f.id} className="form-group">
-                      <label className="form-label">{f.label}</label>
-                      <input className="form-input" placeholder={f.ph}
-                        value={vitalForm[f.id]}
-                        onChange={e => setVitalForm(v => ({ ...v, [f.id]: e.target.value }))} />
-                    </div>
-                  ))}
-                  <div className="form-group form-span-3">
-                    <label className="form-label">Observations</label>
-                    <textarea className="form-textarea" rows={2} placeholder="Clinical observations…"
-                      value={vitalForm.notes||''}
-                      onChange={e => setVitalForm(v => ({ ...v, notes:e.target.value }))} />
-                  </div>
+            {!viewOnly && <div className="card vitals-entry">
+              <div className="vitals-entry-title">New Reading</div>
+              <div className="vitals-entry-grid">
+                <div className="vitals-entry-field">
+                  <label>Date</label>
+                  <input type="date" value={vitalForm.date}
+                    onChange={e => setVitalForm(v => ({ ...v, date:e.target.value }))} />
                 </div>
-                <button className="btn btn-primary mt-3" onClick={saveVitals} disabled={saving}>
-                  <i className="ti ti-device-floppy" /> Save vitals
-                </button>
+                <div className="vitals-entry-field">
+                  <label>Time</label>
+                  <input type="time" value={vitalForm.time}
+                    onChange={e => setVitalForm(v => ({ ...v, time:e.target.value }))} />
+                </div>
+                {[
+                  { id:'temp', label:'Temp (°C)',  mode:'decimal' },
+                  { id:'hr',   label:'Pulse',      mode:'numeric' },
+                  { id:'rr',   label:'Resp Rate',  mode:'numeric' },
+                  { id:'bp',   label:'BP',         mode:'text', ph:'120/80' },
+                  { id:'spo2', label:'SpO2 (%)',   mode:'numeric' },
+                  { id:'notes',label:'Notes',      mode:'text' },
+                ].map(f => (
+                  <div key={f.id} className="vitals-entry-field">
+                    <label>{f.label}</label>
+                    <input inputMode={f.mode} placeholder={f.ph || ''}
+                      value={vitalForm[f.id] || ''}
+                      onChange={e => setVitalForm(v => ({ ...v, [f.id]: e.target.value }))} />
+                  </div>
+                ))}
               </div>
+              <button className="vitals-entry-btn" onClick={saveVitals} disabled={saving}>
+                {saving ? 'Saving…' : 'Add Reading'}
+              </button>
             </div>}
             <div className="card">
               <div className="card-header"><div className="card-title"><i className="ti ti-history" />Vitals History</div></div>

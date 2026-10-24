@@ -570,13 +570,14 @@ export async function updateCarePlanEvaluation(planId, evaluationNote, updatedBy
 }
 
 
-export async function addVitals(emrNumber, visitId, vitalsData, recordedBy, recordedByRole = null) {
+export async function addVitals(emrNumber, visitId, vitalsData, recordedBy, recordedByRole = null, opts = {}) {
   const ref = await addDoc(collection(db, COL.VITALS), {
     emrNumber,
     visitId: visitId || null,
     ...vitalsData,
     recordedBy,
-    recordedAt: serverTimestamp(),
+    // opts.recordedAt: reading time chosen on the form (Date); otherwise server time
+    recordedAt: opts.recordedAt ? Timestamp.fromDate(opts.recordedAt) : serverTimestamp(),
   });
   await updatePatient(emrNumber, { latestVitals: vitalsData }, recordedBy, recordedByRole);
   await markSeenIfReportedSickToday(emrNumber, recordedBy);
