@@ -17,8 +17,12 @@ export default function PullToRefresh({ scrollRef }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const el = scrollRef?.current;
-    if (!el) return undefined;
+    // With a scrollRef the pull works inside that scroll area (main app); without
+    // one (e.g. the login page) it works on the whole page.
+    const box = scrollRef?.current || null;
+    if (scrollRef && !box) return undefined;
+    const el = box || document;
+    const scrollTop = () => (box ? box.scrollTop : (window.scrollY || document.documentElement.scrollTop || 0));
     let startY = null;
     let startX = 0;
     let dist = 0;
@@ -27,7 +31,7 @@ export default function PullToRefresh({ scrollRef }) {
     const reset = () => { startY = null; dist = 0; readySince = 0; setPull(0); };
 
     const onStart = (e) => {
-      if (e.touches.length !== 1 || el.scrollTop > 0) { startY = null; return; }
+      if (e.touches.length !== 1 || scrollTop() > 0) { startY = null; return; }
       if (e.target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], .modal, .modal-overlay, .modal-backdrop')) { startY = null; return; }
       startY = e.touches[0].clientY;
       startX = e.touches[0].clientX;
@@ -38,7 +42,7 @@ export default function PullToRefresh({ scrollRef }) {
       if (startY == null) return;
       const dy = e.touches[0].clientY - startY;
       const dx = Math.abs(e.touches[0].clientX - startX);
-      if (el.scrollTop > 0 || dy <= 0 || dx > dy) { if (dist) reset(); else if (dy <= 0) startY = null; return; }
+      if (scrollTop() > 0 || dy <= 0 || dx > dy) { if (dist) reset(); else if (dy <= 0) startY = null; return; }
       dist = Math.min(MAX_PULL, dy * PULL_RATIO);
       if (dist >= THRESHOLD) { if (!readySince) readySince = Date.now(); } else { readySince = 0; }
       setPull(dist);
@@ -48,7 +52,7 @@ export default function PullToRefresh({ scrollRef }) {
       if (startY == null) return;
       const fire = dist >= THRESHOLD && readySince && (Date.now() - readySince) >= HOLD_MS;
       if (!fire) { reset(); return; }
-      const typed = Array.from(el.querySelectorAll('textarea, input:not([type=checkbox]):not([type=radio]):not([type=search]):not([type=button]):not([type=submit])'))
+      const typed = Array.from((box || document).querySelectorAll('textarea, input:not([type=checkbox]):not([type=radio]):not([type=search]):not([type=button]):not([type=submit])'))
         .some(i => (i.value || '').trim() !== '');
       if (typed && !window.confirm('Reload the page? Anything you typed and have not saved will be lost.')) { reset(); return; }
       setBusy(true);

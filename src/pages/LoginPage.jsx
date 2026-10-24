@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
+import PullToRefresh from '../components/shared/PullToRefresh';
 
 export default function LoginPage() {
   const { login, toggleTheme, theme } = useAuth();
@@ -39,6 +40,7 @@ export default function LoginPage() {
 
   return (
     <>
+      <PullToRefresh />
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn {
