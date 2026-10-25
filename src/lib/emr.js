@@ -2082,7 +2082,9 @@ export function listenDispensedToday(callback) {
   );
 }
 
-/** Dispense a prescription — marks it dispensed and logs it (no stock deduction) */
+/** Dispense a prescription: marks it dispensed, takes the drugs out of pharmacy stock, logs.
+ *  Prescribing never touches stock; this is the one place stock comes out.
+ *  Returns { inventory } with one result per drug line so the pharmacist can see what was not found. */
 export async function dispensePrescription(prescriptionId, rxData, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   // Mark prescription as dispensed
   await updateDoc(doc(db, COL.PRESCRIPTIONS, prescriptionId), {
@@ -2091,7 +2093,26 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy, 
     dispensedAt:  serverTimestamp(),
   });
 
-  // Dispensing is recorded only; it no longer deducts pharmacy stock.
+  // Deduct each drug from inventory
+  const inventory = [];
+  for (const drug of rxData.drugs || []) {
+    // Support both drug.name (from Rx form) and drug.drug (legacy)
+    const drugName = drug.name || drug.drug;
+    if (!drugName) continue;
+    // Older prescriptions already came out of stock when they were written: don't deduct twice
+    if (drug.inventoryDeducted) continue;
+    try {
+      const qtyTyped = Number(drug.qty);
+      const res = qtyTyped > 0
+        ? await deductInventory(drugName, qtyTyped, rxData.emrNumber, dispensedBy, dispensedByRole)
+        : await deductInventoryByDose(drugName, drug.dose, rxData.emrNumber, dispensedBy, dispensedByRole,
+            courseDoseCount(drug.frequency, drug.duration));
+      inventory.push({ drug: drugName, ...res });
+    } catch (err) {
+      console.error('[dispensePrescription] inventory deduction failed:', err);
+      inventory.push({ drug: drugName, found: false, error: true });
+    }
+  }
 
   // Add to dispense log
   await addDoc(collection(db, COL.DISPENSE_LOG), {
@@ -2105,6 +2126,7 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy, 
   });
 
   await logAudit('DISPENSE', prescriptionId, dispensedBy, { emrNumber: rxData.emrNumber }, dispensedByRole);
+  return { inventory };
 }
 
 /** Live listener: all dispense log entries */

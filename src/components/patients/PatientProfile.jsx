@@ -702,6 +702,11 @@ function RxForm({ emr, profile, role, onSaved }) {
           );
         })}
 
+        <div className="alert alert-info mt-2" style={{ fontSize:11 }}>
+          <i className="ti ti-info-circle" />
+          <div>Saved prescriptions go to the <strong>Pharmacy</strong> for dispensing. Stock is deducted when pharmacy dispenses.</div>
+        </div>
+
         <button className="btn btn-primary mt-3" onClick={save}
           disabled={saving}>
           {saving ? 'Saving…' : <><i className="ti ti-device-floppy" /> Save Prescription</>}

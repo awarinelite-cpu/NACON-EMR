@@ -48,11 +48,13 @@ export default function PharmacyDashboard() {
     setSaving(true);
     try {
       const p = patients[rx.emrNumber];
-      await dispensePrescription(rx.id, {
+      const { inventory } = await dispensePrescription(rx.id, {
         ...rx,
         patientName: p ? `${p.surname} ${p.firstName}` : rx.emrNumber,
       }, profile.displayName || profile.email || 'Pharmacist', profile.role);
       toast.success('Prescription dispensed');
+      (inventory || []).filter(i => i.found === false).forEach(i =>
+        toast(`Stock not updated: "${i.drug}" ${i.ambiguous ? 'matches several inventory items' : 'was not found in inventory'}. Adjust stock manually.`, { icon: '⚠️', duration: 7000 }));
       setDispensing(null);
     } catch (e) { console.error('[PharmacyDashboard] dispense failed:', e); toast.error('Failed to dispense'); }
     setSaving(false);
