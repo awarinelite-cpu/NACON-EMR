@@ -603,29 +603,13 @@ export default function LabDashboard() {
                       ))}
                     </div>
 
-                    {/* Completed results preview */}
+                    {/* Completed results: same report table the patient timeline shows */}
                     {tab === 'completed' && req.results && (
-                      <div className="lab-indent" style={{marginTop:8, paddingLeft:46, display:'flex', gap:6, flexWrap:'wrap'}}>
-                        {Object.entries(req.results).map(([test, res]) => (
-                          <div key={test} style={{
-                            background:'var(--card-bg2)', border:'1px solid var(--border)',
-                            borderRadius:8, padding:'4px 10px',
-                          }}>
-                            <div style={{fontSize:9, color:'var(--t3)', fontWeight:700}}>{test}</div>
-                            <div style={{
-                              fontSize:13, fontWeight:800,
-                              color: res.flag==='high'||res.flag==='abnormal'?'#dc2626':res.flag==='low'?'#d97706':res.flag===''?'var(--t1)':'var(--success)',
-                            }}>
-                              {res.value} <span style={{fontSize:10, fontWeight:500}}>{res.unit}</span>
-                              {res.flag && res.flag !== 'normal' && (
-                                <span style={{fontSize:10, marginLeft:4}}>{flagLetter(res.flag)}</span>
-                              )}
-                            </div>
-                            {res.referenceRange && (
-                              <div style={{fontSize:9, color:'var(--t3)'}}>Ref: {res.referenceRange}</div>
-                            )}
-                          </div>
-                        ))}
+                      <div className="lab-indent" style={{marginTop:10, paddingLeft:46}}>
+                        <LabReportTable result={{
+                          results: req.results, comments: req.comments, tests: req.tests,
+                          resultEnteredBy: req.resultEnteredBy, requestedBy: req.requestedBy,
+                        }} />
                       </div>
                     )}
                   </div>
