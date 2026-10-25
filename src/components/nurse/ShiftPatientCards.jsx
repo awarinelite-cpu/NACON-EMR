@@ -5,6 +5,7 @@
 // the open card closes it.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { listenPatients, listenShiftActivity, formatTime, formatTs } from '../../lib/emr';
+import LabReportTable from '../shared/LabReportTable';
 
 const COLOR = { note:'#2E7FDB', vitals:'#E53935', rx:'#1A7A4A', fluid:'#0288D1', glucose:'#F57C00', lab:'#0E7490', upload:'#6C3CE1', admit:'#a855f7', discharge:'#64748B', referral:'#F59E0B' };
 const ICON  = { note:'ti-notes-medical', vitals:'ti-heart-rate-monitor', rx:'ti-pill', fluid:'ti-droplet', glucose:'ti-activity', lab:'ti-microscope', upload:'ti-upload', admit:'ti-bed', discharge:'ti-door-exit', referral:'ti-transfer' };
@@ -108,7 +109,12 @@ export default function ShiftPatientCards({ start, end, onCards }) {
         folderNumber: c.patient.folderNumber || '', classSet: c.patient.classSet || '', sex: c.patient.sex || '',
         status: c.patient.status || '', knownAllergies: c.patient.knownAllergies || '',
       } : null,
-      events: c.events.map(it => ({ type: it.type, title: TITLE[it.type] || '', time: msOf(it.ts), text: describe(it) || '', by: byOf(it) || '' })),
+      events: c.events.map(it => ({ type: it.type, title: TITLE[it.type] || '', time: msOf(it.ts), text: describe(it) || '', by: byOf(it) || '',
+        // lab results keep their data so the report can show the full result table
+        ...(it.type === 'lab' ? { lab: {
+          results: it.data.results || {}, comments: it.data.comments || '', tests: it.data.tests || [],
+          resultEnteredBy: it.data.resultEnteredBy || '', requestedBy: it.data.requestedBy || '',
+        } } : {}) })),
     })));
   }, [cards, loaded]);
 
@@ -154,7 +160,9 @@ export default function ShiftPatientCards({ start, end, onCards }) {
                         <span style={{ fontWeight:800, fontSize:13, color:'var(--t1)' }}>{TITLE[it.type]}</span>
                         <span style={{ fontSize:12, color:'var(--t3)', whiteSpace:'nowrap' }}>{formatTs(it.ts)} {formatTime(it.ts)}</span>
                       </div>
-                      <div style={{ fontSize:13, color:'var(--t1)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginTop:2 }}>{describe(it)}</div>
+                      {it.type === 'lab'
+                        ? <div style={{ marginTop:6 }}><LabReportTable result={it.data} /></div>
+                        : <div style={{ fontSize:13, color:'var(--t1)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginTop:2 }}>{describe(it)}</div>}
                       {byOf(it) && <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>{byOf(it)}</div>}
                     </div>
                   </div>
@@ -206,7 +214,9 @@ export function SavedPatientsSeen({ patients }) {
                         <span style={{ fontWeight:800, fontSize:13, color:'var(--t1)' }}>{it.title}</span>
                         <span style={{ fontSize:12, color:'var(--t3)', whiteSpace:'nowrap' }}>{formatTs(it.time)} {formatTime(it.time)}</span>
                       </div>
-                      <div style={{ fontSize:13, color:'var(--t1)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginTop:2 }}>{it.text}</div>
+                      {it.type === 'lab' && it.lab
+                        ? <div style={{ marginTop:6 }}><LabReportTable result={it.lab} /></div>
+                        : <div style={{ fontSize:13, color:'var(--t1)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginTop:2 }}>{it.text}</div>}
                       {it.by && <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>{it.by}</div>}
                     </div>
                   </div>
