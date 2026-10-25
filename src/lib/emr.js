@@ -1734,58 +1734,6 @@ export async function deductInventoryByDose(drugName, doseGiven, emrNumber, disp
 }
 
 // ═════════════════════════════════════════════
-// HEALTH STATS (Admin analytics)
-// ═════════════════════════════════════════════
-export async function getHealthStats(fromDate, toDate) {
-  const fromTs = Timestamp.fromDate(fromDate);
-  const toTs   = Timestamp.fromDate(toDate);
-
-  const [visitsSnap, triageSnap, patientsSnap] = await Promise.all([
-    getDocs(query(collection(db, COL.VISITS),
-      where('createdAt', '>=', fromTs),
-      where('createdAt', '<=', toTs)
-    )),
-    getDocs(query(collection(db, COL.TRIAGE),
-      where('arrivedAt', '>=', fromTs),
-      where('arrivedAt', '<=', toTs)
-    )),
-    countPatients(),
-  ]);
-
-  const visits  = visitsSnap.docs.map(d => d.data());
-  const triage  = triageSnap.docs.map(d => d.data());
-
-  // Visits per day
-  const byDay = {};
-  visits.forEach(v => {
-    const d = v.createdAt?.toDate?.();
-    if (!d) return;
-    const key = d.toLocaleDateString('en-NG', { day:'2-digit', month:'short' });
-    byDay[key] = (byDay[key] || 0) + 1;
-  });
-
-  // Priority breakdown
-  const priority = { P1: 0, P2: 0, P3: 0 };
-  triage.forEach(t => { if (priority[t.priority] !== undefined) priority[t.priority]++; });
-
-  // Status breakdown
-  const statusMap = {};
-  visits.forEach(v => { statusMap[v.status || 'open'] = (statusMap[v.status || 'open'] || 0) + 1; });
-
-  return {
-    totalVisits:    visits.length,
-    totalPatients:  patientsSnap,
-    totalTriage:    triage.length,
-    discharged:     visits.filter(v => v.status === 'discharged').length,
-    referred:       visits.filter(v => v.status === 'referred').length,
-    sickBay:        visits.filter(v => v.status === 'sickbay').length,
-    byDay,
-    priority,
-    statusMap,
-  };
-}
-
-// ═════════════════════════════════════════════
 // REPORT SICK — stamps patient doc, and starts a fresh episode
 // if the patient was previously discharged
 // ═════════════════════════════════════════════

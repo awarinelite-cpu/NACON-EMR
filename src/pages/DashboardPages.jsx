@@ -93,7 +93,6 @@ function StatsRow() {
   const [stats, setStats] = useState({ totalPatients:0, visitsToday:0, waiting:0, referred:0 });
   useEffect(() => { getTodayStats().then(setStats); }, []);
   const items = [
-    { label:'Waiting',       value: stats.waiting,       icon:'ti-clock',        color:'var(--accent)' },
     { label:'Seen today',    value: stats.visitsToday,   icon:'ti-check',        color:'var(--success)' },
     { label:'Referred',      value: stats.referred,      icon:'ti-file-export',  color:'var(--warn)' },
     { label:'Total patients',value: stats.totalPatients, icon:'ti-users',        color:'var(--info)' },

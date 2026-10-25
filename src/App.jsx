@@ -22,7 +22,7 @@ import RolesAccess      from './pages/RolesAccess';
 import Settings         from './pages/Settings';
 import TriagePage       from './pages/TriagePage';
 import PharmacyInventory from './pages/PharmacyInventory';
-import HealthStats        from './pages/HealthStats';
+import ClinicStatistics   from './pages/ClinicStatistics';
 import SelfReport         from './pages/SelfReport';
 import SickReportPage          from './pages/SickReportPage';
 import SeenTodayPage           from './pages/SeenTodayPage';
@@ -195,9 +195,10 @@ export default function App() {
             <Route path="/admin/schedule" element={
               <ProtectedRoute allowedRoles={['admin','subadmin']}><ComingSoon title="Duty Schedule" /></ProtectedRoute>
             } />
-            <Route path="/admin/stats" element={
-              <ProtectedRoute allowedRoles={['admin','subadmin']}><HealthStats /></ProtectedRoute>
+            <Route path="/clinic-stats" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin','doctor','nurse']}><ClinicStatistics /></ProtectedRoute>
             } />
+            <Route path="/admin/stats" element={<Navigate to="/clinic-stats" replace />} />
             <Route path="/pharmacy" element={
               <ProtectedRoute allowedRoles={['admin','subadmin','nurse','doctor','pharmacist']}><PharmacyInventory /></ProtectedRoute>
             } />

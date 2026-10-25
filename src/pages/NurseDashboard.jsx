@@ -34,7 +34,6 @@ export default function NurseDashboard() {
     return d >= todayStart;
   };
 
-  const waiting       = queue.filter(q => q.status === 'waiting').length;
   const sickBay       = patients.filter(p => p.status === 'sickbay');
   const maleAdm       = sickBay.filter(p => p.sex === 'Male').length;
   const femaleAdm     = sickBay.filter(p => p.sex === 'Female').length;
@@ -95,7 +94,7 @@ export default function NurseDashboard() {
           </div>
         </div>
 
-        {/* ── Row 2: D/R Today · Waiting · Meds Due ── */}
+        {/* ── Row 2: D/R Today · Clinic Statistics ── */}
         <div className="dash-grid">
           <div className="dash-card" onClick={() => navigate('/nurse/discharged-referred')}
             style={{'--ac':'#059669'}}>
@@ -113,9 +112,9 @@ export default function NurseDashboard() {
             </div>
           </div>
 
-          <div className="dash-card" style={{'--ac':'#2563eb'}}>
-            <div className="dash-label"><i className="ti ti-clock" />Waiting</div>
-            <div className="dash-value">{waiting}</div>
+          <div className="dash-card" onClick={() => navigate('/clinic-stats')} style={{'--ac':'#2563eb'}}>
+            <div className="dash-label"><i className="ti ti-chart-pie" />Clinic Statistics</div>
+            <div className="dash-caption">Charts &amp; monthly report</div>
           </div>
         </div>
 
