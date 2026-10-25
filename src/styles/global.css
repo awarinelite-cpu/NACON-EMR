@@ -2340,7 +2340,11 @@ html, body { overflow-x: hidden; }
 @media (max-width: 768px) {
   .lab-detail { max-width: 100%; overflow-x: hidden !important; }
   .lab-detail .page-content { max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
-  .lab-detail .card, .lab-detail .card-body, .lab-detail .card-header { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  /* NOTE: .card must NOT get max-width:100% here — phones run cards edge to edge
+     with -10px side margins (see "PHONES" rule), and a max-width would clamp the
+     card to the padded width, leaving it shifted left with a gap on the right. */
+  .lab-detail .card { min-width: 0; max-width: none; box-sizing: border-box; }
+  .lab-detail .card-body, .lab-detail .card-header { min-width: 0; max-width: 100%; box-sizing: border-box; }
   .lab-detail .card-header { flex-wrap: wrap; row-gap: 8px; }
   .lab-detail .card-title { min-width: 0; overflow-wrap: anywhere; }
   .lab-detail .form-group { min-width: 0; }
@@ -2366,4 +2370,8 @@ html, body { overflow-x: hidden; }
     max-width: 100%;
   }
   .lab-root .page-content, .lab-detail .page-content { overflow-x: hidden; max-width: 100%; }
+  /* "clip" (unlike "hidden") can never be scrolled sideways by focusing an input */
+  @supports (overflow: clip) {
+    .lab-root, .lab-detail, .lab-root .page-content, .lab-detail .page-content { overflow-x: clip !important; }
+  }
 }
