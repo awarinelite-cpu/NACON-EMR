@@ -22,17 +22,20 @@ const fmtWhen = (r) => {
   return ms ? formatTs(new Date(ms)) : '';
 };
 
+// The shift starts at 1700. Before 1700 we are still in the shift that began yesterday, so patients
+// seen in the morning/daytime (0600-1700) belong to it too. The window runs until the next 1700 so
+// there is never a gap in which nobody shows up.
 const shiftWindow = () => {
   const now   = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 6 ? 1 : 0), 17, 0, 0);
-  const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 6, 0, 0);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 17 ? 1 : 0), 17, 0, 0);
+  const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 17, 0, 0);
   return { start, end };
 };
 
 // Shift runs 1700hrs -> 0600hrs next day. Before 0600 we are still in the shift that began yesterday.
 const makeHeading = () => {
   const now   = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 6 ? 1 : 0));
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getHours() < 17 ? 1 : 0));
   const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
   return `MRS DUTY REPORT FROM 1700HRS ${DAYS[start.getDay()]} ${fmtDate(start)} TO 0600HRS ${DAYS[end.getDay()]} ${fmtDate(end)}`;
 };
