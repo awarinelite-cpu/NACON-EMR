@@ -293,7 +293,7 @@ export default function PatientProfile() {
                         fontSize:11, fontWeight:700,
                       }}>{(n.authorName||'').slice(0,2).toUpperCase()}</div>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:700, color:'var(--t1)' }}>{n.authorName}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--t1)' }}>{n.authorRole==='doctor' && !/^dr\.?\s/i.test(n.authorName||'') ? `Dr ${n.authorName}` : n.authorName}</div>
                         <span className={`badge ${n.authorRole==='doctor'?'badge-ok':'badge-info'}`} style={{ fontSize:9 }}>
                           {n.authorRole==='doctor'?"Doctor's note":"Nursing note"}
                         </span>
