@@ -34,6 +34,7 @@ export default function LabDashboard() {
   const [search,         setSearch]         = useState('');
   const [customTests,    setCustomTests]    = useState([]);   // extra "Others" rows
   const [attachedFile,   setAttachedFile]   = useState(null); // File object
+  const [comments,       setComments]       = useState('');   // lab remarks shown under the result table
   const [uploading,      setUploading]      = useState(false);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function LabDashboard() {
     setSelected(req);
     setCustomTests([]);
     setAttachedFile(null);
+    setComments(req.comments || '');
     // Pre-fill results object with empty values for each test
     const init = {};
     (req.tests || []).forEach(t => {
@@ -98,7 +100,7 @@ export default function LabDashboard() {
         }
       });
 
-      await enterLabResults(selected.id, mergedResults, profile.displayName || profile.email || 'Lab', profile.role);
+      await enterLabResults(selected.id, mergedResults, profile.displayName || profile.email || 'Lab', profile.role, comments.trim());
 
       // Upload attached file if any
       if (attachedFile) {
@@ -115,6 +117,7 @@ export default function LabDashboard() {
       setSelected(null);
       setCustomTests([]);
       setAttachedFile(null);
+      setComments('');
     } catch(e) {
       toast.error('Failed to save results: ' + e.message);
     }
@@ -305,6 +308,22 @@ export default function LabDashboard() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* ── LAB COMMENTS (printed under the result table) ── */}
+          <div className="card" style={{marginBottom:10}}>
+            <div className="card-header">
+              <div className="card-title">
+                <i className="ti ti-message-2" style={{color:'#0891b2'}} />
+                Comments / Remarks
+              </div>
+            </div>
+            <div className="card-body">
+              <textarea className="form-textarea" rows={4}
+                placeholder={"One remark per line, e.g.\nRBC: NORMOCYTIC NORMOCHROMIC\nWBC: NO ATYPICAL CELL SEEN\nPLT: ADEQUATE AND NORMAL"}
+                value={comments} onChange={e => setComments(e.target.value)}
+                style={{resize:'vertical'}} />
+            </div>
           </div>
 
           {/* ── FILE / DOCUMENT UPLOAD ── */}

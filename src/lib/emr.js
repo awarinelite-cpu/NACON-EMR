@@ -2201,11 +2201,12 @@ export async function requestLabTest(emrNumber, visitId, tests, requestedBy, urg
 }
 
 /** Lab staff enters results for a request */
-export async function enterLabResults(requestId, results, enteredBy, enteredByRole = ROLES.LAB) {
+export async function enterLabResults(requestId, results, enteredBy, enteredByRole = ROLES.LAB, comments = '') {
   // results: { testName: { value, unit, flag, referenceRange }, ... }
   await updateDoc(doc(db, COL.LAB_REQUESTS, requestId), {
     status:           'completed',
     results,
+    comments,
     resultEnteredBy:  enteredBy,
     resultEnteredAt:  serverTimestamp(),
   });
@@ -2220,6 +2221,7 @@ export async function enterLabResults(requestId, results, enteredBy, enteredByRo
     patientName:     req.patientName,
     tests:           req.tests,
     results,
+    comments,
     requestedBy:     req.requestedBy,
     resultEnteredBy: enteredBy,
     requestedAt:     req.requestedAt,

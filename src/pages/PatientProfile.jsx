@@ -309,36 +309,7 @@ export default function PatientProfile() {
               })()}
 
               {/* ── LAB RESULT ── */}
-              {selectedEvent.type === 'lab' && (() => {
-                const l = selectedEvent.data;
-                const entries = Object.entries(l.results || {});
-                return (
-                  <div>
-                    {entries.length === 0 && (
-                      <div style={{ fontSize:13, color:'var(--t3)' }}>{(l.tests || []).join(', ') || 'No result values recorded'}</div>
-                    )}
-                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                      {entries.map(([test, r]) => {
-                        const abn = r.flag === 'high' || r.flag === 'low';
-                        return (
-                          <div key={test} style={{ background: abn ? 'var(--danger-bg)' : 'var(--card-bg2)', borderRadius:10, padding:'10px 14px' }}>
-                            <div style={{ fontSize:10, fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{test}</div>
-                            <div style={{ fontSize:20, fontWeight:700, color: abn ? RED : 'var(--t1)', lineHeight:1.2 }}>
-                              {r.value ?? '—'} <span style={{ fontSize:12, fontWeight:600 }}>{r.unit || ''}</span>
-                              {r.flag && <span style={{ fontSize:11, marginLeft:8, fontWeight:800 }}>{String(r.flag).toUpperCase()}</span>}
-                            </div>
-                            {r.referenceRange && <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>Ref: {r.referenceRange}</div>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div style={{ marginTop:10, fontSize:11, color:'var(--t3)' }}>
-                      Requested by: <b style={{ color:'var(--t2)' }}>{l.requestedBy || '—'}</b>
-                      {l.resultEnteredBy && <> · Entered by: <b style={{ color:'var(--t2)' }}>{l.resultEnteredBy}</b></>}
-                    </div>
-                  </div>
-                );
-              })()}
+              {selectedEvent.type === 'lab' && <LabReportTable result={selectedEvent.data} />}
 
               {/* ── VITALS ── */}
               {selectedEvent.type === 'vitals' && (() => {
@@ -2826,6 +2797,74 @@ const URGENCY_BADGE_L = { stat:'badge-danger', urgent:'badge-warn', routine:'bad
 const STATUS_BADGE_L  = { pending:'badge-warn', processing:'badge-info', completed:'badge-ok' };
 const FLAG_COLOR_L    = { high:'#dc2626', low:'#d97706', normal:'var(--success)', '':'var(--t3)' };
 
+/* Lab report laid out like the lab's own printed sheet:
+   TEST NAME | Value | UNIT | NORMAL RANGE | TEST RESULT (H / L), abnormal rows in red,
+   then the lab's comments underneath. Used in the patient timeline and the lab history. */
+function LabReportTable({ result }) {
+  const rows = Object.entries(result?.results || {});
+  const ABN = '#e53935';
+  const cell = (abn, extra = {}) => ({
+    border: `1px solid ${abn ? ABN : 'var(--t1)'}`, padding:'4px 6px',
+    color: abn ? ABN : 'var(--t1)', fontSize:15, fontWeight:500, lineHeight:1.25,
+    verticalAlign:'middle', ...extra,
+  });
+  const head = { border:'1px solid var(--t1)', padding:'4px 6px', color:'var(--t1)',
+    fontSize:15, fontWeight:800, textAlign:'center', lineHeight:1.25 };
+  const comments = String(result?.comments || '').split('\n').map(c => c.trim()).filter(Boolean);
+  return (
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+        <div style={{ fontSize:22, fontWeight:500, color:'var(--t1)' }}>Lab Result</div>
+        {result?.resultEnteredBy && (
+          <div style={{ fontSize:12, color:'var(--t2)', textTransform:'uppercase' }}>LAB.{result.resultEnteredBy}</div>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize:13, color:'var(--t3)' }}>{(result?.tests || []).join(', ') || 'No result values recorded'}</div>
+      ) : (
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:2, border:'1px solid var(--t1)' }}>
+            <thead>
+              <tr>
+                <th style={head}>TEST NAME</th>
+                <th style={head}>Value</th>
+                <th style={head}>UNIT</th>
+                <th style={head}>NORMAL RANGE</th>
+                <th style={head}>TEST RESULT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([test, r]) => {
+                const abn = r.flag === 'high' || r.flag === 'low';
+                return (
+                  <tr key={test}>
+                    <td style={cell(abn)}>{test}</td>
+                    <td style={cell(abn)}>{r.value ?? ''}</td>
+                    <td style={cell(abn)}>{r.unit || ''}</td>
+                    <td style={cell(abn)}>{r.referenceRange || ''}</td>
+                    <td style={cell(abn, { textAlign:'left' })}>{r.flag === 'high' ? 'H' : r.flag === 'low' ? 'L' : ''}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {comments.length > 0 && (
+        <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:12 }}>
+          {comments.map((c, i) => (
+            <div key={i} style={{ fontSize:15, color:'var(--t1)', textTransform:'uppercase', overflowWrap:'anywhere' }}>{c}</div>
+          ))}
+        </div>
+      )}
+      <div style={{ marginTop:12, fontSize:11, color:'var(--t3)' }}>
+        {result?.requestedBy && <>Requested by: <b style={{ color:'var(--t2)' }}>{result.requestedBy}</b></>}
+        {result?.resultEnteredBy && <> · Entered by: <b style={{ color:'var(--t2)' }}>{result.resultEnteredBy}</b></>}
+      </div>
+    </div>
+  );
+}
+
 function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
   const [openId, setOpenId] = useState(null);
   const allRequests = [...labRequests].sort((a,b) =>
@@ -2961,49 +3000,7 @@ function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
                   ))}
                 </div>
                 {result ? (
-                  <div style={{ borderRadius:8, overflow:'hidden', border:'1px solid var(--border)' }}>
-                    <div style={{ padding:'6px 12px', background:'rgba(22,163,74,.1)',
-                      borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <span style={{ fontSize:11, fontWeight:700, color:'var(--success)' }}>
-                        <i className="ti ti-circle-check" style={{ marginRight:4 }} />
-                        Results by {result.resultEnteredBy}
-                      </span>
-                      <span style={{ fontSize:10, color:'var(--t3)' }}>{formatTs(result.completedAt)}</span>
-                    </div>
-                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:16 }}>
-                      <thead>
-                        <tr style={{ background:'rgba(0,0,0,.03)' }}>
-                          {['Test','Result','Unit','Ref Range','Flag'].map(h => (
-                            <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:13,
-                              fontWeight:700, color:'var(--t3)', textTransform:'uppercase' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(result.results||{}).map(([test, r], i) => (
-                          <tr key={test} style={{ borderTop:'1px solid var(--border)',
-                            background: i%2===0 ? 'transparent' : 'rgba(0,0,0,.015)' }}>
-                            <td style={{ padding:'10px 12px', fontWeight:700 }}>{test}</td>
-                            <td style={{ padding:'10px 12px', fontWeight:800,
-                              color: r.flag==='high'?'#dc2626':r.flag==='low'?'#d97706':'var(--t1)' }}>
-                              {r.value||'—'}
-                            </td>
-                            <td style={{ padding:'10px 12px', color:'var(--t3)' }}>{r.unit||'—'}</td>
-                            <td style={{ padding:'10px 12px', color:'var(--t3)' }}>{r.referenceRange||'—'}</td>
-                            <td style={{ padding:'10px 12px' }}>
-                              {r.flag ? (
-                                <span style={{ fontSize:13, fontWeight:700, padding:'2px 8px', borderRadius:4,
-                                  background: r.flag==='high'?'#fee2e2':r.flag==='low'?'#ffedd5':'rgba(22,163,74,.1)',
-                                  color: FLAG_COLOR_L[r.flag]||'var(--t3)' }}>
-                                  {r.flag.toUpperCase()}
-                                </span>
-                              ) : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <LabReportTable result={result} />
                 ) : (
                   <div style={{ fontSize:11, color:'var(--t3)', fontWeight:700,
                     padding:'10px', textAlign:'center', background:'rgba(0,0,0,.02)', borderRadius:8 }}>
