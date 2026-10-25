@@ -146,8 +146,13 @@ export default function ClinicStatistics() {
                   parts={[{ key: 'male', label: 'Male', color: 'var(--accent)' }, { key: 'female', label: 'Female', color: '#db2777' }, { key: 'other', label: 'Unknown', color: 'var(--t3)' }]} />
               </Panel>
               <Panel title="Male vs female"><Donut rows={s.who.sex} colors={['var(--accent)', '#db2777', 'var(--t3)']} /></Panel>
-              <Panel title="Most sick reports — top student per SET">
-                <HBar rows={s.who.topStudents} color="#db2777" />
+              <Panel title="Most sick reports — top 5 students per SET">
+                {s.who.topStudents.length ? s.who.topStudents.map(g => (
+                  <div key={g.set} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t2)', marginBottom: 6 }}>{g.set}</div>
+                    <HBar rows={g.rows} color="#db2777" />
+                  </div>
+                )) : <Empty />}
                 <div style={{ fontSize: 10.5, color: 'var(--t3)', marginTop: 6 }}>Counts visits opened in the selected period.</div>
               </Panel>
               <Panel title="Age groups"><Donut rows={s.who.age} /></Panel>

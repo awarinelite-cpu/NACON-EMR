@@ -187,16 +187,17 @@ export function aggregate(raw) {
   raw.sickPatients.forEach(p => { byId[p.id || p.emrNumber] = p; });
   const perStudent = {};
   raw.visits.forEach(v => { if (v.emrNumber) perStudent[v.emrNumber] = (perStudent[v.emrNumber] || 0) + 1; });
-  const bestInSet = {};
+  const inSet = {};
   Object.entries(perStudent).forEach(([emr, n]) => {
     const p = byId[emr];
     if (!p) return;
     const set = normalizeClassSet(p.classSet) || 'No set';
-    if (!bestInSet[set] || n > bestInSet[set].value) {
-      bestInSet[set] = { label: `${set} · ${titleCase(`${p.surname || ''} ${p.firstName || ''}`.trim().toLowerCase()) || emr}`, value: n };
-    }
+    const name = titleCase(`${p.surname || ''} ${p.firstName || ''}`.trim().toLowerCase()) || emr;
+    (inSet[set] = inSet[set] || []).push({ label: name, value: n });
   });
-  const topStudents = Object.values(bestInSet).sort((a, b) => b.value - a.value);
+  const topStudents = Object.entries(inSet)
+    .map(([set, list]) => ({ set, rows: list.sort((x, y) => y.value - x.value).slice(0, 5) }))
+    .sort((x, y) => y.rows[0].value - x.rows[0].value || x.set.localeCompare(y.set));
 
   // last 12 months
   const months = [];
