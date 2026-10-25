@@ -82,6 +82,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Lab test ranges — lab staff may edit their own reference ranges
+    match /settings/labCatalogue {
+      allow read:  if isAnyStaff();
+      allow write: if isAuth() && isActive() && getRole() in ['lab','admin','subadmin'];
+    }
+
     // Users — admin only for write, self can read own doc
     match /users/{uid} {
       allow read:  if isAuth() && (request.auth.uid == uid || isAdmin());

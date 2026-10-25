@@ -34,6 +34,7 @@ const ACTION_COLORS = {
   LAB_REQUEST:      { cls: 'badge-warn',     icon: 'ti-flask'          },
   LAB_RESULT:       { cls: 'badge-ok',       icon: 'ti-flask'          },
   LAB_STATUS_UPDATE:{ cls: 'badge-info',     icon: 'ti-flask'          },
+  LAB_CATALOGUE_UPDATE:{ cls: 'badge-info',  icon: 'ti-flask'          },
   DEFAULT:          { cls: 'badge-neutral',  icon: 'ti-circle'         },
 };
 
@@ -42,7 +43,7 @@ const ACTION_COLORS = {
 const ACTION_ROLE_FALLBACK = {
   INVENTORY_ADD: ROLES.PHARMACIST, INVENTORY_UPDATE: ROLES.PHARMACIST,
   INVENTORY_DISPENSE: ROLES.PHARMACIST, DISPENSE: ROLES.PHARMACIST,
-  LAB_RESULT: ROLES.LAB, LAB_STATUS_UPDATE: ROLES.LAB, LAB_FILE_UPLOAD: ROLES.LAB,
+  LAB_RESULT: ROLES.LAB, LAB_STATUS_UPDATE: ROLES.LAB, LAB_CATALOGUE_UPDATE: ROLES.LAB, LAB_FILE_UPLOAD: ROLES.LAB,
   UPDATE_ROLE: ROLES.ADMIN, DEACTIVATE_USER: ROLES.ADMIN, REACTIVATE_USER: ROLES.ADMIN,
 };
 

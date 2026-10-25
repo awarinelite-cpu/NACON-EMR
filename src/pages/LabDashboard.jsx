@@ -5,8 +5,13 @@ import { useAuth } from '../lib/AuthContext';
 import {
   listenLabRequests, enterLabResults,
   updateLabRequestStatus, formatTs, LAB_TESTS,
-  uploadLabResultFile,
+  uploadLabResultFile, listenLabCatalogue, saveLabCatalogueOverrides,
 } from '../lib/emr';
+import {
+  analytesFor, rangeText, autoFlag, flagLetter, isAbnormalFlag,
+} from '../lib/labCatalogue';
+import LabReportTable from '../components/shared/LabReportTable';
+import LabRangesEditor from '../components/lab/LabRangesEditor';
 import toast from 'react-hot-toast';
 
 const URGENCY_STYLE = {
@@ -29,7 +34,10 @@ export default function LabDashboard() {
   const [requests,       setRequests]       = useState([]);
   const [tab,            setTab]            = useState('pending');
   const [selected,       setSelected]       = useState(null);
-  const [results,        setResults]        = useState({});
+  const [rows,           setRows]           = useState([]);   // one entry per analyte (HGB, WBC…)
+  const [catalogue,      setCatalogue]      = useState({});   // lab's saved unit/range overrides
+  const [editRanges,     setEditRanges]     = useState({});   // test name → show unit/range boxes
+  const [showRanges,     setShowRanges]     = useState(false);
   const [saving,         setSaving]         = useState(false);
   const [search,         setSearch]         = useState('');
   const [customTests,    setCustomTests]    = useState([]);   // extra "Others" rows
@@ -41,6 +49,8 @@ export default function LabDashboard() {
     const unsub = listenLabRequests(setRequests);
     return unsub;
   }, []);
+
+  useEffect(() => listenLabCatalogue(setCatalogue), []);
 
   const pending    = requests.filter(r => r.status === 'pending');
   const processing = requests.filter(r => r.status === 'processing');
@@ -57,20 +67,69 @@ export default function LabDashboard() {
     setCustomTests([]);
     setAttachedFile(null);
     setComments(req.comments || '');
-    // Pre-fill results object with empty values for each test
-    const init = {};
+    // One row per analyte of every ordered test, with unit + normal range for this
+    // patient's sex already filled in (from the catalogue / the lab's saved ranges).
+    const used = new Set();
+    const init = [];
     (req.tests || []).forEach(t => {
-      init[t] = req.results?.[t] || { value:'', unit:'', flag:'normal', referenceRange:'' };
+      const abbr = LAB_TESTS.find(x => x.name === t)?.abbr || t;
+      analytesFor(t, catalogue).forEach(a => {
+        let key = a.name;
+        if (used.has(key)) key = `${a.name} (${abbr})`;
+        used.add(key);
+        const prev = req.results?.[key];
+        init.push({
+          key, test: t, analyte: a,
+          value:    prev?.value ?? '',
+          unit:     prev?.unit ?? a.unit ?? '',
+          rangeStr: prev?.referenceRange ?? rangeText(a, req.sex),
+          flag:     prev?.flag ?? '',
+        });
+      });
     });
-    setResults(init);
+    setRows(init);
+    setEditRanges({});
     // Mark as processing if still pending
     if (req.status === 'pending') {
       await updateLabRequestStatus(req.id, 'processing', profile.displayName || 'Lab', profile.role);
     }
   };
 
-  const setResult = (test, field, val) => {
-    setResults(prev => ({ ...prev, [test]: { ...prev[test], [field]: val } }));
+  // Change a field of one row. Unless the lab sets the flag by hand, H / L is worked
+  // out again from the value and the range shown on screen.
+  const setRow = (key, patch) => setRows(prev => prev.map(r => {
+    if (r.key !== key) return r;
+    const n = { ...r, ...patch };
+    if (!('flag' in patch)) n.flag = autoFlag(n.analyte, n.value, n.rangeStr);
+    return n;
+  }));
+
+  // Tap the flag chip to override it by hand: normal → high → low → normal
+  const cycleFlag = (row) => {
+    const order = row.analyte.kind === 'select' ? ['normal', 'abnormal'] : ['normal', 'high', 'low'];
+    const next = order[(order.indexOf(row.flag) + 1) % order.length];
+    setRow(row.key, { flag: next });
+  };
+
+  // The saved result object: only rows that have a value, plus the "Others" rows
+  const buildResults = () => {
+    const out = {};
+    rows.forEach(r => {
+      if (!String(r.value ?? '').trim()) return;
+      out[r.key] = {
+        value: String(r.value).trim(), unit: r.unit || '',
+        flag: r.flag || (r.analyte.kind === 'text' ? '' : 'normal'),
+        referenceRange: r.rangeStr || '',
+      };
+    });
+    customTests.forEach(r => {
+      if (r.testName?.trim() && r.value?.trim()) {
+        out[r.testName.trim()] = {
+          value: r.value, unit: r.unit, flag: r.flag, referenceRange: r.referenceRange,
+        };
+      }
+    });
+    return out;
   };
 
   // Custom "Others" test row helpers
@@ -82,24 +141,13 @@ export default function LabDashboard() {
     setCustomTests(prev => prev.filter(r => r.id !== id));
 
   const handleSubmit = async () => {
-    const hasValue = Object.values(results).some(r => r.value?.trim());
-    const hasCustom = customTests.some(r => r.testName?.trim() && r.value?.trim());
-    if (!hasValue && !hasCustom && !attachedFile) {
+    const mergedResults = buildResults();
+    if (Object.keys(mergedResults).length === 0 && !attachedFile) {
       toast.error('Enter at least one result value, custom test, or attach a file'); return;
     }
 
     setSaving(true);
     try {
-      // Merge standard results with custom test results
-      const mergedResults = { ...results };
-      customTests.forEach(r => {
-        if (r.testName?.trim()) {
-          mergedResults[r.testName.trim()] = {
-            value: r.value, unit: r.unit, flag: r.flag, referenceRange: r.referenceRange,
-          };
-        }
-      });
-
       await enterLabResults(selected.id, mergedResults, profile.displayName || profile.email || 'Lab', profile.role, comments.trim());
 
       // Upload attached file if any
@@ -179,9 +227,11 @@ export default function LabDashboard() {
             </div>
           </div>
 
-          {/* Result entry per test */}
+          {/* Result entry: one card per ordered test, one line per analyte */}
           {(selected.tests || []).map(testName => {
-            const res = results[testName] || {};
+            const testRows = rows.filter(r => r.test === testName);
+            const editing  = !!editRanges[testName];
+            const hasNum   = testRows.some(r => r.analyte.kind === 'num');
             return (
               <div key={testName} className="card" style={{marginBottom:10}}>
                 <div className="card-header">
@@ -189,46 +239,61 @@ export default function LabDashboard() {
                     <i className="ti ti-test-pipe" style={{color:'#0891b2'}} />
                     {testName}
                   </div>
-                  {/* Flag selector */}
-                  <div className="lab-flags" style={{display:'flex', gap:4}}>
-                    {['normal','high','low'].map(f => (
-                      <button key={f} onClick={() => setResult(testName,'flag',f)} style={{
-                        padding:'3px 10px', borderRadius:6, fontSize:11, fontWeight:800,
-                        border: res.flag===f ? 'none' : '1px solid var(--border)',
-                        background: res.flag===f ? FLAG_STYLE[f].color : 'var(--card-bg2)',
-                        color:      res.flag===f ? '#fff'              : 'var(--t3)',
-                        cursor:'pointer', fontFamily:'var(--font)',
-                      }}>{f.toUpperCase()}</button>
-                    ))}
-                  </div>
+                  {hasNum && (
+                    <button className="btn btn-sm" onClick={() => setEditRanges(p => ({...p, [testName]: !p[testName]}))}
+                      style={{background:'rgba(8,145,178,.1)', color:'#0891b2', borderColor:'rgba(8,145,178,.25)'}}>
+                      <i className="ti ti-adjustments" /> {editing ? 'Done' : 'Unit / range'}
+                    </button>
+                  )}
                 </div>
-                <div className="card-body">
-                  <div className="lab-grid3" style={{display:'grid', gridTemplateColumns:'2fr 1fr 2fr', gap:10}}>
-                    <div className="form-group">
-                      <label className="form-label">Result Value <span className="req">*</span></label>
-                      <input className="form-input"
-                        value={res.value||''}
-                        onChange={e => setResult(testName,'value',e.target.value)}
-                        placeholder="e.g. 12.5 or Positive"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Unit</label>
-                      <input className="form-input"
-                        value={res.unit||''}
-                        onChange={e => setResult(testName,'unit',e.target.value)}
-                        placeholder="e.g. g/dL"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Reference Range</label>
-                      <input className="form-input"
-                        value={res.referenceRange||''}
-                        onChange={e => setResult(testName,'referenceRange',e.target.value)}
-                        placeholder="e.g. 11.5–16.5 g/dL"
-                      />
-                    </div>
-                  </div>
+                <div className="card-body" style={{padding:'6px 12px 12px'}}>
+                  {testRows.map(r => {
+                    const kind = r.analyte.kind;
+                    const abn  = isAbnormalFlag(r.flag);
+                    const chip = abn ? '#dc2626' : r.flag === 'normal' ? 'var(--success)' : 'var(--t3)';
+                    return (
+                      <div key={r.key} style={{padding:'8px 0', borderBottom:'1px solid var(--border)'}}>
+                        <div style={{display:'grid', gridTemplateColumns: kind === 'text' ? 'minmax(0,1fr)' : 'minmax(0,1fr) minmax(0,1.1fr) 44px', gap:8, alignItems:'center'}}>
+                          <div style={{minWidth:0, overflowWrap:'anywhere'}}>
+                            <div style={{fontSize:13, fontWeight:800, color: abn ? '#dc2626' : 'var(--t1)'}}>{r.key}</div>
+                            {kind === 'num' && (
+                              <div style={{fontSize:10, color:'var(--t3)', fontWeight:600}}>
+                                {r.rangeStr ? `Normal: ${r.rangeStr}` : 'No range set'}{r.unit ? ` ${r.unit}` : ''}
+                              </div>
+                            )}
+                          </div>
+                          {kind === 'select' ? (
+                            <select className="form-input" value={r.value}
+                              onChange={e => setRow(r.key, { value: e.target.value })}>
+                              <option value="">— select —</option>
+                              {r.analyte.options.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          ) : (
+                            <input className="form-input" value={r.value}
+                              inputMode={kind === 'num' ? 'decimal' : 'text'}
+                              placeholder={kind === 'num' ? 'Value' : 'Enter result'}
+                              onChange={e => setRow(r.key, { value: e.target.value })}
+                              style={abn ? {borderColor:'#dc2626', color:'#dc2626', fontWeight:800} : undefined} />
+                          )}
+                          {kind !== 'text' && (
+                            <button onClick={() => cycleFlag(r)} disabled={!r.flag} title="Tap to change flag"
+                              style={{height:38, borderRadius:8, border:'1px solid var(--border)', background:'var(--card-bg2)',
+                                color:chip, fontWeight:800, fontSize: flagLetter(r.flag).length > 1 ? 10 : 14, cursor:'pointer', fontFamily:'var(--font)'}}>
+                              {flagLetter(r.flag) || (r.flag === 'normal' ? 'N' : '–')}
+                            </button>
+                          )}
+                        </div>
+                        {editing && kind === 'num' && (
+                          <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)', gap:8, marginTop:6}}>
+                            <input className="form-input" placeholder="Unit" value={r.unit}
+                              onChange={e => setRow(r.key, { unit: e.target.value })} />
+                            <input className="form-input" placeholder="Range e.g. 130 - 179" value={r.rangeStr}
+                              onChange={e => setRow(r.key, { rangeStr: e.target.value })} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -322,7 +387,7 @@ export default function LabDashboard() {
               <textarea className="form-textarea" rows={4}
                 placeholder={"One remark per line, e.g.\nRBC: NORMOCYTIC NORMOCHROMIC\nWBC: NO ATYPICAL CELL SEEN\nPLT: ADEQUATE AND NORMAL"}
                 value={comments} onChange={e => setComments(e.target.value)}
-                style={{resize:'vertical'}} />
+                style={{resize:'vertical', width:'100%', boxSizing:'border-box'}} />
             </div>
           </div>
 
@@ -384,6 +449,25 @@ export default function LabDashboard() {
             </div>
           </div>
 
+          {/* ── PREVIEW: exactly what will appear in the patient timeline ── */}
+          {Object.keys(buildResults()).length > 0 && (
+            <div className="card" style={{marginBottom:14}}>
+              <div className="card-header">
+                <div className="card-title">
+                  <i className="ti ti-eye" style={{color:'#0891b2'}} />
+                  Preview
+                </div>
+              </div>
+              <div className="card-body">
+                <LabReportTable result={{
+                  results: buildResults(), comments,
+                  resultEnteredBy: profile?.displayName || profile?.email || '',
+                  requestedBy: selected.requestedBy, tests: selected.tests,
+                }} />
+              </div>
+            </div>
+          )}
+
           <button onClick={handleSubmit} disabled={saving || uploading} style={{
             width:'100%', padding:'12px', background:'var(--accent)', color:'#fff',
             border:'none', borderRadius:10, fontWeight:800, fontSize:14, cursor:'pointer',
@@ -416,7 +500,19 @@ export default function LabDashboard() {
             fontSize:12, fontWeight:600, color:'var(--t1)', fontFamily:'var(--font)', outline:'none',
           }}
         />
+        <button className="btn btn-sm" onClick={() => setShowRanges(true)}
+          style={{background:'rgba(8,145,178,.1)', color:'#0891b2', borderColor:'rgba(8,145,178,.25)', flexShrink:0}}>
+          <i className="ti ti-adjustments" /> Test ranges
+        </button>
       </div>
+
+      {showRanges && (
+        <LabRangesEditor
+          overrides={catalogue}
+          onClose={() => setShowRanges(false)}
+          onSave={(o) => saveLabCatalogueOverrides(o, profile?.displayName || profile?.email || 'Lab', profile?.role)}
+        />
+      )}
 
       <div className="page-content">
         {/* Summary cards */}
@@ -518,11 +614,11 @@ export default function LabDashboard() {
                             <div style={{fontSize:9, color:'var(--t3)', fontWeight:700}}>{test}</div>
                             <div style={{
                               fontSize:13, fontWeight:800,
-                              color: res.flag==='high'?'#dc2626':res.flag==='low'?'#d97706':'var(--success)',
+                              color: res.flag==='high'||res.flag==='abnormal'?'#dc2626':res.flag==='low'?'#d97706':res.flag===''?'var(--t1)':'var(--success)',
                             }}>
                               {res.value} <span style={{fontSize:10, fontWeight:500}}>{res.unit}</span>
-                              {res.flag !== 'normal' && (
-                                <span style={{fontSize:10, marginLeft:4}}>{FLAG_STYLE[res.flag]?.label}</span>
+                              {res.flag && res.flag !== 'normal' && (
+                                <span style={{fontSize:10, marginLeft:4}}>{flagLetter(res.flag)}</span>
                               )}
                             </div>
                             {res.referenceRange && (

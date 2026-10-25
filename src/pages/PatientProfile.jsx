@@ -1,6 +1,8 @@
 // src/pages/PatientProfile.jsx
 import { useTheme } from '../lib/ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
+import LabReportTable from '../components/shared/LabReportTable';
+import { isAbnormalFlag } from '../lib/labCatalogue';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../lib/AuthContext';
@@ -807,7 +809,7 @@ export default function PatientProfile() {
       if (!entries.length) return `Lab result — ${(item.data.tests || []).join(', ')}`;
       return entries.slice(0, 4).map(([test, r], i) => {
         const txt = `${test} ${r.value ?? '—'}${r.unit ? ' ' + r.unit : ''}`;
-        const abn = r.flag === 'high' || r.flag === 'low';
+        const abn = isAbnormalFlag(r.flag);
         return <React.Fragment key={test}>{i > 0 && ' · '}{abn ? <b style={{ color:RED, fontWeight:800 }}>{txt}</b> : txt}</React.Fragment>;
       }).concat(entries.length > 4 ? [` · +${entries.length - 4} more`] : []);
     }
@@ -2797,74 +2799,6 @@ const URGENCY_BADGE_L = { stat:'badge-danger', urgent:'badge-warn', routine:'bad
 const STATUS_BADGE_L  = { pending:'badge-warn', processing:'badge-info', completed:'badge-ok' };
 const FLAG_COLOR_L    = { high:'#dc2626', low:'#d97706', normal:'var(--success)', '':'var(--t3)' };
 
-/* Lab report laid out like the lab's own printed sheet:
-   TEST NAME | Value | UNIT | NORMAL RANGE | TEST RESULT (H / L), abnormal rows in red,
-   then the lab's comments underneath. Used in the patient timeline and the lab history. */
-function LabReportTable({ result }) {
-  const rows = Object.entries(result?.results || {});
-  const ABN = '#e53935';
-  const cell = (abn, extra = {}) => ({
-    border: `1px solid ${abn ? ABN : 'var(--t1)'}`, padding:'4px 6px',
-    color: abn ? ABN : 'var(--t1)', fontSize:15, fontWeight:500, lineHeight:1.25,
-    verticalAlign:'middle', ...extra,
-  });
-  const head = { border:'1px solid var(--t1)', padding:'4px 6px', color:'var(--t1)',
-    fontSize:15, fontWeight:800, textAlign:'center', lineHeight:1.25 };
-  const comments = String(result?.comments || '').split('\n').map(c => c.trim()).filter(Boolean);
-  return (
-    <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, flexWrap:'wrap', marginBottom:10 }}>
-        <div style={{ fontSize:22, fontWeight:500, color:'var(--t1)' }}>Lab Result</div>
-        {result?.resultEnteredBy && (
-          <div style={{ fontSize:12, color:'var(--t2)', textTransform:'uppercase' }}>LAB.{result.resultEnteredBy}</div>
-        )}
-      </div>
-      {rows.length === 0 ? (
-        <div style={{ fontSize:13, color:'var(--t3)' }}>{(result?.tests || []).join(', ') || 'No result values recorded'}</div>
-      ) : (
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:2, border:'1px solid var(--t1)' }}>
-            <thead>
-              <tr>
-                <th style={head}>TEST NAME</th>
-                <th style={head}>Value</th>
-                <th style={head}>UNIT</th>
-                <th style={head}>NORMAL RANGE</th>
-                <th style={head}>TEST RESULT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(([test, r]) => {
-                const abn = r.flag === 'high' || r.flag === 'low';
-                return (
-                  <tr key={test}>
-                    <td style={cell(abn)}>{test}</td>
-                    <td style={cell(abn)}>{r.value ?? ''}</td>
-                    <td style={cell(abn)}>{r.unit || ''}</td>
-                    <td style={cell(abn)}>{r.referenceRange || ''}</td>
-                    <td style={cell(abn, { textAlign:'left' })}>{r.flag === 'high' ? 'H' : r.flag === 'low' ? 'L' : ''}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {comments.length > 0 && (
-        <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:12 }}>
-          {comments.map((c, i) => (
-            <div key={i} style={{ fontSize:15, color:'var(--t1)', textTransform:'uppercase', overflowWrap:'anywhere' }}>{c}</div>
-          ))}
-        </div>
-      )}
-      <div style={{ marginTop:12, fontSize:11, color:'var(--t3)' }}>
-        {result?.requestedBy && <>Requested by: <b style={{ color:'var(--t2)' }}>{result.requestedBy}</b></>}
-        {result?.resultEnteredBy && <> · Entered by: <b style={{ color:'var(--t2)' }}>{result.resultEnteredBy}</b></>}
-      </div>
-    </div>
-  );
-}
-
 function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
   const [openId, setOpenId] = useState(null);
   const allRequests = [...labRequests].sort((a,b) =>
@@ -2877,7 +2811,7 @@ function LabResultsHistory({ labResults, labRequests, patient, emrNumber }) {
       ? Object.entries(result.results || {}).map(([test, r]) => `
           <tr>
             <td>${test}</td>
-            <td style="font-weight:700;color:${r.flag==='high'?'#dc2626':r.flag==='low'?'#d97706':'#000'}">${r.value || '—'}</td>
+            <td style="font-weight:700;color:${r.flag==='high'||r.flag==='abnormal'?'#dc2626':r.flag==='low'?'#d97706':'#000'}">${r.value || '—'}</td>
             <td>${r.unit || '—'}</td>
             <td>${r.referenceRange || '—'}</td>
             <td>${r.flag ? r.flag.toUpperCase() : '—'}</td>

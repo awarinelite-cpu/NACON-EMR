@@ -2231,6 +2231,26 @@ export async function enterLabResults(requestId, results, enteredBy, enteredByRo
   await logAudit('LAB_RESULT', requestId, enteredBy, { emrNumber: req.emrNumber }, enteredByRole);
 }
 
+// ── Lab catalogue overrides (units / normal ranges the lab has changed) ──
+// Stored in settings/labCatalogue as { overrides: { 'FBC name|HGB': { unit, m, f, all } } }.
+// Defaults live in lib/labCatalogue.js; whatever is saved here wins over them.
+export function listenLabCatalogue(callback) {
+  return onSnapshot(
+    doc(db, COL.SETTINGS, 'labCatalogue'),
+    snap => callback(snap.exists() ? (snap.data().overrides || {}) : {}),
+    () => callback({}),
+  );
+}
+
+export async function saveLabCatalogueOverrides(overrides, savedBy, savedByRole = null) {
+  await setDoc(doc(db, COL.SETTINGS, 'labCatalogue'), {
+    overrides,
+    updatedBy: savedBy,
+    updatedAt: serverTimestamp(),
+  });
+  await logAudit('LAB_CATALOGUE_UPDATE', 'labCatalogue', savedBy, {}, savedByRole);
+}
+
 /** Live listener: all pending lab requests */
 export function listenLabRequests(callback, statusFilter = null, completedDays = 7) {
   // Single-field queries only (no composite index). Sort client-side.
