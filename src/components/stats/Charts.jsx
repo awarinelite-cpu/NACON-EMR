@@ -173,8 +173,8 @@ export function GroupStack({ groups }) {
             {g.rows.map((r, i) => (
               <div key={r.label + i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, marginTop: 2 }}>
                 <i style={{ width: 9, height: 9, borderRadius: 2, background: PALETTE[i % PALETTE.length], flexShrink: 0 }} />
+                <strong style={{ color: 'var(--t1)', minWidth: 20, textAlign: 'right' }}>{r.value}×</strong>
                 <span style={{ flex: 1, minWidth: 0, color: 'var(--t2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
-                <strong style={{ color: 'var(--t1)' }}>{r.value}</strong>
               </div>
             ))}
           </div>
