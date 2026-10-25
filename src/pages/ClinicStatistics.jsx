@@ -2,7 +2,7 @@
 // Replaces the old Health Statistics page. One fetch per filter change.
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchClinicStats, aggregate, rangeFor, fmtDuration } from '../lib/clinicStats';
-import { HBar, StackedHBar, ColBar, Donut, Empty, PALETTE } from '../components/stats/Charts';
+import { HBar, GroupStack, StackedHBar, ColBar, Donut, Empty, PALETTE } from '../components/stats/Charts';
 
 const FILTERS = [
   { key: 'today',    label: 'Today' },
@@ -147,12 +147,7 @@ export default function ClinicStatistics() {
               </Panel>
               <Panel title="Male vs female"><Donut rows={s.who.sex} colors={['var(--accent)', '#db2777', 'var(--t3)']} /></Panel>
               <Panel title="Most sick reports — top 5 students per SET">
-                {s.who.topStudents.length ? s.who.topStudents.map(g => (
-                  <div key={g.set} style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t2)', marginBottom: 6 }}>{g.set}</div>
-                    <HBar rows={g.rows} color="#db2777" />
-                  </div>
-                )) : <Empty />}
+                <GroupStack groups={s.who.topStudents} />
                 <div style={{ fontSize: 10.5, color: 'var(--t3)', marginTop: 6 }}>Counts visits opened in the selected period.</div>
               </Panel>
               <Panel title="Age groups"><Donut rows={s.who.age} /></Panel>

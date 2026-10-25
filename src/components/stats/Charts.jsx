@@ -146,3 +146,40 @@ export function Donut({ rows, colors = PALETTE, size = 150 }) {
     </div>
   );
 }
+
+/** One stacked bar per group; each segment is a different colour = a different student. */
+export function GroupStack({ groups }) {
+  const data = (groups || []).filter(g => g.rows.length);
+  if (!data.length) return <Empty />;
+  const totals = data.map(g => g.rows.reduce((a, r) => a + r.value, 0));
+  const max = Math.max(...totals, 1);
+  return (
+    <div>
+      {data.map((g, gi) => (
+        <div key={g.set} style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+            <strong style={{ color: 'var(--t2)' }}>{g.set}</strong>
+            <strong style={{ color: 'var(--t1)' }}>{totals[gi]}</strong>
+          </div>
+          <div style={{ display: 'flex', height: 18, borderRadius: 5, overflow: 'hidden', background: 'var(--border)', width: `${Math.max((totals[gi] / max) * 100, 6)}%` }}>
+            {g.rows.map((r, i) => (
+              <div key={r.label + i} title={`${r.label}: ${r.value}`}
+                style={{ width: `${(r.value / totals[gi]) * 100}%`, background: PALETTE[i % PALETTE.length], color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {r.value}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 5 }}>
+            {g.rows.map((r, i) => (
+              <div key={r.label + i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, marginTop: 2 }}>
+                <i style={{ width: 9, height: 9, borderRadius: 2, background: PALETTE[i % PALETTE.length], flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, color: 'var(--t2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+                <strong style={{ color: 'var(--t1)' }}>{r.value}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
