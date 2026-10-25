@@ -182,6 +182,22 @@ export function aggregate(raw) {
     .map(([label, v]) => ({ label, ...v }))
     .sort((a, b) => b.total - a.total);
 
+  // student with the most sick episodes in each SET (one visit = one episode)
+  const byId = {};
+  raw.sickPatients.forEach(p => { byId[p.id || p.emrNumber] = p; });
+  const perStudent = {};
+  raw.visits.forEach(v => { if (v.emrNumber) perStudent[v.emrNumber] = (perStudent[v.emrNumber] || 0) + 1; });
+  const bestInSet = {};
+  Object.entries(perStudent).forEach(([emr, n]) => {
+    const p = byId[emr];
+    if (!p) return;
+    const set = normalizeClassSet(p.classSet) || 'No set';
+    if (!bestInSet[set] || n > bestInSet[set].value) {
+      bestInSet[set] = { label: `${set} · ${titleCase(`${p.surname || ''} ${p.firstName || ''}`.trim().toLowerCase()) || emr}`, value: n };
+    }
+  });
+  const topStudents = Object.values(bestInSet).sort((a, b) => b.value - a.value);
+
   // last 12 months
   const months = [];
   const base = new Date(); base.setDate(1); base.setHours(0, 0, 0, 0);
@@ -309,6 +325,7 @@ export function aggregate(raw) {
         { label: 'Female', value: sexCount.female },
         ...(sexCount.unknown ? [{ label: 'Unknown', value: sexCount.unknown }] : []),
       ],
+      topStudents,
       age: Object.entries(ageCount).filter(([, v]) => v > 0).map(([label, value]) => ({ label, value })),
       months,
     },
