@@ -2466,6 +2466,9 @@ export default function PatientProfile() {
                 );
               })()}
 
+              {/* ── LAB RESULT ── */}
+              {selectedEvent.type === 'lab' && <LabReportTable result={selectedEvent.data} />}
+
               {/* ── VITALS ── */}
               {selectedEvent.type === 'vitals' && (() => {
                 const v = selectedEvent.data;
