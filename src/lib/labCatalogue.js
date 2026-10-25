@@ -220,3 +220,20 @@ export const isAbnormalFlag = (f) => f === 'high' || f === 'low' || f === 'abnor
 
 /** Letter(s) shown in the TEST RESULT column */
 export const flagLetter = (f) => f === 'high' ? 'H' : f === 'low' ? 'L' : f === 'abnormal' ? 'ABN' : '';
+
+/**
+ * Comment lines the system writes under a result table: one per abnormal value,
+ * e.g. "WBC: HIGH (12.5 x10^9/L, normal 4 - 11)". Built from the saved results, so it
+ * also works for results entered before this existed.
+ */
+export function abnormalComments(results = {}) {
+  const out = [];
+  Object.entries(results || {}).forEach(([name, r]) => {
+    if (!r || !isAbnormalFlag(r.flag) || !isSet(r.value)) return;
+    const val = `${String(r.value).trim()}${r.unit ? ' ' + r.unit : ''}`;
+    if (r.flag === 'abnormal') { out.push(`${name}: ${String(r.value).trim()} (abnormal)`); return; }
+    const word = r.flag === 'high' ? 'HIGH' : 'LOW';
+    out.push(`${name}: ${word} (${val}${r.referenceRange ? `, normal ${r.referenceRange}` : ''})`);
+  });
+  return out;
+}

@@ -1,6 +1,6 @@
 // src/components/shared/LabReportTable.jsx
 import React from 'react';
-import { isAbnormalFlag, flagLetter } from '../../lib/labCatalogue';
+import { isAbnormalFlag, flagLetter, abnormalComments } from '../../lib/labCatalogue';
 
 /* Lab report laid out like the lab's own printed sheet:
    TEST NAME | Value | UNIT | NORMAL RANGE | TEST RESULT (H / L), abnormal rows in red,
@@ -15,7 +15,11 @@ export default function LabReportTable({ result }) {
   });
   const head = { border:'1px solid var(--t1)', padding:'3px 4px', color:'var(--t1)',
     fontSize:12, fontWeight:800, textAlign:'center', lineHeight:1.25 };
-  const comments = String(result?.comments || '').split('\n').map(c => c.trim()).filter(Boolean);
+  // system-written lines for the abnormal values first, then whatever the lab typed
+  const comments = [
+    ...abnormalComments(result?.results),
+    ...String(result?.comments || '').split('\n').map(c => c.trim()).filter(Boolean),
+  ];
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, flexWrap:'wrap', marginBottom:10 }}>

@@ -380,12 +380,12 @@ export default function LabDashboard() {
             <div className="card-header">
               <div className="card-title">
                 <i className="ti ti-message-2" style={{color:'#0891b2'}} />
-                Comments / Remarks
+                Extra comments (optional)
               </div>
             </div>
             <div className="card-body">
               <textarea className="form-textarea" rows={4}
-                placeholder={"One remark per line, e.g.\nRBC: NORMOCYTIC NORMOCHROMIC\nWBC: NO ATYPICAL CELL SEEN\nPLT: ADEQUATE AND NORMAL"}
+                placeholder={"Abnormal values are commented automatically. Add anything else here, one remark per line, e.g.\nRBC: NORMOCYTIC NORMOCHROMIC"}
                 value={comments} onChange={e => setComments(e.target.value)}
                 style={{resize:'vertical', width:'100%', boxSizing:'border-box'}} />
             </div>
