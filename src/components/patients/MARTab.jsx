@@ -17,7 +17,7 @@ import {
   ROUTE_OPTIONS, REMARK_OPTIONS, ACTION_OPTIONS, actionColor, actionOfStatus, statusOfAction,
   buildDrugList, dueLabelFor, parseDoseSequence, parseWeeklyFrequency,
   administrationTimesFor, weeklyDosesGivenThisWeek, buildSnoSegments, buildSnoText,
-  computeRouteFromGiven, abbreviateReason, formatHHMM12, legacyToChartRows,
+  computeRouteFromGiven, inferRoute, abbreviateReason, formatHHMM12, legacyToChartRows,
 } from '../../lib/marChart';
 import TimePicker from './TimePicker';
 
@@ -160,7 +160,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
       else if (manual) setSaveStatus('All changes saved');
       return;
     }
-    const payload = toSave.map(r => ({ ...r, nurse: r.nurse || nurseName, administeredByRole: r.administeredByRole || profile?.role || null }));
+    const payload = toSave.map(r => ({ ...r, route: r.route || computeRouteFromGiven(r.given, drugsByKey), nurse: r.nurse || nurseName, administeredByRole: r.administeredByRole || profile?.role || null }));
     try {
       const { inventory } = await saveMarRows(emrNumber, cb.current.visitId || null, payload, savedGiven.current, actor(), profile?.role,
         new Set(drugsRef.current.filter(d => d.inventoryDeducted).map(d => d.key)));
@@ -305,7 +305,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
     setDrugBusy(true);
     try {
       await updateDrugFields(d.rxId, d.idx, {
-        drug: e.name.trim(), dose: e.dose.trim(), route: e.route, frequency: e.frequency.trim(), duration: e.duration.trim(),
+        drug: e.name.trim(), dose: e.dose.trim(), route: e.route || inferRoute(e.name), frequency: e.frequency.trim(), duration: e.duration.trim(),
       }, actor(), profile?.role);
       toast.success(`${e.name.trim()} updated`);
       setDrugRowEdit(null);
@@ -336,7 +336,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
     setDrugBusy(true);
     try {
       const checked = await confirmRxStock([{
-        drug: n.name.trim(), dose: n.dose.trim(), route: n.route, frequency: n.frequency.trim(), duration: n.duration.trim(), status: 'active',
+        drug: n.name.trim(), dose: n.dose.trim(), route: n.route || inferRoute(n.name), frequency: n.frequency.trim(), duration: n.duration.trim(), status: 'active',
       }]);
       if (!checked) { setDrugBusy(false); return; }   // cancelled at the stock prompt
       const { inventory } = await addPrescriptionWithStock(emrNumber, cb.current.visitId || null, checked, actor(), profile?.role);
@@ -553,7 +553,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
                       </button></td>
                       <td><button type="button" className={'mar68-time-btn' + (row.time ? '' : ' placeholder')} onClick={() => setTimePickerRow(i)}>{row.time ? formatHHMM12(row.time) : 'Set time'}</button></td>
                       <td><input type="text" className="mar68-input" value={row.dose} onChange={e => updateRow(i, { dose: e.target.value })} /></td>
-                      <td><input type="text" className="mar68-input" value={row.route} onChange={e => updateRow(i, { route: e.target.value })} /></td>
+                      <td><input type="text" className="mar68-input" value={row.route || computeRouteFromGiven(row.given, drugsByKey)} onChange={e => updateRow(i, { route: e.target.value })} /></td>
                       <td><input type="text" className="mar68-input" readOnly value={row.nurse} /></td>
                       <td>
                         <select className="mar68-select" value={row.remark} onChange={e => updateRow(i, { remark: e.target.value })}>
@@ -584,7 +584,7 @@ export default function MARTab({ emrNumber, visitId, prescriptions, patient, rea
                     </td>
                     <td>{row.time ? formatHHMM12(row.time) : '\u00A0'}</td>
                     <td>{row.dose || 'AP'}</td>
-                    <td>{row.route || '\u00A0'}</td>
+                    <td>{row.route || computeRouteFromGiven(row.given, drugsByKey) || '\u00A0'}</td>
                     <td>{row.nurse || '\u00A0'}</td>
                     <td>{row.remark || '\u00A0'}</td>
                   </tr>

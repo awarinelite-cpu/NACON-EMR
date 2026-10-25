@@ -8,7 +8,7 @@
 // "rxId:drugIndex", so a row keeps pointing at the same drug even if the
 // numbering later changes.
 
-export const ROUTE_OPTIONS = ['', 'Oral', 'IV', 'IM', 'SC', 'Sublingual', 'Topical', 'Rectal', 'Suppository', 'Inhalation', 'NG Tube', 'Other'];
+export const ROUTE_OPTIONS = ['', 'Oral', 'IV', 'IM', 'SC', 'Intradermal', 'Sublingual', 'Topical', 'Rectal', 'Suppository', 'Inhalation', 'NG Tube', 'Other'];
 export const REMARK_OPTIONS = ['', 'Given', 'Not Given'];
 
 // EMR drug status <-> 68-chart "Action"
@@ -29,6 +29,26 @@ const tsDate = (ts) => {
 };
 const tsSeconds = (ts) => { const d = tsDate(ts); return d ? d.getTime() / 1000 : 0; };
 
+// ── Automatic route from the drug name ───────────────────────────────────────
+// Injection routes written in the name win (IV / IM / SC / Intradermal).
+// Otherwise an oral dosage form (Tab, Cap, Syr, Susp, Sol, Elix) means Oral.
+// Returns '' when the name gives no clue, so the nurse can still pick one.
+const RX_IV   = /\b(iv|i\.v\.?|intravenous)\b/i;
+const RX_IM   = /\b(im|i\.m\.?|intramuscular)\b/i;
+const RX_SC   = /\b(sc|s\.c\.?|subcut|subcutaneous)\b/i;
+const RX_ID   = /\b(id|i\.d\.?|intradermal)\b/i;
+const RX_ORAL = /\b(tabs?|tablets?|caps?|capsules?|syr|syrups?|susp|suspensions?|sol|solutions?|elix|elixirs?)\b/i;
+export function inferRoute(drugName) {
+  const n = String(drugName || '');
+  if (!n.trim()) return '';
+  if (RX_IV.test(n)) return 'IV';
+  if (RX_IM.test(n)) return 'IM';
+  if (RX_SC.test(n)) return 'SC';
+  if (RX_ID.test(n)) return 'Intradermal';
+  if (RX_ORAL.test(n)) return 'Oral';
+  return '';
+}
+
 // Flat, numbered drug list. Oldest prescription first so a new prescription
 // never renumbers drugs already on the chart.
 export function buildDrugList(prescriptions) {
@@ -39,7 +59,7 @@ export function buildDrugList(prescriptions) {
       if (d.removedFromMar) return;   // removed from the MAR (kept in the prescription record)
       list.push({
         key: drugKey(rx.id, idx), num: list.length + 1, rxId: rx.id, idx,
-        name: d.drug || '', dose: d.dose || '', route: d.route || '',
+        name: d.drug || '', dose: d.dose || '', route: d.route || inferRoute(d.drug),
         frequency: d.frequency || '', duration: d.duration || '',
         status: d.status || 'active', action: actionOfStatus(d.status),
         inventoryDeducted: !!d.inventoryDeducted,
