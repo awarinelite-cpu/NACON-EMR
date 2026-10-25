@@ -2335,3 +2335,21 @@ html, body { overflow-x: hidden; }
   .lab-grid3 { grid-template-columns: minmax(0, 1fr) !important; }
   .lab-grid3 input, .lab-grid3 textarea { width: 100%; box-sizing: border-box; min-width: 0; }
 }
+
+/* Lab "Enter Results" view: keep every part inside the screen on mobile */
+@media (max-width: 768px) {
+  .lab-detail { max-width: 100%; overflow-x: hidden !important; }
+  .lab-detail .page-content { max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
+  .lab-detail .card, .lab-detail .card-body, .lab-detail .card-header { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .lab-detail .card-header { flex-wrap: wrap; row-gap: 8px; }
+  .lab-detail .card-title { min-width: 0; overflow-wrap: anywhere; }
+  .lab-detail .form-group { min-width: 0; }
+  .lab-detail input, .lab-detail textarea, .lab-detail select { max-width: 100%; box-sizing: border-box; }
+  .lab-flags { flex-wrap: wrap; }
+
+  .lab-topbar-detail { flex-wrap: nowrap; gap: 8px; padding-left: 58px; min-width: 0; }
+  .lab-topbar-detail .topbar-title { flex: 1 1 0; min-width: 0; font-size: 13px; white-space: normal; line-height: 1.25; overflow-wrap: anywhere; }
+
+  .lab-patient { gap: 12px !important; }
+  .lab-patient > div:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+}

@@ -132,8 +132,8 @@ export default function LabDashboard() {
   if (selected) {
     const u = URGENCY_STYLE[selected.urgency] || URGENCY_STYLE.routine;
     return (
-      <div style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
-        <div className="topbar lab-topbar">
+      <div className="lab-detail" style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
+        <div className="topbar lab-topbar-detail">
           <button className="btn btn-ghost" onClick={() => setSelected(null)} style={{padding:'6px 10px', flexShrink:0}}>
             <i className="ti ti-arrow-left" />
           </button>
@@ -149,7 +149,7 @@ export default function LabDashboard() {
         <div className="page-content">
           {/* Patient info */}
           <div className="card" style={{marginBottom:12}}>
-            <div className="card-body" style={{display:'flex', gap:16, alignItems:'center'}}>
+            <div className="card-body lab-patient" style={{display:'flex', gap:16, alignItems:'center'}}>
               <div style={{
                 width:48, height:48, borderRadius:'50%', flexShrink:0,
                 background:'#cffafe', color:'#0891b2',
@@ -187,7 +187,7 @@ export default function LabDashboard() {
                     {testName}
                   </div>
                   {/* Flag selector */}
-                  <div style={{display:'flex', gap:4}}>
+                  <div className="lab-flags" style={{display:'flex', gap:4}}>
                     {['normal','high','low'].map(f => (
                       <button key={f} onClick={() => setResult(testName,'flag',f)} style={{
                         padding:'3px 10px', borderRadius:6, fontSize:11, fontWeight:800,
