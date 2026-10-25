@@ -98,9 +98,6 @@ export default function App() {
             <Route path="/doctor/patients" element={
               <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
             } />
-            <Route path="/doctor/queue" element={
-              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" filter="active" /></ProtectedRoute>
-            } />
             <Route path="/doctor/sick-report" element={
               <ProtectedRoute allowedRoles={['doctor']}><SickReportPage /></ProtectedRoute>
             } />
@@ -112,15 +109,6 @@ export default function App() {
             } />
             <Route path="/doctor/discharged-referred" element={
               <ProtectedRoute allowedRoles={['doctor']}><DischargedReferredPage /></ProtectedRoute>
-            } />
-            <Route path="/doctor/consults" element={
-              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
-            } />
-            <Route path="/doctor/rx" element={
-              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
-            } />
-            <Route path="/doctor/referrals" element={
-              <ProtectedRoute allowedRoles={['doctor']}><AllPatients role="doctor" /></ProtectedRoute>
             } />
 
             {/* ── NURSE ── */}
@@ -151,7 +139,7 @@ export default function App() {
 
             {/* ── TRIAGE ── */}
             <Route path="/triage" element={
-              <ProtectedRoute allowedRoles={['nurse','doctor','admin','subadmin']}>
+              <ProtectedRoute allowedRoles={['nurse','admin','subadmin']}>
                 <TriagePage />
               </ProtectedRoute>
             } />

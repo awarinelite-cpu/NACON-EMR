@@ -8,12 +8,7 @@ const NAV = {
   doctor: [
     { grp: 'Clinical', items: [
       { icon: 'ti-layout-dashboard', label: 'Dashboard',      path: '/doctor' },
-      { icon: 'ti-urgent',           label: 'Triage',         path: '/triage' },
-      { icon: 'ti-clock',            label: "Today's Queue",  path: '/doctor/queue',     badge: 'queue' },
       { icon: 'ti-users',            label: 'My Patients',    path: '/doctor/patients' },
-      { icon: 'ti-notes-medical',    label: 'Consultations',  path: '/doctor/consults' },
-      { icon: 'ti-pill',             label: 'Prescriptions',  path: '/doctor/rx' },
-      { icon: 'ti-file-export',      label: 'Referrals',      path: '/doctor/referrals' },
       { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
     ]},
   ],
