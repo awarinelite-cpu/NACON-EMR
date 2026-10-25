@@ -790,111 +790,23 @@ export async function acknowledgeAlert(alertId, acknowledgedBy, acknowledgedByRo
  * Returns { id, inventory } where inventory is one result per drug line.
  */
 export async function addPrescriptionWithStock(emrNumber, visitId, rxData, prescribedBy, role) {
+  // Prescriptions are NOT connected to pharmacy stock any more: no availability check,
+  // no deduction. (Name kept so existing callers keep working; `inventory` is always empty.)
   const lines = [...(rxData || [])];
   const rxRef = doc(collection(db, COL.PRESCRIPTIONS));
-  const baseDoc = {
+  await setDoc(rxRef, {
     emrNumber,
     visitId: visitId || null,
     prescribedBy,
     prescribedByRole: role,
-    dispensed: false,          // awaits pharmacist dispensing
-  };
-
-  // 1. Work out which inventory item each drug line comes out of, and how many units.
-  const inventory = [];
-  const plan = [];
-  let invDocs = null;
-  try { invDocs = (await getDocs(collection(db, COL.INVENTORY))).docs; }
-  catch (err) { console.error('[addPrescription] could not read inventory:', err); }
-  lines.forEach((d, i) => {
-    const name = d?.drug || d?.name;
-    if (!name) return;
-    const doses = courseDoseCount(d.frequency, d.duration);
-    if (!invDocs) { inventory.push({ drug: name, doses, found: false, error: true }); return; }
-    const r = resolveRxStock(invDocs, name, d.dose, d.inventoryItemId);
-    if (r.match) {
-      const itemName = r.match.data().name;
-      const { qty, doseAware } = unitsForDose(itemName, d.dose);
-      plan.push({ i, name, doses, id: r.match.id, itemName, qty: qty * doses, doseAware });
-    } else {
-      inventory.push({
-        drug: name, doses, found: false,
-        ambiguous: r.ambiguous || null,
-        unavailable: !!r.unavailable,
-      });
-    }
+    dispensed: false,
+    drugs: deepStripUndefined(lines),
+    createdAt: serverTimestamp(),
   });
-
-  // 2. Save the prescription and take the stock out in ONE transaction, so the
-  //    "inventoryDeducted" flag can never be missing when stock was deducted
-  //    (no double deduction later), and two users can't overwrite each other's
-  //    stock counts.
-  let saved = false;
-  if (plan.length) {
-    const ids = [...new Set(plan.map(p => p.id))];
-    let outcome = null;
-    try {
-      await runTransaction(db, async (txn) => {
-        const snaps = {};
-        for (const id of ids) snaps[id] = await txn.get(doc(db, COL.INVENTORY, id));
-        const running = {};
-        ids.forEach(id => { running[id] = snaps[id].exists() ? (snaps[id].data().quantity || 0) : 0; });
-        const outDrugs = [...lines];
-        const out = [];
-        const nowIso = new Date().toISOString();
-        for (const p of plan) {
-          const snap = snaps[p.id];
-          if (!snap.exists()) { out.push({ drug: p.name, doses: p.doses, found: false }); continue; }
-          const before = running[p.id];
-          const after = Math.max(0, before - p.qty);
-          running[p.id] = after;
-          outDrugs[p.i] = stripUndefined({
-            ...lines[p.i],
-            inventoryDeducted: true, inventoryQty: p.qty,
-            inventoryItemId: p.id, inventoryItemName: p.itemName, inventoryDeductedAt: nowIso,
-          });
-          out.push({
-            drug: p.name, doses: p.doses, found: true, itemId: p.id, itemName: p.itemName,
-            qtyDeducted: p.qty, remaining: after, doseAware: p.doseAware,
-            short: Math.max(0, p.qty - before),
-            low: after <= (snap.data().reorderAt || 10),
-          });
-        }
-        ids.forEach(id => {
-          if (snaps[id].exists()) txn.update(doc(db, COL.INVENTORY, id), { quantity: running[id], updatedAt: serverTimestamp() });
-        });
-        txn.set(rxRef, { ...baseDoc, drugs: outDrugs, createdAt: serverTimestamp() });
-        outcome = out;
-      });
-      saved = true;
-      inventory.push(...outcome);
-      outcome.filter(o => o.found).forEach(o => {
-        logAudit('INVENTORY_DISPENSE', o.itemId, prescribedBy, {
-          drug: o.drug, qtyDeducted: o.qtyDeducted, doses: o.doses, emrNumber, remaining: o.remaining, source: 'prescribing',
-        }, role);
-      });
-    } catch (err) {
-      console.error('[addPrescription] stock transaction failed:', err);
-      // The commit may have gone through even though we saw an error — if so, don't save twice.
-      let existing = null;
-      try { const ex = await getDoc(rxRef); if (ex.exists()) existing = ex.data(); } catch (_) { /* offline */ }
-      if (existing) {
-        saved = true;
-        (existing.drugs || []).forEach(d => {
-          if (d?.inventoryDeducted) inventory.push({ drug: d.drug || d.name, found: true, itemName: d.inventoryItemName, qtyDeducted: d.inventoryQty });
-        });
-      } else {
-        // Couldn't deduct (e.g. offline). Save the prescription unflagged: stock is then taken
-        // out at dispense / MAR exactly as before.
-        plan.forEach(p => inventory.push({ drug: p.name, doses: p.doses, found: false, error: err?.code || true }));
-      }
-    }
-  }
-  if (!saved) await setDoc(rxRef, { ...baseDoc, drugs: lines, createdAt: serverTimestamp() });
 
   await markSeenIfReportedSickToday(emrNumber, prescribedBy);
   await logAudit('PRESCRIPTION', emrNumber, prescribedBy, {}, role);
-  return { id: rxRef.id, inventory };
+  return { id: rxRef.id, inventory: [] };
 }
 
 /**
@@ -905,24 +817,8 @@ export async function addPrescriptionWithStock(emrNumber, visitId, rxData, presc
  * (with `inventoryItemId` set where a substitute was accepted).
  */
 export async function confirmRxStock(rxData) {
-  const drugs = (rxData || []).map(d => ({ ...d }));
-  let invDocs;
-  try { invDocs = (await getDocs(collection(db, COL.INVENTORY))).docs; }
-  catch (_) { return drugs; }   // can't check (offline) — carry on
-  for (const d of drugs) {
-    const name = d?.drug || d?.name;
-    if (!name) continue;
-    const r = resolveRxStock(invDocs, name, d.dose, d.inventoryItemId);
-    if (!r.unavailable) continue;
-    const alt = r.unavailable.alternatives[0];
-    const a = alt.data();
-    const ok = window.confirm(
-      `${name} is not available in pharmacy stock.\n\nAvailable: ${a.name} (${a.quantity || 0} in stock).\n\nOK = take it from ${a.name}\nCancel = go back and change the prescription`
-    );
-    if (!ok) return null;
-    d.inventoryItemId = alt.id;
-  }
-  return drugs;
+  // Prescriptions are no longer connected to pharmacy stock: nothing to check or ask.
+  return (rxData || []).map(d => ({ ...d }));
 }
 
 export async function addPrescription(emrNumber, visitId, rxData, prescribedBy, role) {
@@ -1382,23 +1278,8 @@ export async function saveMarRows(emrNumber, visitId, rows, prevGiven, by, byRol
     })),
   }, byRole);
 
-  const inventory = [];
-  for (const r of rows) {
-    const before = new Set(prevGiven?.[r.id] || []);
-    for (const g of (r.given || [])) {
-      if (before.has(g.key) || !g.name) continue;
-      if (skipStockKeys && skipStockKeys.has(g.key)) continue;   // already deducted when prescribed
-      try {
-        const doseGiven = (r.dose && r.dose !== 'AP') ? r.dose : g.dose;
-        const res = await deductInventoryByDose(g.name, doseGiven, emrNumber, by, byRole);
-        inventory.push({ drug: g.name, ...res });
-      } catch (err) {
-        console.error('[saveMarRows] inventory deduction failed:', err);
-        inventory.push({ drug: g.name, found: false, error: true });
-      }
-    }
-  }
-  return { inventory };
+  // Charting a dose no longer touches pharmacy stock.
+  return { inventory: [] };
 }
 
 export async function deleteMarRow(emrNumber, rowId, row, by, byRole = null) {
@@ -2201,7 +2082,7 @@ export function listenDispensedToday(callback) {
   );
 }
 
-/** Dispense a prescription — marks it dispensed, deducts inventory, logs */
+/** Dispense a prescription — marks it dispensed and logs it (no stock deduction) */
 export async function dispensePrescription(prescriptionId, rxData, dispensedBy, dispensedByRole = ROLES.PHARMACIST) {
   // Mark prescription as dispensed
   await updateDoc(doc(db, COL.PRESCRIPTIONS, prescriptionId), {
@@ -2210,13 +2091,7 @@ export async function dispensePrescription(prescriptionId, rxData, dispensedBy, 
     dispensedAt:  serverTimestamp(),
   });
 
-  // Deduct each drug from inventory and log
-  for (const drug of rxData.drugs || []) {
-    // Support both drug.name (from Rx form) and drug.drug (legacy)
-    const drugName = drug.name || drug.drug;
-    // Already taken out of stock when the prescription was written, so don't deduct twice
-    if (drugName && !drug.inventoryDeducted) await deductInventory(drugName, Number(drug.qty) || 1, rxData.emrNumber, dispensedBy, dispensedByRole);
-  }
+  // Dispensing is recorded only; it no longer deducts pharmacy stock.
 
   // Add to dispense log
   await addDoc(collection(db, COL.DISPENSE_LOG), {
