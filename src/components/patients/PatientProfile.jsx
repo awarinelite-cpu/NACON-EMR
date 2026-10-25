@@ -10,7 +10,7 @@ import {
   dischargePatient, emrToFolderNumber, formatDateTime,
   ROLES,
   requestLabTest, listenPatientLabRequests, listenPatientLabResults,
-  LAB_TESTS,
+  LAB_TESTS, getInventorySnapshot,
 } from '../../lib/emr';
 import toast from 'react-hot-toast';
 
@@ -622,14 +622,52 @@ function NotesHistory({ notes, filterRole }) {
 function RxForm({ emr, profile, role, onSaved }) {
   const [drugs,     setDrugs]     = useState([{ name:'', dose:'', frequency:'', duration:'', qty:'' }]);
   const [saving,    setSaving]    = useState(false);
+  const [inventory, setInventory] = useState([]);   // [{name, quantity, unit, ...}]
+  const [stockMap,  setStockMap]  = useState({});   // { drugNameLower: {quantity, unit, id} }
+
+  // Load inventory once on mount
+  useEffect(() => {
+    getInventorySnapshot().then(items => {
+      setInventory(items);
+      const map = {};
+      items.forEach(item => {
+        if (item.name) map[item.name.toLowerCase()] = item;
+      });
+      setStockMap(map);
+    });
+  }, []);
 
   const addDrug    = () => setDrugs(d => [...d, { name:'', dose:'', frequency:'', duration:'', qty:'' }]);
   const removeDrug = (i) => setDrugs(d => d.filter((_,j) => j!==i));
   const setDrug    = (i, k, v) => setDrugs(d => d.map((x,j) => j===i ? {...x,[k]:v} : x));
 
+  // Returns stock info for a drug name
+  const stockFor = (name) => {
+    if (!name?.trim()) return null;
+    return stockMap[name.trim().toLowerCase()] || null;
+  };
+
+  const isOutOfStock = (name) => {
+    const s = stockFor(name);
+    if (!s) return false;          // not tracked = don't block
+    return (s.quantity || 0) <= 0;
+  };
+
+  const isNotTracked = (name) => {
+    if (!name?.trim()) return false;
+    return !stockMap[name.trim().toLowerCase()];
+  };
+
   const save = async () => {
     const valid = drugs.filter(d => d.name.trim());
     if (!valid.length) { toast.error('Add at least one drug'); return; }
+
+    // Block if any tracked drug is out of stock
+    const blocked = valid.find(d => isOutOfStock(d.name));
+    if (blocked) {
+      toast.error(`"${blocked.name}" is out of stock — remove it or adjust stock first`);
+      return;
+    }
 
     const checked = await confirmRxStock(valid);   // asks if a strength isn't stocked; null = cancelled
     if (!checked) return;
@@ -650,6 +688,9 @@ function RxForm({ emr, profile, role, onSaved }) {
       </div>
       <div className="card-body">
         {drugs.map((d, i) => {
+          const stock = stockFor(d.name);
+          const outOfStock = isOutOfStock(d.name);
+          const notTracked = isNotTracked(d.name);
           return (
             <div key={i} style={{ marginBottom:12 }}>
               <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr .7fr auto', gap:8 }}>
@@ -661,6 +702,7 @@ function RxForm({ emr, profile, role, onSaved }) {
                     placeholder="e.g. IM Artemether"
                     value={d.name}
                     onChange={e => setDrug(i, 'name', e.target.value)}
+                    style={{ borderColor: outOfStock ? '#dc2626' : undefined }}
                   />
                 </div>
                 {/* Dose */}
@@ -698,12 +740,45 @@ function RxForm({ emr, profile, role, onSaved }) {
                 </div>
               </div>
 
+              {/* Stock status badge */}
+              {d.name?.trim() && (
+                <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
+                  {outOfStock ? (
+                    <span style={{ fontSize:10, fontWeight:800, color:'#dc2626',
+                      background:'#fee2e2', padding:'2px 8px', borderRadius:4,
+                      display:'flex', alignItems:'center', gap:4 }}>
+                      <i className="ti ti-alert-triangle" style={{ fontSize:11 }} />
+                      NOT IN STOCK
+                    </span>
+                  ) : stock ? (
+                    <span style={{ fontSize:10, fontWeight:700, color:'var(--success)',
+                      background:'rgba(22,163,74,.1)', padding:'2px 8px', borderRadius:4,
+                      display:'flex', alignItems:'center', gap:4 }}>
+                      <i className="ti ti-circle-check" style={{ fontSize:11 }} />
+                      In stock: {stock.quantity} {stock.unit || 'units'}
+                      {stock.quantity <= (stock.reorderAt || 10) && (
+                        <span style={{ color:'#d97706', marginLeft:4 }}>⚠ Low</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize:10, fontWeight:600, color:'var(--t3)',
+                      background:'var(--card-bg2)', padding:'2px 8px', borderRadius:4 }}>
+                      Not in pharmacy inventory
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
 
+        <div className="alert alert-info mt-2" style={{ fontSize:11 }}>
+          <i className="ti ti-info-circle" />
+          <div>Drugs found in pharmacy inventory will be <strong>automatically deducted</strong> from stock when you save.</div>
+        </div>
+
         <button className="btn btn-primary mt-3" onClick={save}
-          disabled={saving}>
+          disabled={saving || drugs.some(d => d.name?.trim() && isOutOfStock(d.name))}>
           {saving ? 'Saving…' : <><i className="ti ti-device-floppy" /> Save Prescription</>}
         </button>
       </div>
