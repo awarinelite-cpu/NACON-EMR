@@ -2353,3 +2353,17 @@ html, body { overflow-x: hidden; }
   .lab-patient { gap: 12px !important; }
   .lab-patient > div:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
 }
+
+/* Lab pages on phones: ONE scroller (.main-area) and nothing wider than the screen.
+   The page roots were their own scroll boxes inside .main-area, which let the
+   view sit panned sideways ("bent to one side"). */
+@media (max-width: 768px) {
+  .lab-root, .lab-detail {
+    height: auto !important;
+    min-height: 100%;
+    overflow: visible !important;
+    width: 100%;
+    max-width: 100%;
+  }
+  .lab-root .page-content, .lab-detail .page-content { overflow-x: hidden; max-width: 100%; }
+}

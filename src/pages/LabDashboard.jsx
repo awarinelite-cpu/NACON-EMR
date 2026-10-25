@@ -381,7 +381,7 @@ export default function LabDashboard() {
 
   // ── Main Dashboard ──────────────────────────
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
+    <div className="lab-root" style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
       <div className="topbar lab-topbar">
         <div className="topbar-title">
           <i className="ti ti-flask" style={{color:'#0891b2', marginRight:6}} />

@@ -30,11 +30,21 @@ export default function AppShell() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // The page must never sit panned to one side: if focus or a swipe moves the
+  // main scroller sideways, snap it back.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return undefined;
+    const back = () => { if (el.scrollLeft !== 0) el.scrollLeft = 0; };
+    el.addEventListener('scroll', back, { passive: true });
+    return () => el.removeEventListener('scroll', back);
+  }, []);
+
   // Auto-close sidebar on every route change
   useEffect(() => {
     setSidebarOpen(false);
     // Always start a new page at the top so its header is never scrolled out of view
-    if (mainRef.current) mainRef.current.scrollTop = 0;
+    if (mainRef.current) { mainRef.current.scrollTop = 0; mainRef.current.scrollLeft = 0; }
     window.scrollTo(0, 0);
     // landscape / wide screens use the desktop sidebar state — close that too
     if (window.innerWidth > 768) {
