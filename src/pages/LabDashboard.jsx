@@ -133,7 +133,7 @@ export default function LabDashboard() {
     const u = URGENCY_STYLE[selected.urgency] || URGENCY_STYLE.routine;
     return (
       <div style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
-        <div className="topbar">
+        <div className="topbar lab-topbar">
           <button className="btn btn-ghost" onClick={() => setSelected(null)} style={{padding:'6px 10px', flexShrink:0}}>
             <i className="ti ti-arrow-left" />
           </button>
@@ -200,7 +200,7 @@ export default function LabDashboard() {
                   </div>
                 </div>
                 <div className="card-body">
-                  <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 2fr', gap:10}}>
+                  <div className="lab-grid3" style={{display:'grid', gridTemplateColumns:'2fr 1fr 2fr', gap:10}}>
                     <div className="form-group">
                       <label className="form-label">Result Value <span className="req">*</span></label>
                       <input className="form-input"
@@ -267,7 +267,7 @@ export default function LabDashboard() {
                       />
                     </div>
                     {/* Result fields */}
-                    <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 2fr', gap:8, marginBottom:8}}>
+                    <div className="lab-grid3" style={{display:'grid', gridTemplateColumns:'2fr 1fr 2fr', gap:8, marginBottom:8}}>
                       <div className="form-group">
                         <label className="form-label">Result Value</label>
                         <input className="form-input" placeholder="e.g. Positive / 5.4 / See above"
@@ -382,12 +382,13 @@ export default function LabDashboard() {
   // ── Main Dashboard ──────────────────────────
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', background:'var(--main-bg)' }}>
-      <div className="topbar">
+      <div className="topbar lab-topbar">
         <div className="topbar-title">
           <i className="ti ti-flask" style={{color:'#0891b2', marginRight:6}} />
           Laboratory — {profile?.displayName}
         </div>
         <input
+          className="lab-search"
           placeholder="Search patient / EMR…"
           value={search} onChange={e => setSearch(e.target.value)}
           style={{
@@ -400,7 +401,7 @@ export default function LabDashboard() {
 
       <div className="page-content">
         {/* Summary cards */}
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
+        <div className="lab-stats" style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12}}>
           <div className="stat-card" style={{cursor:'pointer', borderTop: pending.length ? '3px solid #f97316' : undefined}} onClick={() => setTab('pending')}>
             <div className="stat-label"><i className="ti ti-clock" style={{color:'#f97316'}} />Pending</div>
             <div className="stat-value" style={{color:'#f97316'}}>{pending.length}</div>
@@ -419,7 +420,7 @@ export default function LabDashboard() {
         </div>
 
         {/* Tabs */}
-        <div style={{display:'flex', gap:4, background:'var(--card-bg)', border:'1px solid var(--border)', borderRadius:10, padding:4, marginBottom:12}}>
+        <div className="lab-tabs" style={{display:'flex', gap:4, background:'var(--card-bg)', border:'1px solid var(--border)', borderRadius:10, padding:4, marginBottom:12}}>
           <button style={tabStyle('pending')}    onClick={() => setTab('pending')}>Pending ({pending.length})</button>
           <button style={tabStyle('processing')} onClick={() => setTab('processing')}>Processing ({processing.length})</button>
           <button style={tabStyle('completed')}  onClick={() => setTab('completed')}>Completed - last 7 days ({completed.length})</button>
@@ -445,7 +446,7 @@ export default function LabDashboard() {
                     onMouseEnter={e => { if(tab!=='completed') e.currentTarget.style.background='var(--card-bg2)'; }}
                     onMouseLeave={e => e.currentTarget.style.background=''}
                   >
-                    <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:6}}>
+                    <div className="lab-req-row" style={{display:'flex', alignItems:'center', gap:10, marginBottom:6}}>
                       {/* Avatar */}
                       <div style={{
                         width:36, height:36, borderRadius:'50%', flexShrink:0,
@@ -477,7 +478,7 @@ export default function LabDashboard() {
                     </div>
 
                     {/* Tests chips */}
-                    <div style={{display:'flex', gap:5, flexWrap:'wrap', paddingLeft:46}}>
+                    <div className="lab-indent" style={{display:'flex', gap:5, flexWrap:'wrap', paddingLeft:46}}>
                       {(req.tests||[]).map(t => (
                         <span key={t} style={{
                           fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6,
@@ -489,7 +490,7 @@ export default function LabDashboard() {
 
                     {/* Completed results preview */}
                     {tab === 'completed' && req.results && (
-                      <div style={{marginTop:8, paddingLeft:46, display:'flex', gap:6, flexWrap:'wrap'}}>
+                      <div className="lab-indent" style={{marginTop:8, paddingLeft:46, display:'flex', gap:6, flexWrap:'wrap'}}>
                         {Object.entries(req.results).map(([test, res]) => (
                           <div key={test} style={{
                             background:'var(--card-bg2)', border:'1px solid var(--border)',
