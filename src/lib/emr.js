@@ -107,8 +107,6 @@ export const COL = {
   MED_REMINDERS:    'med_reminders',
   IV_INFUSIONS:     'iv_infusions',
   GLUCOSE_SCHEDULE: 'glucose_schedule',
-  TELEGRAM_LINKS:   'telegram_links',
-  LINK_CODES:       'link_codes',
   SETTINGS:         'settings',
 };
 

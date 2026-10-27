@@ -1,20 +1,21 @@
-// src/components/patients/BotRemindersTab.jsx
+// src/components/patients/RemindersTab.jsx
 // ─────────────────────────────────────────────
-// Lets a nurse/doctor schedule Telegram-bot reminders for this patient:
-// medication timing (drug administration), IV infusion timing, and
-// FBS/RBS glucose-check timing. Reminders are delivered as DMs by the
-// scheduledReminders Cloud Function once due; the assigned nurse must
-// have linked their Telegram account from Settings first.
+// Lets a nurse/doctor schedule reminders for this patient: medication timing
+// (drug administration), IV infusion timing, and FBS/RBS glucose-check
+// timing. Everything runs in the browser: due/overdue is computed from the
+// clock while the app is open (refreshed every minute), and the nurse records
+// the outcome right here (Given / Held / Refused, Completed / Stop, Log value).
+// No Cloud Functions, no Telegram bot.
 // ─────────────────────────────────────────────
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../lib/AuthContext';
 import { getAllUsers } from '../../lib/emr';
 import {
-  createMedReminder, listenMedReminders, cancelMedReminder,
-  createIvInfusion, listenIvInfusions, stopIvInfusion,
-  createGlucoseCheck, listenGlucoseSchedule, cancelGlucoseCheck,
-} from '../../lib/telegramReminders';
+  createMedReminder, listenMedReminders, cancelMedReminder, recordMedAction,
+  createIvInfusion, listenIvInfusions, stopIvInfusion, closeIvInfusion,
+  createGlucoseCheck, listenGlucoseSchedule, cancelGlucoseCheck, logGlucoseCheck,
+} from '../../lib/reminders';
 
 const ROUTES = ['Oral', 'IM', 'IV', 'SC', 'Topical', 'PR'];
 
@@ -23,7 +24,7 @@ function toLocalInputValue(date) {
   return d.toISOString().slice(0, 16);
 }
 
-export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
+export default function RemindersTab({ emrNumber, patient, prescriptions }) {
   const { profile } = useAuth();
   const [nurses, setNurses] = useState([]);
   const [meds, setMeds] = useState([]);
@@ -34,6 +35,28 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
   const [ivForm, setIvForm] = useState({ fluid: '', volumeMl: '', rateMlPerHr: '', startAt: toLocalInputValue(new Date()), nurseUid: '' });
   const [glucoseForm, setGlucoseForm] = useState({ type: 'RBS', dueAt: toLocalInputValue(new Date()), nurseUid: '' });
   const [saving, setSaving] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+  const [glucoseVals, setGlucoseVals] = useState({});
+  const [busyId, setBusyId] = useState('');
+
+  // Re-evaluate due/overdue every minute while the tab is open.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const staff = { uid: profile?.uid, name: profile?.displayName || profile?.email || 'Nurse', role: profile?.role || 'nurse' };
+  const ms = ts => ts?.toMillis?.() ?? (ts?.toDate ? ts.toDate().getTime() : null);
+  const fmt = ts => ts?.toDate?.().toLocaleString?.() || '—';
+  const dueStyle = isDue => (isDue ? { color: 'var(--danger)', fontWeight: 700 } : undefined);
+  const actBtn = { fontSize: 12, padding: '2px 8px', marginLeft: 4 };
+
+  const act = async (id, fn, okMsg) => {
+    setBusyId(id);
+    try { await fn(); toast.success(okMsg); }
+    catch (err) { console.error('[RemindersTab] action failed:', err); toast.error('Could not save — try again'); }
+    setBusyId('');
+  };
 
   useEffect(() => {
     getAllUsers().then(all => setNurses(all.filter(u => u.role === 'nurse' && u.active !== false))).catch(() => {});
@@ -73,7 +96,7 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
       toast.success('Medication reminder scheduled');
       setMedForm(f => ({ ...f, drug: '', dose: '', rxDrug: '' }));
     } catch (err) {
-      console.error('[BotRemindersTab] createMedReminder failed:', err);
+      console.error('[RemindersTab] createMedReminder failed:', err);
       toast.error('Failed to schedule reminder');
     }
     setSaving('');
@@ -94,7 +117,7 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
       toast.success('IV infusion timer started');
       setIvForm(f => ({ ...f, fluid: '', volumeMl: '', rateMlPerHr: '' }));
     } catch (err) {
-      console.error('[BotRemindersTab] createIvInfusion failed:', err);
+      console.error('[RemindersTab] createIvInfusion failed:', err);
       toast.error('Failed to start infusion timer');
     }
     setSaving('');
@@ -114,7 +137,7 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
       });
       toast.success(`${glucoseForm.type} check scheduled`);
     } catch (err) {
-      console.error('[BotRemindersTab] createGlucoseCheck failed:', err);
+      console.error('[RemindersTab] createGlucoseCheck failed:', err);
       toast.error('Failed to schedule check');
     }
     setSaving('');
@@ -130,7 +153,7 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
       <div className="alert alert-info">
-        <i className="ti ti-brand-telegram" /> Reminders are delivered by DM on Telegram. The assigned nurse must link their account from <strong>Settings → Telegram Bot</strong> first.
+        <i className="ti ti-bell" /> Reminders show as <strong>Due</strong> or <strong>Overdue</strong> here whenever the app is open. Use the buttons to record what was done.
       </div>
 
       {/* ── MEDICATION TIMING ── */}
@@ -163,12 +186,23 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
             {saving === 'med' ? 'Scheduling…' : 'Schedule reminder'}
           </button>
 
-          {meds.filter(m => m.status !== 'cancelled').map(m => (
-            <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderTop:'1px solid var(--border)', fontSize:13 }}>
-              <span>💊 <strong>{m.drug}</strong> {m.dose} — {m.assignedNurseName || 'unassigned'} — next due {m.nextDueAt?.toDate?.().toLocaleString?.() || '—'} {m.intervalHours ? `(q${m.intervalHours}h)` : ''}</span>
-              <span style={resetableFields} onClick={() => cancelMedReminder(m.id)}>Cancel</span>
-            </div>
-          ))}
+          {meds.filter(m => m.status === 'pending').sort((a, b) => (ms(a.nextDueAt) || 0) - (ms(b.nextDueAt) || 0)).map(m => {
+            const isDue = (ms(m.nextDueAt) || Infinity) <= now;
+            return (
+              <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', padding:'6px 0', borderTop:'1px solid var(--border)', fontSize:13 }}>
+                <span style={dueStyle(isDue)}>💊 <strong>{m.drug}</strong> {m.dose} — {m.assignedNurseName || 'unassigned'} — {isDue ? 'OVERDUE since' : 'next due'} {fmt(m.nextDueAt)} {m.intervalHours ? `(q${m.intervalHours}h)` : ''}</span>
+                <span>
+                  {isDue && ['given', 'held', 'refused'].map(st => (
+                    <button key={st} className="btn btn-sm" style={actBtn} disabled={busyId === m.id}
+                      onClick={() => act(m.id, () => recordMedAction(m, st, staff), `${m.drug} marked ${st}`)}>
+                      {st === 'given' ? '✅ Given' : st === 'held' ? '⏸ Held' : '🚫 Refused'}
+                    </button>
+                  ))}
+                  <span style={{ ...resetableFields, marginLeft: 8 }} onClick={() => cancelMedReminder(m.id)}>Cancel</span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -189,12 +223,21 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
             {saving === 'iv' ? 'Starting…' : 'Start infusion timer'}
           </button>
 
-          {ivs.filter(i => i.status === 'running').map(i => (
-            <div key={i.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderTop:'1px solid var(--border)', fontSize:13 }}>
-              <span>💧 <strong>{i.fluid}</strong> {i.volumeMl}ml @ {i.rateMlPerHr}ml/hr — {i.assignedNurseName || 'unassigned'} — ends {i.endAt?.toDate?.().toLocaleString?.() || '—'}</span>
-              <span style={resetableFields} onClick={() => stopIvInfusion(i.id)}>Stop</span>
-            </div>
-          ))}
+          {ivs.filter(i => i.status === 'running').map(i => {
+            const finished = (ms(i.endAt) || Infinity) <= now;
+            return (
+              <div key={i.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', padding:'6px 0', borderTop:'1px solid var(--border)', fontSize:13 }}>
+                <span style={dueStyle(finished)}>💧 <strong>{i.fluid}</strong> {i.volumeMl}ml @ {i.rateMlPerHr}ml/hr — {i.assignedNurseName || 'unassigned'} — {finished ? 'DUE TO COMPLETE since' : 'ends'} {fmt(i.endAt)}</span>
+                <span>
+                  {finished && (
+                    <button className="btn btn-sm" style={actBtn} disabled={busyId === i.id}
+                      onClick={() => act(i.id, () => closeIvInfusion(i.id, 'completed', staff), 'Infusion marked completed')}>✅ Completed</button>
+                  )}
+                  <span style={{ ...resetableFields, marginLeft: 8 }} onClick={() => (finished ? closeIvInfusion(i.id, 'stopped', staff) : stopIvInfusion(i.id))}>{finished ? 'Stop early' : 'Stop'}</span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -214,12 +257,26 @@ export default function BotRemindersTab({ emrNumber, patient, prescriptions }) {
             {saving === 'glucose' ? 'Scheduling…' : 'Schedule check'}
           </button>
 
-          {glucose.filter(g => g.status === 'pending').map(g => (
-            <div key={g.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderTop:'1px solid var(--border)', fontSize:13 }}>
-              <span>🩸 <strong>{g.type}</strong> — {g.assignedNurseName || 'unassigned'} — due {g.dueAt?.toDate?.().toLocaleString?.() || '—'}</span>
-              <span style={resetableFields} onClick={() => cancelGlucoseCheck(g.id)}>Cancel</span>
-            </div>
-          ))}
+          {glucose.filter(g => g.status === 'pending').sort((a, b) => (ms(a.dueAt) || 0) - (ms(b.dueAt) || 0)).map(g => {
+            const isDue = (ms(g.dueAt) || Infinity) <= now;
+            const val = glucoseVals[g.id] ?? '';
+            return (
+              <div key={g.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', padding:'6px 0', borderTop:'1px solid var(--border)', fontSize:13 }}>
+                <span style={dueStyle(isDue)}>🩸 <strong>{g.type}</strong> — {g.assignedNurseName || 'unassigned'} — {isDue ? 'DUE since' : 'due'} {fmt(g.dueAt)}{isDue && g.type === 'FBS' ? ' · confirm patient has fasted' : ''}</span>
+                <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  {isDue && (
+                    <>
+                      <input type="number" step="0.1" className="form-input" style={{ width: 90, padding: '2px 6px' }} placeholder="mmol/L"
+                        value={val} onChange={e => setGlucoseVals(v => ({ ...v, [g.id]: e.target.value }))} />
+                      <button className="btn btn-sm" style={actBtn} disabled={busyId === g.id || val === '' || isNaN(parseFloat(val))}
+                        onClick={() => act(g.id, () => logGlucoseCheck(g, parseFloat(val), staff), `${g.type} ${val} logged`)}>📝 Log</button>
+                    </>
+                  )}
+                  <span style={{ ...resetableFields, marginLeft: 8 }} onClick={() => cancelGlucoseCheck(g.id)}>Cancel</span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

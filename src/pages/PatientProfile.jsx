@@ -22,7 +22,7 @@ import {
 } from '../lib/emr';
 
 import MARTab from '../components/patients/MARTab';
-import BotRemindersTab from '../components/patients/BotRemindersTab';
+import RemindersTab from '../components/patients/RemindersTab';
 import VitalsTrendChart from '../components/patients/VitalsTrendChart';
 import GlycemicChart from '../components/patients/GlycemicChart';
 import GlycemicGrid from '../components/patients/GlycemicGrid';
@@ -2312,9 +2312,9 @@ export default function PatientProfile() {
           />
         )}
 
-        {/* ── BOT REMINDERS TAB ── */}
+        {/* ── REMINDERS TAB ── */}
         {activeTab==='reminders' && (
-          <BotRemindersTab
+          <RemindersTab
             emrNumber={emrNumber}
             patient={patient}
             prescriptions={rx}
