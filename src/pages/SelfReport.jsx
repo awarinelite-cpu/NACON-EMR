@@ -100,10 +100,13 @@ export default function SelfReport() {
 
   return (
     <div style={{
-      minHeight:'calc(100vh / 1.0625)',
+      position:'fixed', top:0, left:0, right:0, bottom:0,
+      overflowY:'auto', overflowX:'hidden',
+      WebkitOverflowScrolling:'touch', overscrollBehavior:'auto',
+      touchAction:'pan-y',
       background:'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)',
       display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'flex-start', padding:'24px 16px 40px',
+      justifyContent:'flex-start', padding:'24px 16px 80px',
       fontFamily:'"Inter", system-ui, sans-serif',
     }}>
       <div style={{ textAlign:'center', marginBottom:24, maxWidth:420, width:'100%' }}>
