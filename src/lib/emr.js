@@ -161,6 +161,35 @@ export function emrToFolderNumber(emr) {
 // ─────────────────────────────────────────────
 // PATIENTS
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// MATRIC LOOKUP INDEX (public, minimal)
+// Students never log in. The self-report page may only read matric_index/{key}
+// (firstName only) to confirm the number exists — never the patients collection.
+// ─────────────────────────────────────────────
+export function matricKey(m) {
+  return String(m || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export async function syncMatricIndex(p) {
+  const key = matricKey(p && p.matricNo);
+  if (!key) return;
+  try {
+    await setDoc(doc(db, 'matric_index', key), { firstName: p.firstName || '', updatedAt: serverTimestamp() });
+  } catch (_) { /* best-effort — never block patient writes */ }
+}
+
+// One-time / on-demand: index every existing patient. Returns count.
+export async function backfillMatricIndex() {
+  const snap = await getDocs(collection(db, COL.PATIENTS));
+  let n = 0;
+  for (const d of snap.docs) {
+    const p = d.data();
+    if (matricKey(p.matricNo)) { await syncMatricIndex(p); n++; }
+  }
+  return n;
+}
+
 export async function registerPatient(data, registeredBy, registeredByRole = null) {
   const emrNumber    = await generateEMRNumber();
   const folderNumber = emrToFolderNumber(emrNumber);
@@ -178,6 +207,7 @@ export async function registerPatient(data, registeredBy, registeredByRole = nul
 
   const ref = doc(db, COL.PATIENTS, emrNumber);
   await setDoc(ref, patientData);
+  syncMatricIndex(patientData);
   await logAudit('REGISTER_PATIENT', emrNumber, registeredBy, { emrNumber, name: `${data.surname} ${data.firstName}` }, registeredByRole);
 
   return { emrNumber, folderNumber };
@@ -213,6 +243,12 @@ export async function updatePatient(emrNumber, data, updatedBy, updatedByRole = 
     updatedAt: serverTimestamp(),
     updatedBy,
   });
+  if (data && (data.matricNo !== undefined || data.firstName !== undefined)) {
+    try {
+      const cur = await getDoc(doc(db, COL.PATIENTS, emrNumber));
+      if (cur.exists()) syncMatricIndex(cur.data());
+    } catch (_) {}
+  }
   await logAudit('UPDATE_PATIENT', emrNumber, updatedBy, data, updatedByRole);
 }
 
@@ -1735,8 +1771,9 @@ export async function deductInventoryByDose(drugName, doseGiven, emrNumber, disp
 // REPORT SICK — stamps patient doc, and starts a fresh episode
 // if the patient was previously discharged
 // ═════════════════════════════════════════════
-export async function reportSick(emrNumber, by, method = 'manual') {
+export async function reportSick(emrNumber, by, method = 'manual', extra = {}) {
   const patientUpdate = {
+    ...extra,   // e.g. reportedSickComplaint / Severity / Duration from a student self-report
     reportedSickAt:  serverTimestamp(),
     reportedSickBy:  by,
     reportedSickHow: method,   // 'qr' | 'barcode' | 'manual'
@@ -1760,6 +1797,7 @@ export async function reportSick(emrNumber, by, method = 'manual') {
     reportedAt:  serverTimestamp(),
     reportedBy:  by,
     method,
+    ...extra,
   });
 }
 
@@ -1853,30 +1891,74 @@ export function listenSeenToday(callback) {
 // QR SELF-REPORT (Student reports sick via QR)
 // ═════════════════════════════════════════════
 export async function submitSelfReport(data) {
-  // Verify matric number matches a registered patient
-  const snap = await getDocs(
-    query(collection(db, COL.PATIENTS), where('matricNo', '==', data.matricNo))
-  );
-  if (snap.empty) throw new Error('Matric number not found. Please check and try again.');
-  const patient = { id: snap.docs[0].id, ...snap.docs[0].data() };
+  // Public (no login). Only confirms the matric exists via matric_index, then
+  // files the report. A signed-in staff device stamps the patient record later
+  // (resolveSelfReports).
+  const matricNo = String(data.matricNo || '').trim();
+  const key = matricKey(matricNo);
+  if (!key) throw new Error('Enter your matric number');
+  const idx = await getDoc(doc(db, 'matric_index', key));
+  if (!idx.exists()) throw new Error('Matric number not found. Please check and try again.');
 
-  // Stamp the patient doc as reported sick today (QR method)
   const via = data.via === 'barcode' ? 'barcode' : 'qr';
-  await reportSick(patient.emrNumber, data.matricNo, via);
-
   const ref = await addDoc(collection(db, COL.SELF_REPORT), {
-    matricNo:    data.matricNo,
-    emrNumber:   patient.emrNumber,
-    patientName: `${patient.surname} ${patient.firstName}`,
-    complaint:   data.complaint,
-    duration:    data.duration,
-    severity:    data.severity,  // 'mild' | 'moderate' | 'severe'
-    via,                         // 'qr' | 'barcode'
+    matricNo,
+    matricKey:   key,
+    complaint:   String(data.complaint || '').trim().slice(0, 1000),
+    duration:    String(data.duration || '').trim().slice(0, 100),
+    severity:    data.severity,       // 'mild' | 'moderate' | 'severe'
+    via,                              // 'qr' | 'barcode'
     submittedAt: serverTimestamp(),
-    status:      'pending',      // nurse picks it up → 'triaged' | 'dismissed'
+    status:      'pending',           // nurse picks it up → 'triaged' | 'dismissed'
   });
 
-  return { reportId: ref.id, patient };
+  return { reportId: ref.id, patient: { firstName: idx.data().firstName || '', matricNo } };
+}
+
+// Staff-side: turn pending student reports into stamped patient records
+// (appears on Sick Report / Seen Today). Safe across many open staff clients —
+// each report is claimed in a transaction first.
+export function startSelfReportResolver(staffId) {
+  const inflight = new Set();
+  return listenSelfReports(async (docs) => {
+    for (const r of docs) {
+      if (r.stamped || inflight.has(r.id)) continue;
+      inflight.add(r.id);
+      const rref = doc(db, COL.SELF_REPORT, r.id);
+      try {
+        const claimed = await runTransaction(db, async (txn) => {
+          const snap = await txn.get(rref);
+          if (!snap.exists() || snap.data().stamped) return false;
+          txn.update(rref, { stamped: true, stampedBy: staffId || 'staff' });
+          return true;
+        });
+        if (!claimed) continue;
+        const ps = await getDocs(query(collection(db, COL.PATIENTS), where('matricNo', '==', r.matricNo)));
+        let patient = ps.empty ? null : ps.docs[0].data();
+        if (!patient) {
+          const up = await getDocs(query(collection(db, COL.PATIENTS), where('matricNo', '==', String(r.matricNo).toUpperCase())));
+          patient = up.empty ? null : up.docs[0].data();
+        }
+        if (!patient) {
+          await updateDoc(rref, { stamped: false, unmatched: true });
+          continue;
+        }
+        await reportSick(patient.emrNumber, r.matricNo, r.via === 'barcode' ? 'barcode' : 'qr', {
+          reportedSickComplaint: r.complaint || '',
+          reportedSickSeverity:  r.severity || '',
+          reportedSickDuration:  r.duration || '',
+        });
+        await updateDoc(rref, {
+          emrNumber: patient.emrNumber,
+          patientName: `${patient.surname} ${patient.firstName}`,
+        });
+      } catch (e) {
+        try { await updateDoc(rref, { stamped: false }); } catch (_) {}
+      } finally {
+        inflight.delete(r.id);
+      }
+    }
+  });
 }
 
 export function listenSelfReports(callback) {

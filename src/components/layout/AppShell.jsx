@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import { listenTriageQueue } from '../../lib/emr';
+import { listenTriageQueue, startSelfReportResolver } from '../../lib/emr';
+import { useAuth } from '../../lib/AuthContext';
 import { startSyncListener }  from '../../lib/syncEngine';
 import OfflineBanner           from '../shared/OfflineBanner';
 import PullToRefresh           from '../shared/PullToRefresh';
@@ -21,6 +22,7 @@ export default function AppShell() {
   });
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth > 768);
   const mainRef    = useRef(null);
+  const { profile } = useAuth();
   const location   = useLocation();
 
   // Track viewport so the hamburger icon/behavior matches mobile vs desktop
@@ -70,6 +72,13 @@ export default function AppShell() {
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);
     };
   }, []);
+
+  // Student self-reports (QR / barcode) → stamp patient records, from any signed-in clinical/admin device
+  useEffect(() => {
+    if (!profile || !['doctor','nurse','admin'].includes(profile.role)) return undefined;
+    const unsub = startSelfReportResolver(profile.uid || profile.id || profile.email);
+    return () => { if (typeof unsub === 'function') unsub(); };
+  }, [profile && profile.role]);
 
   // Real-time queue listener — badge reflects only today's waiting triage entries
   useEffect(() => {

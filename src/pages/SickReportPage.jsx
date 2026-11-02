@@ -168,6 +168,11 @@ export default function SickReportPage() {
                         <span>{p.classSet} · {p.sex}</span>
                         <span style={{fontSize:9,fontWeight:800,padding:'1px 5px',borderRadius:4,background:mb.bg,color:mb.color}}>{mb.label}</span>
                       </div>
+                      {p.reportedSickComplaint && (
+                        <div style={{fontSize:11,color:'var(--t2)',marginTop:2,whiteSpace:'pre-wrap'}}>
+                          {p.reportedSickSeverity ? `[${p.reportedSickSeverity}] ` : ''}{p.reportedSickComplaint}{p.reportedSickDuration ? ` · ${p.reportedSickDuration}` : ''}
+                        </div>
+                      )}
                     </div>
                     <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3}}>
                       {wasSeen ? seenStatusBadge(p)

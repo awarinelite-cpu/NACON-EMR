@@ -213,15 +213,15 @@ export default function SelfReport() {
               Report submitted!
             </div>
             <div style={{ fontSize:13, color:'#94a3b8', lineHeight:1.7, marginBottom:20 }}>
-              Hello <strong style={{ color:'#fff' }}>{result.patient.firstName}</strong>,
+              Hello <strong style={{ color:'#fff' }}>{result.patient.firstName || 'student'}</strong>,
               your report has been received. Please come to the clinic — the nurse will attend to you.
             </div>
             <div style={{
               background:'#0f172a', borderRadius:10, padding:'14px 16px',
               border:'1px solid #1d4ed8', marginBottom:20, textAlign:'left',
             }}>
-              <div style={{ fontSize:10, fontWeight:700, color:'#64748b', marginBottom:6 }}>YOUR REFERENCE</div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#fff' }}>{result.patient.emrNumber}</div>
+              <div style={{ fontSize:10, fontWeight:700, color:'#64748b', marginBottom:6 }}>YOUR MATRIC NUMBER</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#fff' }}>{result.patient.matricNo}</div>
               <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>
                 Severity: <span style={{
                   color: form.severity==='severe'?'#ef4444':form.severity==='moderate'?'#f59e0b':'#22c55e',

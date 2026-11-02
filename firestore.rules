@@ -124,10 +124,30 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity', 'updatedAt']);
     }
 
-    // Self-reports (QR sick reports from students) — public create, staff read
+    // Matric lookup index — students (no login) may GET one doc by exact key to
+    // confirm their matric exists; no listing. Holds first name only. Staff write it.
+    match /matric_index/{key} {
+      allow get:    if true;
+      allow list:   if false;
+      allow create, update: if isAnyStaff();
+      allow delete: if isAdmin();
+    }
+
+    // Self-reports (QR / barcode sick reports from students) — public create (validated), staff read
     match /self_reports/{doc} {
       allow read:  if isAnyStaff();
-      allow create: if true; // students submit without auth
+      allow create: if request.resource.data.keys().hasOnly(
+            ['matricNo','matricKey','complaint','duration','severity','via','submittedAt','status'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.submittedAt == request.time
+        && request.resource.data.matricNo is string && request.resource.data.matricNo.size() <= 40
+        && request.resource.data.matricKey is string && request.resource.data.matricKey.size() > 0
+        && request.resource.data.complaint is string
+        && request.resource.data.complaint.size() > 0 && request.resource.data.complaint.size() <= 1000
+        && request.resource.data.duration is string && request.resource.data.duration.size() <= 100
+        && request.resource.data.severity in ['mild','moderate','severe']
+        && request.resource.data.via in ['qr','barcode']
+        && exists(/databases/$(database)/documents/matric_index/$(request.resource.data.matricKey));
       allow update: if isClinical() || isAdmin();
       allow delete: if isAdmin();
     }
