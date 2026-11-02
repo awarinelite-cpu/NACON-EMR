@@ -25,6 +25,7 @@ import PharmacyInventory from './pages/PharmacyInventory';
 import ClinicStatistics   from './pages/ClinicStatistics';
 import SelfReport         from './pages/SelfReport';
 import SickReportPage          from './pages/SickReportPage';
+import ReportBarcodePage     from './pages/ReportBarcodePage';
 import SeenTodayPage           from './pages/SeenTodayPage';
 import DischargedReferredPage  from './pages/DischargedReferredPage';
 import OnAdmissionPage         from './pages/OnAdmissionPage';
@@ -162,6 +163,12 @@ export default function App() {
             } />
             <Route path="/records/referrals" element={
               <ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>
+            } />
+            <Route path="/records/report-barcode" element={
+              <ProtectedRoute allowedRoles={['records']}><ReportBarcodePage /></ProtectedRoute>
+            } />
+            <Route path="/admin/report-barcode" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><ReportBarcodePage /></ProtectedRoute>
             } />
             <Route path="/records/reports" element={
               <ProtectedRoute allowedRoles={['records']}><ComingSoon title="Reports" /></ProtectedRoute>

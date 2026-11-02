@@ -72,7 +72,9 @@ export default function SeenTodayPage() {
   const seen       = classFilter === 'all' ? allSeen : allSeen.filter(p => p.classSet === classFilter);
 
   const getInitials = p => ((p.surname?.[0]||'')+(p.firstName?.[0]||'')).toUpperCase();
-  const methodBadge = (how) => how === 'qr'
+  const methodBadge = (how) => how === 'barcode'
+    ? { label:'Barcode', bg:'#dcfce7', color:'#166534' }
+    : how === 'qr'
     ? { label:'QR',     bg:'#dbeafe', color:'#1d4ed8' }
     : { label:'Manual', bg:'#fef3c7', color:'#92400e' };
 

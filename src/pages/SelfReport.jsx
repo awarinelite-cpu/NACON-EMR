@@ -23,7 +23,8 @@ export default function SelfReport() {
     setSaving(true);
     setError('');
     try {
-      const res = await submitSelfReport(form);
+      const via = new URLSearchParams(window.location.search).get('via') === 'barcode' ? 'barcode' : 'qr';
+      const res = await submitSelfReport({ ...form, via });
       setResult(res);
       setStep(2);
     } catch (e) {

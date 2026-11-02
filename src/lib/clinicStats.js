@@ -164,7 +164,7 @@ export function aggregate(raw) {
   const sexCount = { male: 0, female: 0, unknown: 0 };
   const ageCount = Object.fromEntries(AGE_GROUPS.map(g => [g[0], 0]));
   ageCount.Unknown = 0;
-  const method = { qr: 0, manual: 0, visit: 0, other: 0 };
+  const method = { qr: 0, barcode: 0, manual: 0, visit: 0, other: 0 };
   sickInRange.forEach(p => {
     const set = normalizeClassSet(p.classSet) || 'No set';
     const sx = normSex(p.sex);
@@ -176,7 +176,7 @@ export function aggregate(raw) {
     const g = a == null ? null : AGE_GROUPS.find(([, lo, hi]) => a >= lo && a <= hi);
     ageCount[g ? g[0] : 'Unknown']++;
     const h = p.reportedSickHow;
-    method[h === 'qr' ? 'qr' : h === 'manual' ? 'manual' : h === 'visit' ? 'visit' : 'other']++;
+    method[h === 'qr' ? 'qr' : h === 'barcode' ? 'barcode' : h === 'manual' ? 'manual' : h === 'visit' ? 'visit' : 'other']++;
   });
   const setRows = Object.entries(bySet)
     .map(([label, v]) => ({ label, ...v }))
@@ -337,6 +337,7 @@ export function aggregate(raw) {
       avgStay: avg(stays), readmissions,
       method: [
         { label: 'QR', value: method.qr },
+        { label: 'Barcode', value: method.barcode },
         { label: 'Manual', value: method.manual },
         { label: 'On visit', value: method.visit },
         ...(method.other ? [{ label: 'Other', value: method.other }] : []),

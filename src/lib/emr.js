@@ -1739,7 +1739,7 @@ export async function reportSick(emrNumber, by, method = 'manual') {
   const patientUpdate = {
     reportedSickAt:  serverTimestamp(),
     reportedSickBy:  by,
-    reportedSickHow: method,   // 'qr' | 'manual'
+    reportedSickHow: method,   // 'qr' | 'barcode' | 'manual'
     updatedAt:       serverTimestamp(),
     updatedBy:       by,
   };
@@ -1861,7 +1861,8 @@ export async function submitSelfReport(data) {
   const patient = { id: snap.docs[0].id, ...snap.docs[0].data() };
 
   // Stamp the patient doc as reported sick today (QR method)
-  await reportSick(patient.emrNumber, data.matricNo, 'qr');
+  const via = data.via === 'barcode' ? 'barcode' : 'qr';
+  await reportSick(patient.emrNumber, data.matricNo, via);
 
   const ref = await addDoc(collection(db, COL.SELF_REPORT), {
     matricNo:    data.matricNo,
@@ -1870,6 +1871,7 @@ export async function submitSelfReport(data) {
     complaint:   data.complaint,
     duration:    data.duration,
     severity:    data.severity,  // 'mild' | 'moderate' | 'severe'
+    via,                         // 'qr' | 'barcode'
     submittedAt: serverTimestamp(),
     status:      'pending',      // nurse picks it up → 'triaged' | 'dismissed'
   });
