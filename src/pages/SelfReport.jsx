@@ -182,7 +182,7 @@ export default function SelfReport() {
             <div style={{ fontSize:44, marginBottom:10 }}>📝</div>
             <div style={{ fontWeight:800, fontSize:18, color:'#fff', marginBottom:8 }}>Details received</div>
             <div style={{ fontSize:13, color:'#94a3b8', lineHeight:1.7, marginBottom:22 }}>
-              Thank you, <strong style={{ color:'#fff' }}>{reg.firstName}</strong>.
+              Thank you, <strong style={{ color:'#fff' }}>{reg.firstName}</strong>. Your registration has been sent to the records office for approval.
               Do you want to report sick now?
             </div>
             <div style={{ display:'flex', gap:8 }}>
@@ -262,7 +262,7 @@ export default function SelfReport() {
             <div style={{ fontSize:52, marginBottom:12 }}>🎉</div>
             <div style={{ fontWeight:800, fontSize:20, color:'#fff', marginBottom:8 }}>Congratulations!</div>
             <div style={{ fontSize:13, color:'#94a3b8', lineHeight:1.7 }}>
-              <strong style={{ color:'#fff' }}>{reg.firstName}</strong>, you are now registered with the NACON Clinic.
+              <strong style={{ color:'#fff' }}>{reg.firstName}</strong>, your registration has been submitted. The records office will approve it, and then you are on the clinic list.
               If you ever feel unwell, scan the clinic code again and report sick.
             </div>
           </div>

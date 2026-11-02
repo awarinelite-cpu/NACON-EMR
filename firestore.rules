@@ -23,8 +23,7 @@ service cloud.firestore {
     // Patients — records can create, all staff can read, clinical+records can update
     match /patients/{emrNumber} {
       allow read:   if isAnyStaff();
-      allow create: if isRecords() || isAdmin()
-                    || (isClinical() && request.resource.data.selfRegistered == true); // promoting a student self-registration
+      allow create: if isRecords() || isAdmin();
       allow update: if isClinical() || isRecords() || isAdmin();
       allow delete: if isAdmin();
     }
@@ -138,7 +137,7 @@ service cloud.firestore {
     }
 
     // Student self-registration (no login): create-only, one request per matric (doc id = matricKey).
-    // Staff devices promote it to a real patient. Public can never read or edit it.
+    // Records approve it (creating the real patient). Public can never read or edit it.
     match /registration_requests/{key} {
       allow read:   if isAnyStaff();
       allow create: if request.resource.data.keys().hasOnly(
@@ -160,8 +159,8 @@ service cloud.firestore {
         && okStr('department', 100) && okStr('tel', 30) && okStr('nextOfKin', 100)
         && okStr('nextOfKinRel', 50) && okStr('nextOfKinTel', 30) && okStr('bloodGroup', 10)
         && okStr('allergies', 200);
-      allow update: if isClinical() || isRecords() || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isRecords() || isAdmin();   // approval
+      allow delete: if isRecords() || isAdmin();   // reject
     }
 
     // Self-reports (QR / barcode sick reports from students) — public create (validated), staff read

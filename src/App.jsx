@@ -26,6 +26,7 @@ import ClinicStatistics   from './pages/ClinicStatistics';
 import SelfReport         from './pages/SelfReport';
 import SickReportPage          from './pages/SickReportPage';
 import ReportBarcodePage     from './pages/ReportBarcodePage';
+import ApproveRegistrations  from './pages/ApproveRegistrations';
 import SeenTodayPage           from './pages/SeenTodayPage';
 import DischargedReferredPage  from './pages/DischargedReferredPage';
 import OnAdmissionPage         from './pages/OnAdmissionPage';
@@ -163,6 +164,12 @@ export default function App() {
             } />
             <Route path="/records/referrals" element={
               <ProtectedRoute allowedRoles={['records']}><AllPatients role="records" /></ProtectedRoute>
+            } />
+            <Route path="/records/approvals" element={
+              <ProtectedRoute allowedRoles={['records']}><ApproveRegistrations /></ProtectedRoute>
+            } />
+            <Route path="/admin/approvals" element={
+              <ProtectedRoute allowedRoles={['admin','subadmin']}><ApproveRegistrations /></ProtectedRoute>
             } />
             <Route path="/records/report-barcode" element={
               <ProtectedRoute allowedRoles={['records']}><ReportBarcodePage /></ProtectedRoute>

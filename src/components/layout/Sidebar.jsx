@@ -32,6 +32,7 @@ const NAV = {
       { icon: 'ti-file-export',      label: 'Referral Letters', path: '/records/referrals' },
       { icon: 'ti-chart-bar',        label: 'Reports',        path: '/records/reports' },
       { icon: 'ti-barcode',          label: 'Report-Sick Barcode', path: '/records/report-barcode' },
+      { icon: 'ti-user-check',       label: 'Approve Registrations', path: '/records/approvals' },
     ]},
   ],
   admin: [
@@ -45,6 +46,7 @@ const NAV = {
       { icon: 'ti-building-store',   label: 'Pharmacy',       path: '/pharmacy' },
       { icon: 'ti-qrcode',           label: 'QR Self-Report', path: '/report-sick', external: true },
       { icon: 'ti-barcode',          label: 'Report-Sick Barcode', path: '/admin/report-barcode' },
+      { icon: 'ti-user-check',       label: 'Approve Registrations', path: '/admin/approvals' },
     ]},
     { grp: 'System', items: [
       { icon: 'ti-user-cog',         label: 'User Management', path: '/admin/users' },
@@ -65,6 +67,7 @@ const NAV = {
     { grp: 'System', items: [
       { icon: 'ti-database',         label: 'Activity Log',   path: '/admin/audit' },
       { icon: 'ti-barcode',          label: 'Report-Sick Barcode', path: '/admin/report-barcode' },
+      { icon: 'ti-user-check',       label: 'Approve Registrations', path: '/admin/approvals' },
     ]},
   ],
   pharmacist: [

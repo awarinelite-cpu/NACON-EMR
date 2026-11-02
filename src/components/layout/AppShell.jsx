@@ -75,7 +75,7 @@ export default function AppShell() {
 
   // Student self-reports (QR / barcode) → stamp patient records, from any signed-in clinical/admin device
   useEffect(() => {
-    if (!profile || !['doctor','nurse','admin','records'].includes(profile.role)) return undefined;
+    if (!profile || !['doctor','nurse','admin'].includes(profile.role)) return undefined;
     const unsub = startSelfReportResolver(profile.uid || profile.id || profile.email, profile.role);
     return () => { if (typeof unsub === 'function') unsub(); };
   }, [profile && profile.role]);
