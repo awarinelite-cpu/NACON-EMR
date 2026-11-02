@@ -116,14 +116,16 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
           <div className="card">
             <div className="card-header">
               <div className="card-title"><i className="ti ti-user-cog" />Staff accounts</div>
               <span className="card-action" onClick={()=>navigate('/admin/users')}>Manage →</span>
             </div>
+            <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+            <div style={{minWidth:'max-content'}}>
             {users.map(u => (
-              <div key={u.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderBottom:'1px solid var(--border)'}}>
+              <div key={u.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}}>
                 <div style={{width:30,height:30,borderRadius:'50%',background:'var(--accent-bg)',
                   color:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',
                   fontSize:11,fontWeight:700,flexShrink:0}}>
@@ -139,6 +141,8 @@ export default function AdminDashboard() {
                 </span>
               </div>
             ))}
+            </div>
+            </div>
             {users.length===0&&<div style={{padding:16,textAlign:'center',color:'var(--t3)',fontWeight:700}}>No staff users yet</div>}
           </div>
 
@@ -146,8 +150,10 @@ export default function AdminDashboard() {
             <div className="card-header">
               <div className="card-title"><i className="ti ti-activity" />Recent activity</div>
             </div>
+            <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+            <div style={{minWidth:'max-content'}}>
             {patients.slice(0,6).map(p => (
-              <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderBottom:'1px solid var(--border)'}}>
+              <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}}>
                 <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',flexShrink:0}} />
                 <div style={{flex:1}}>
                   <div style={{fontSize:12,fontWeight:700,color:'var(--t1)'}}>Patient registered</div>
@@ -155,6 +161,8 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+            </div>
+            </div>
           </div>
         </div>
       </div>
