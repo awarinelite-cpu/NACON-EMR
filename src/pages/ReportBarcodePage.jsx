@@ -30,7 +30,7 @@ export default function ReportBarcodePage() {
 </style></head><body>
   <h1>🏥 NACON CLINIC</h1><h2>Feeling unwell? Report sick</h2>
   <div class="box"><img src="${qrSrc}"/></div>
-  <p><b>Open your phone camera and point it at this code</b><br/>then enter your matric number and complaint.</p>
+  <p><b>Open your phone camera and point it at this code</b><br/>then enter your matric number. New students register first, then can report sick.</p>
   <small>${url}</small>
   <script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
 </body></html>`);
@@ -56,7 +56,7 @@ export default function ReportBarcodePage() {
       <div className="card" style={{ padding: 20, textAlign: 'center' }}>
         <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>Report-Sick Barcode</div>
         <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 16 }}>
-          Print and post it. Students scan it with their phone camera and fill the complaint form.
+          Print and post it. Students scan it with their phone camera. Unregistered students register themselves first, then can report sick.
           Reports are tagged “Barcode”.
         </div>
 

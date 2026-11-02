@@ -1896,7 +1896,9 @@ export async function submitSelfReport(data) {
   const key = matricKey(matricNo);
   if (!key) throw new Error('Enter your matric number');
   const idx = await getDoc(doc(db, 'matric_index', key));
-  if (!idx.exists()) throw new Error('Matric number not found. Please check and try again.');
+  // A student who just self-registered isn't indexed until a staff device promotes
+  // the request; the Firestore rules accept the report because the request exists.
+  if (!idx.exists() && !data.justRegistered) throw new Error('Matric number not found. Please check and try again.');
 
   const via = data.via === 'barcode' ? 'barcode' : 'qr';
   const ref = await addDoc(collection(db, COL.SELF_REPORT), {
@@ -1910,17 +1912,106 @@ export async function submitSelfReport(data) {
     status:      'pending',           // nurse picks it up → 'triaged' | 'dismissed'
   });
 
-  return { reportId: ref.id, patient: { firstName: idx.data().firstName || '', matricNo } };
+  return { reportId: ref.id, patient: { firstName: (idx.exists() ? idx.data().firstName : data.firstName) || '', matricNo } };
+}
+
+// Public: is this matric already a registered patient? (reads matric_index only)
+export async function isMatricRegistered(matricNo) {
+  const key = matricKey(matricNo);
+  if (!key) return false;
+  const idx = await getDoc(doc(db, 'matric_index', key));
+  return idx.exists();
+}
+
+const SELF_REG_FIELDS = ['surname','firstName','otherNames','dob','sex','patientIdentity',
+  'matricNo','classSet','level','department','tel','nextOfKin','nextOfKinRel','nextOfKinTel',
+  'bloodGroup','allergies'];
+
+// Public (no login): file a registration request. Doc id = normalized matric, so a
+// matric can only ever be submitted once (public cannot update). Staff devices
+// promote it to a real patient (startRegistrationResolver).
+export async function submitSelfRegistration(form) {
+  const matricNo = String(form.matricNo || '').trim();
+  const key = matricKey(matricNo);
+  if (!key) throw new Error('Enter your matric number');
+  const payload = {};
+  SELF_REG_FIELDS.forEach(f => { payload[f] = String(form[f] || '').trim().slice(0, 200); });
+  payload.matricNo = matricNo;
+  payload.matricKey = key;
+  payload.via = form.via === 'barcode' ? 'barcode' : 'qr';
+  payload.status = 'pending';
+  payload.submittedAt = serverTimestamp();
+  try {
+    await setDoc(doc(db, 'registration_requests', key), payload);
+    return { alreadySubmitted: false };
+  } catch (e) {
+    // Public cannot overwrite — a request for this matric already exists.
+    if (e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''))) {
+      return { alreadySubmitted: true };
+    }
+    throw e;
+  }
+}
+
+// Staff-side: promote pending self-registrations into real patient records.
+export function startRegistrationResolver(staffId, role) {
+  const inflight = new Set();
+  const q = query(collection(db, 'registration_requests'), where('status', '==', 'pending'));
+  return onSnapshot(q, async (snap) => {
+    for (const d of snap.docs) {
+      const r = { id: d.id, ...d.data() };
+      if (inflight.has(r.id)) continue;
+      inflight.add(r.id);
+      const rref = doc(db, 'registration_requests', r.id);
+      try {
+        const claimed = await runTransaction(db, async (txn) => {
+          const sn = await txn.get(rref);
+          if (!sn.exists() || sn.data().status !== 'pending') return false;
+          txn.update(rref, { status: 'processing', processedBy: staffId || 'staff' });
+          return true;
+        });
+        if (!claimed) continue;
+        // Already a patient (registered by records in the meantime)?
+        const dup = await getDocs(query(collection(db, COL.PATIENTS), where('matricNo', '==', r.matricNo)));
+        if (!dup.empty) {
+          await updateDoc(rref, { status: 'duplicate', emrNumber: dup.docs[0].data().emrNumber || '' });
+          continue;
+        }
+        const data = {};
+        SELF_REG_FIELDS.forEach(f => { data[f] = r[f] || ''; });
+        data.occupation = 'Student';
+        data.selfRegistered = true;   // staff can verify details at the student's first visit
+        const { emrNumber } = await registerPatient(data, 'Self-registration', role || null);
+        await updateDoc(rref, { status: 'registered', emrNumber });
+      } catch (e) {
+        const tries = (r.tries || 0) + 1;
+        try { await updateDoc(rref, { status: tries >= 3 ? 'failed' : 'pending', tries, lastError: String(e.message || e).slice(0, 200) }); } catch (_) {}
+      } finally {
+        inflight.delete(r.id);
+      }
+    }
+  });
 }
 
 // Staff-side: turn pending student reports into stamped patient records
 // (appears on Sick Report / Seen Today). Safe across many open staff clients —
-// each report is claimed in a transaction first.
-export function startSelfReportResolver(staffId) {
+// each report is claimed in a transaction first. Also promotes self-registrations.
+export function startSelfReportResolver(staffId, role) {
+  const unsubReg = startRegistrationResolver(staffId, role);
+  if (!['doctor', 'nurse', 'admin'].includes(role)) return unsubReg;
+
   const inflight = new Set();
-  return listenSelfReports(async (docs) => {
+  let latest = [];
+  const nowMs = () => Date.now();
+
+  const run = async (docs) => {
     for (const r of docs) {
       if (r.stamped || inflight.has(r.id)) continue;
+      // Unmatched yet (e.g. registration not promoted): retry a few times, spaced out
+      if (r.unmatched) {
+        const last = r.unmatchedAt && r.unmatchedAt.toMillis ? r.unmatchedAt.toMillis() : 0;
+        if ((r.unmatchedTries || 0) >= 10 || nowMs() - last < 15000) continue;
+      }
       inflight.add(r.id);
       const rref = doc(db, COL.SELF_REPORT, r.id);
       try {
@@ -1931,14 +2022,14 @@ export function startSelfReportResolver(staffId) {
           return true;
         });
         if (!claimed) continue;
-        const ps = await getDocs(query(collection(db, COL.PATIENTS), where('matricNo', '==', r.matricNo)));
-        let patient = ps.empty ? null : ps.docs[0].data();
-        if (!patient) {
-          const up = await getDocs(query(collection(db, COL.PATIENTS), where('matricNo', '==', String(r.matricNo).toUpperCase())));
-          patient = up.empty ? null : up.docs[0].data();
+        let patient = null;
+        for (const m of [...new Set([r.matricNo, String(r.matricNo).toUpperCase()])]) {
+          const ps = await getDocs(query(collection(db, COL.PATIENTS), where('matricNo', '==', m)));
+          if (!ps.empty) { patient = ps.docs[0].data(); break; }
         }
         if (!patient) {
-          await updateDoc(rref, { stamped: false, unmatched: true });
+          await updateDoc(rref, { stamped: false, unmatched: true,
+            unmatchedAt: Timestamp.now(), unmatchedTries: (r.unmatchedTries || 0) + 1 });
           continue;
         }
         await reportSick(patient.emrNumber, r.matricNo, r.via === 'barcode' ? 'barcode' : 'qr', {
@@ -1949,6 +2040,7 @@ export function startSelfReportResolver(staffId) {
         await updateDoc(rref, {
           emrNumber: patient.emrNumber,
           patientName: `${patient.surname} ${patient.firstName}`,
+          unmatched: false,
         });
       } catch (e) {
         try { await updateDoc(rref, { stamped: false }); } catch (_) {}
@@ -1956,7 +2048,11 @@ export function startSelfReportResolver(staffId) {
         inflight.delete(r.id);
       }
     }
-  });
+  };
+
+  const unsub = listenSelfReports((docs) => { latest = docs; run(docs); });
+  const timer = setInterval(() => run(latest), 20000);   // retry unmatched reports
+  return () => { unsubReg(); unsub(); clearInterval(timer); };
 }
 
 export function listenSelfReports(callback) {

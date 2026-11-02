@@ -9,6 +9,9 @@ service cloud.firestore {
     function isAdmin()   { return isAuth() && isActive() && getRole() == 'admin'; }
     function isClinical(){ return isAuth() && isActive() && getRole() in ['doctor','nurse']; }
     function isRecords() { return isAuth() && isActive() && getRole() == 'records'; }
+    function okStr(f, n) {
+      return request.resource.data.get(f, '') is string && request.resource.data.get(f, '').size() <= n;
+    }
     function isAnyStaff(){ return isAuth() && isActive() && getRole() in ['doctor','nurse','records','admin','subadmin','pharmacist','lab']; }
 
     // EMR counter — only backend (transactions) can write
@@ -20,7 +23,8 @@ service cloud.firestore {
     // Patients — records can create, all staff can read, clinical+records can update
     match /patients/{emrNumber} {
       allow read:   if isAnyStaff();
-      allow create: if isRecords() || isAdmin();
+      allow create: if isRecords() || isAdmin()
+                    || (isClinical() && request.resource.data.selfRegistered == true); // promoting a student self-registration
       allow update: if isClinical() || isRecords() || isAdmin();
       allow delete: if isAdmin();
     }
@@ -133,6 +137,33 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Student self-registration (no login): create-only, one request per matric (doc id = matricKey).
+    // Staff devices promote it to a real patient. Public can never read or edit it.
+    match /registration_requests/{key} {
+      allow read:   if isAnyStaff();
+      allow create: if request.resource.data.keys().hasOnly(
+            ['surname','firstName','otherNames','dob','sex','patientIdentity','matricNo','classSet','level',
+             'department','tel','nextOfKin','nextOfKinRel','nextOfKinTel','bloodGroup','allergies',
+             'matricKey','via','status','submittedAt'])
+        && request.resource.data.matricKey == key && key.size() > 0 && key.size() <= 40
+        && !exists(/databases/$(database)/documents/matric_index/$(key))
+        && request.resource.data.status == 'pending'
+        && request.resource.data.submittedAt == request.time
+        && request.resource.data.via in ['qr','barcode']
+        && okStr('surname', 100) && request.resource.data.surname.size() > 0
+        && okStr('firstName', 100) && request.resource.data.firstName.size() > 0
+        && okStr('matricNo', 40) && request.resource.data.matricNo.size() > 0
+        && okStr('classSet', 100) && request.resource.data.classSet.size() > 0
+        && okStr('dob', 20) && request.resource.data.dob.size() > 0
+        && request.resource.data.sex in ['Male','Female']
+        && okStr('otherNames', 100) && okStr('patientIdentity', 20) && okStr('level', 100)
+        && okStr('department', 100) && okStr('tel', 30) && okStr('nextOfKin', 100)
+        && okStr('nextOfKinRel', 50) && okStr('nextOfKinTel', 30) && okStr('bloodGroup', 10)
+        && okStr('allergies', 200);
+      allow update: if isClinical() || isRecords() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // Self-reports (QR / barcode sick reports from students) — public create (validated), staff read
     match /self_reports/{doc} {
       allow read:  if isAnyStaff();
@@ -147,7 +178,8 @@ service cloud.firestore {
         && request.resource.data.duration is string && request.resource.data.duration.size() <= 100
         && request.resource.data.severity in ['mild','moderate','severe']
         && request.resource.data.via in ['qr','barcode']
-        && exists(/databases/$(database)/documents/matric_index/$(request.resource.data.matricKey));
+        && (exists(/databases/$(database)/documents/matric_index/$(request.resource.data.matricKey))
+            || exists(/databases/$(database)/documents/registration_requests/$(request.resource.data.matricKey)));
       allow update: if isClinical() || isAdmin();
       allow delete: if isAdmin();
     }
