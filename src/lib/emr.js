@@ -371,10 +371,11 @@ export async function createVisit(emrNumber, data, createdBy, createdByRole = nu
     updatedAt: serverTimestamp(),
   });
   if (!opts.skipStamp) {
-    // seenAt = moment they physically arrived at MRS (visit opened)
+    // NOTE: opening a visit does NOT mark the patient "seen". seenAt is only
+    // stamped when a nurse/doctor actually records care (vitals, note, assessment…)
+    // — see markSeenIfReportedSickToday.
     const patientUpdate = {
       lastVisit: serverTimestamp(),
-      seenAt:    serverTimestamp(),
       status:    'active',
     };
     // Ensure patients seen today via direct visit (not via Report Sick)
@@ -418,28 +419,19 @@ export async function getOrOpenVisit(emrNumber, data, createdBy, createdByRole =
   const visits = await getVisits(emrNumber);
   const open = visits.find(v => v.status === 'open' || v.status === 'sickbay');
 
-  // Still stamp "seen today" bookkeeping even when reusing an existing visit.
-  const patientUpdate = { lastVisit: serverTimestamp() };
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // Opening a chart is NOT a clinical encounter: no seenAt, no reportedSick stamp.
+  // (Those are written only when care is actually recorded.)
+  const patientUpdate = {};
   const existing = await getDoc(doc(db, COL.PATIENTS, emrNumber));
   const data0 = existing.exists() ? existing.data() : {};
-  const reportedSickAt = data0.reportedSickAt;
-  const reportedToday = reportedSickAt &&
-    (reportedSickAt.toDate ? reportedSickAt.toDate() : new Date(reportedSickAt)) >= today;
-  if (!reportedToday) {
-    patientUpdate.reportedSickAt  = serverTimestamp();
-    patientUpdate.reportedSickBy  = createdBy;
-    patientUpdate.reportedSickHow = 'visit';
-  }
-  const seenAt = data0.seenAt;
-  const seenToday = seenAt && (seenAt.toDate ? seenAt.toDate() : new Date(seenAt)) >= today;
-  if (!seenToday) patientUpdate.seenAt = serverTimestamp();
   // Don't clobber a patient who is currently admitted or already discharged —
   // only nudge status to 'active' if nothing more significant is in play.
   if (!open && data0.status !== 'sickbay' && data0.status !== 'discharged') {
     patientUpdate.status = 'active';
   }
-  await updatePatient(emrNumber, patientUpdate, createdBy, createdByRole);
+  if (Object.keys(patientUpdate).length) {
+    await updatePatient(emrNumber, patientUpdate, createdBy, createdByRole);
+  }
 
   if (open) return open.id;
   return createVisit(emrNumber, data, createdBy, createdByRole, { skipStamp: true });
@@ -549,18 +541,24 @@ async function markSeenIfReportedSickToday(emrNumber, by) {
       return d >= today;
     };
 
-    // Only proceed if they reported sick today
-    if (!isToday(data.reportedSickAt)) return;
+    // Already genuinely stamped today (seenBy present) → nothing to do.
+    // (A seenAt without seenBy is a legacy stamp from merely opening the chart.)
+    if (isToday(data.seenAt) && data.seenBy) return;
 
-    // Only stamp seenAt if it hasn't been set today already
-    if (isToday(data.seenAt)) return;
-
-    await updateDoc(doc(db, COL.PATIENTS, emrNumber), {
+    const upd = {
       seenAt:    serverTimestamp(),
       seenBy:    by,
       updatedAt: serverTimestamp(),
       updatedBy: by,
-    });
+    };
+    // Walk-in (not reported sick today, not an admitted ward patient):
+    // real care was recorded, so they belong on today's Sick Report as seen.
+    if (!isToday(data.reportedSickAt) && data.status !== 'sickbay') {
+      upd.reportedSickAt  = serverTimestamp();
+      upd.reportedSickBy  = by;
+      upd.reportedSickHow = 'walk-in';
+    }
+    await updateDoc(doc(db, COL.PATIENTS, emrNumber), upd);
   } catch (_) {
     // Never let this break the main care action
   }
@@ -1867,7 +1865,7 @@ export function listenSeenToday(callback) {
 
     // 3: reported sick today AND seen today
     reportedDocs.forEach(p => {
-      if (isTodayTs(p.seenAt)) {
+      if (isTodayTs(p.seenAt) && p.seenBy) {   // seenBy = real care recorded (not just chart opened)
         result.set(p.id, p);
       }
     });
