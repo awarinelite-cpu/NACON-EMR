@@ -471,6 +471,14 @@ p  { font-weight: 500; color: var(--t2); line-height: 1.6; }
   border-bottom: 1px solid var(--border);
 }
 .data-table tr:last-child td { border-bottom: none; }
+
+/* Full grid: a visible border between every row AND every column */
+.data-table.grid-table { border-collapse: collapse; border: 1px solid var(--border2, var(--border)); }
+.data-table.grid-table th,
+.data-table.grid-table td {
+  border: 1px solid var(--border2, var(--border));
+}
+.data-table.grid-table tr:last-child td { border-bottom: 1px solid var(--border2, var(--border)); }
 .data-table tr:hover td { background: var(--card-bg2); }
 
 /* MAR "Active Medications" table — self-contained scroll box.

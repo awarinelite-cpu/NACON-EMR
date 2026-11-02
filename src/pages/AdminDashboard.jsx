@@ -122,26 +122,31 @@ export default function AdminDashboard() {
               <div className="card-title"><i className="ti ti-user-cog" />Staff accounts</div>
               <span className="card-action" onClick={()=>navigate('/admin/users')}>Manage →</span>
             </div>
-            <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-            <div style={{minWidth:'max-content'}}>
-            {users.map(u => (
-              <div key={u.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}}>
-                <div style={{width:30,height:30,borderRadius:'50%',background:'var(--accent-bg)',
-                  color:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:11,fontWeight:700,flexShrink:0}}>
-                  {(u.displayName||'U').slice(0,2).toUpperCase()}
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'var(--t1)'}}>{u.displayName}</div>
-                  <div style={{fontSize:10,color:'var(--t3)'}}>{u.email}</div>
-                </div>
-                <span className={`badge ${roleBadge(u.role)}`}>{u.role}</span>
-                <span className={`badge ${u.active?'badge-ok':'badge-neutral'}`}>
-                  {u.active?'Active':'Inactive'}
-                </span>
-              </div>
-            ))}
-            </div>
+            <div className="table-scroll">
+              <table className="data-table grid-table" style={{minWidth:'max-content'}}>
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.uid}>
+                      <td style={{whiteSpace:'nowrap'}}>
+                        <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+                          <span style={{width:26,height:26,borderRadius:'50%',background:'var(--accent-bg)',color:'var(--accent)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>
+                            {(u.displayName||'U').slice(0,2).toUpperCase()}
+                          </span>
+                          <span style={{fontSize:12}}>{u.displayName || '—'}</span>
+                        </span>
+                      </td>
+                      <td style={{fontSize:11,color:'var(--t3)',whiteSpace:'nowrap'}}>{u.email || '—'}</td>
+                      <td><span className={`badge ${roleBadge(u.role)}`}>{u.role}</span></td>
+                      <td>
+                        <span className={`badge ${u.active?'badge-ok':'badge-neutral'}`}>{u.active?'Active':'Inactive'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             {users.length===0&&<div style={{padding:16,textAlign:'center',color:'var(--t3)',fontWeight:700}}>No staff users yet</div>}
           </div>
@@ -150,18 +155,23 @@ export default function AdminDashboard() {
             <div className="card-header">
               <div className="card-title"><i className="ti ti-activity" />Recent activity</div>
             </div>
-            <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-            <div style={{minWidth:'max-content'}}>
-            {patients.slice(0,6).map(p => (
-              <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',flexShrink:0}} />
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'var(--t1)'}}>Patient registered</div>
-                  <div style={{fontSize:10,color:'var(--t3)'}}>{p.surname} {p.firstName} — {p.emrNumber}</div>
-                </div>
-              </div>
-            ))}
-            </div>
+            <div className="table-scroll">
+              <table className="data-table grid-table" style={{minWidth:'max-content'}}>
+                <thead>
+                  <tr><th>Activity</th><th>Patient</th><th>EMR No.</th></tr>
+                </thead>
+                <tbody>
+                  {patients.slice(0,6).map(p => (
+                    <tr key={p.id}>
+                      <td style={{fontSize:12,whiteSpace:'nowrap'}}>
+                        <i className="ti ti-point-filled" style={{color:'var(--accent)',marginRight:4}} />Patient registered
+                      </td>
+                      <td style={{fontSize:12,whiteSpace:'nowrap'}}>{p.surname} {p.firstName}</td>
+                      <td style={{fontSize:11,color:'var(--t3)',whiteSpace:'nowrap'}}>{p.emrNumber}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
